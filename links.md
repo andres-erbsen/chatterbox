@@ -8,7 +8,7 @@ Pure Go leveldb: <https://github.com/syndtr/goleveldb>
 A GUI library for Go: <https://github.com/andlabs/ui>  
 Go implementation of Curve25519 Diffie-Hellman function: <https://code.google.com/p/go/source/browse/curve25519/?repo=crypto>  
 Related digital signature scheme: <https://github.com/agl/ed25519>  
-File system notification for Go: <https://github.com/howeyc/fsnotify> (I haven't tried this)  
+File system notification for Go: <https://github.com/go-fsnotify/fsnotify>
 `dename` client API: <http://godoc.org/github.com/andres-erbsen/dename/client#Client>  
 
 Adam Langley's `axolotl` implementation (backwards-compatible with something that Pond used before it): <https://godoc.org/github.com/agl/pond/client/ratchet>  
