@@ -1,0 +1,8 @@
+- name
+- README --> purpose, guarantees for the client, why you should care, (TODO) how to install etc.
+- crypto overview
+- server specs (communication with the clients, storage in db, something tbd about first-time conversations?)
+- client daemon specs (communication with the server + storage/erasure on the file system)
+- types of messages, documentation of what they're for
+- ideas for group chat
+- handshake synchronization
