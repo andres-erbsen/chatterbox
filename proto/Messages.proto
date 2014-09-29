@@ -1,0 +1,11 @@
+message ServerToClient {
+	enum StatusCode {
+		OK = 0;
+		PARSE_ERROR = 1;
+	}
+	required StatusCode status = 1;
+}
+
+message ClientToServer {
+	optional bool create_account = 1;
+}
