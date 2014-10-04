@@ -1,0 +1,107 @@
+File System:
+
+	Conversations: 
+		./conversationName/2014-09-24T23:59:59-yourusername.<EXT>
+			/metadata #contains users, etc.
+			* Optional extensions allowed in message headers
+			* Currently defaults to timestamp-name-name-name
+			* Timestamp format = YYYY-MM-DDTHH:MM:SS
+			* yourusername is the exact dename username, disallowing certain characters
+
+Server:
+
+GLOBAL:
+List of all clients with currently enabled notifications -> Look at thread, see if destination user is currently connected
+
+Server:
+	Accepts public key pairs for private keys (n keys)
+
+0. Account creation
+	Client: "I want an account!"
+	Server: Adds to user list, (adds 32B key) (client stores this key to authenticate itself to server)
+	Client: "Here are my public keys!"
+
+1. Startup
+2. Listen to port
+3. Accept connection
+4. While Loop:
+	For every client, fork() new Thread
+		Set up encrypted connection which also authenticates other person
+			* User may or may not be a user of the same server
+		While loop()
+			Read a message
+			Protobuff-decode message (similar to JSON)
+				Client to server:
+					* Get key information (client asks from server to send first message to som euser)
+					* Deliver an envelope to a user (must have key information to send first message)
+					Additional functionality if you are on that server
+					* Download messages sent to you (list of message IDs)
+						- Client makes sure you get all those messages
+					* Delete messages from the server (list of message IDs)
+					* Enable notify
+						- Notify client when my server receives something
+					* List messages (n)
+					* Upload keys
+					* Delete account
+						- In one atomic write:
+							- Remove you from userlist of 32B IDs
+							- Remove all user_id entries from database
+				Server to client:
+					* Push notification (new envelope!)
+					Responses					
+					* Get key information: Andres opaque blob
+					* Deliver an envelope: Status (OK or not)
+					* Download messages: List of messages 					
+					* Delete messages: Status (OK or not)
+					* Enable notify: Status (OK or not)
+					* List of messages: Message IDs/Message Hash
+					* Upload Keys: Status (OK or not)
+					* Delete account: Status (OK or not)
+						
+Notifier thread:
+	- Client passes pointer to message block to Notifier
+	- Notify thread constantly sends client all new messages
+	- When client enables notify:
+		1. Client tells user about incoming messages
+
+	type Notifier interface{
+		Deliver(Envelope*)
+		AddClient(chan <- Envelope) //Whenever we receive incoming connection
+		DeleteClient(chan <- ...) //Whenever the connection is closed
+}
+
+Message response handling:
+	1. Read the message
+	2. Save to disk
+	3. Send OK response
+
+LevelDB
+Fast mapping from Strings -> Strings
+	* Supports ordered traversals
+	* Multiple atomic writes
+	* Freeze snapshots
+	To pretend you have transactions:
+		Per-user locks:
+			Acquire lock
+			Read/write, commit
+			Release lock
+	For now, have one lock for entire key table
+		- Later can increase to k locks
+
+	LevelDB Table:
+		Messages:
+		m = message
+		message:user_id:message_hash
+			- message
+			* To find all messages of one username, go to message:length_of_username:username
+				- Loop through all message_hash until we find next username
+		Keys:
+		k = key
+		key:user_id:shorter_key_hash:
+			- key
+		Users:
+		u = user
+		user:user_id (later we will change this to have more important information)
+
+- Using SHA256 Hash
+- user_id = 32B
