@@ -7,7 +7,7 @@ package main
 //make a new user with that connection
 import (
 	"code.google.com/p/gogoprotobuf/io"
-	"github.com/asya-bergal/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/syndtr/goleveldb/leveldb"
 	"net"
 )
@@ -20,7 +20,7 @@ type Server struct {
 }
 
 func RunServer() error {
-	db, err := leveldb.OpenFile("github.com/asya-bergal/chatterbox/database", nil)
+	db, err := leveldb.OpenFile("github.com/andres-erbsen/chatterbox/database", nil)
 	if err != nil {
 		return err
 	}
