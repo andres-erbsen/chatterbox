@@ -1,0 +1,11 @@
+Order of things to do/test (- opaque blobs of crypto):
+
+1. Creating accounts X (Untested)
+2. Sticking stuff into the database X (Untested)
+3. Accepting connections X (Untested)
+4. Uploading keys
+5. Downloading keys
+6. Getting stuff to notify
+7. Listening stuff to notify
+8. Deleting messages
+

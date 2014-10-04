@@ -99,6 +99,9 @@ Fast mapping from Strings -> Strings
 		k = key
 		key:user_id:shorter_key_hash:
 			- key
+		Users:
+		u = user
+		user:user_id (later we will change this to have more important information)
 
 - Using SHA256 Hash
 - user_id = 32B
