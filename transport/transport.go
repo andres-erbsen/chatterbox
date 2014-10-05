@@ -85,6 +85,9 @@ func Handshake(unencrypted net.Conn, pk, sk *[32]byte, amClient bool, maxFrameSi
 	if <-writeDone; writeErr != nil {
 		return nil, nil, writeErr
 	}
+	for i := range ourEphemeralSecret {
+		ourEphemeralSecret[i] = 0
+	}
 	return ret, &theirPK, nil
 }
 
@@ -133,7 +136,7 @@ func (c *Conn) ReadFrame(b []byte) (int, error) {
 }
 
 func (c *Conn) Close() error {
-	for i := 0; i < 32; i++ {
+	for i := range c.key {
 		c.key[i] = 0
 	}
 	return c.unencrypted.Close()
