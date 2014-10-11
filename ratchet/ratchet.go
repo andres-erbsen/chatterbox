@@ -14,6 +14,8 @@
 package ratchet
 
 import (
+	"fmt"
+
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -43,6 +45,9 @@ type Ratchet struct {
 	// saved is a map from a header key to a map from sequence number to
 	// message key.
 	saved map[[32]byte]map[uint32]savedKey
+
+	// ourAuthPrivate is updated together with ourRatchetPrivate, but not flushed
+	ourAuthPrivate, prevAuthPrivate, theirAuthPublic [32]byte
 
 	rand io.Reader
 	now  func() time.Time
@@ -91,18 +96,20 @@ var (
 )
 
 const (
+	authSize = 16 // in the very beginning of each message
 	// handshakePreHeaderSize bytes are added before the header of the first message
 	handshakePreHeaderSize = 32 // sender's ephemeral curve25519 pk
 	// headerSize is the size, in bytes, of a header's plaintext contents.
 	headerSize = 4 /* uint32 message count */ +
 		4 /* uint32 previous message count */ +
 		32 /* curve25519 ratchet public */ +
+		32 /* curve25519 auth public */ +
 		24 /* nonce for message */
 	// sealedHeader is the size, in bytes, of an encrypted header.
 	sealedHeaderSize = 24 /* nonce */ + headerSize + secretbox.Overhead
 	// nonceInHeaderOffset is the offset of the message nonce in the
 	// header's plaintext.
-	nonceInHeaderOffset = 4 + 4 + 32
+	nonceInHeaderOffset = 4 + 4 + 32 + 32
 	// maxMissingMessages is the maximum number of missing messages that
 	// we'll keep track of.
 	maxMissingMessages = 8
@@ -128,12 +135,16 @@ func EncryptFirst(out, msg []byte, theirRatchetPublic *[32]byte, rand io.Reader,
 
 	var ourRatchetPublic [32]byte
 	curve25519.ScalarBaseMult(&ourRatchetPublic, &r.ourRatchetPrivate)
-	out = append(out, ourRatchetPublic[:]...) // TODO: use elligator for this?
-	return r, r.Encrypt(out, msg)
+	tag_idx := len(out)
+	out = append(out, make([]byte, authSize)...)
+	out = append(out, ourRatchetPublic[:]...)
+	out = r.encrypt(out, msg)
+	r.fillAuth(out[tag_idx:][:authSize], out[tag_idx+authSize:], theirRatchetPublic)
+	return r, out
 }
 
 func DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte, rand io.Reader, now func() time.Time) (*Ratchet, []byte, error) {
-	if len(ciphertext) < handshakePreHeaderSize+headerSize {
+	if len(ciphertext) < authSize+handshakePreHeaderSize+headerSize {
 		return nil, nil, errors.New("first message too short")
 	}
 	r := &Ratchet{saved: make(map[[32]byte]map[uint32]savedKey),
@@ -141,9 +152,11 @@ func DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte, rand io.Reader
 		now:  now,
 	}
 	copy(r.ourRatchetPrivate[:], ourRatchetPrivate[:])
+	copy(r.ourAuthPrivate[:], ourRatchetPrivate[:])
 
+	tag := ciphertext[:authSize]
 	var sharedKey [32]byte
-	copy(r.theirRatchetPublic[:], ciphertext[:handshakePreHeaderSize])
+	copy(r.theirRatchetPublic[:], ciphertext[authSize:][:handshakePreHeaderSize])
 	curve25519.ScalarMult(&sharedKey, &r.ourRatchetPrivate, &r.theirRatchetPublic)
 	h := hmac.New(sha256.New, sharedKey[:])
 	deriveKey(&r.rootKey, rootKeyLabel, h)
@@ -152,14 +165,16 @@ func DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte, rand io.Reader
 	deriveKey(&r.nextSendHeaderKey, nextRecvHeaderKeyLabel, h)
 	deriveKey(&r.sendChainKey, chainKeyLabel, h)
 
-	msg, err := r.Decrypt(ciphertext[handshakePreHeaderSize:])
+	msg, err := r.decryptAndCheckAuth(tag, ciphertext[authSize:], ciphertext[authSize+handshakePreHeaderSize:])
 	return r, msg, err
 }
 
-// Encrypt acts like append() but appends an encrypted version of msg to out.
-func (r *Ratchet) Encrypt(out, msg []byte) []byte {
+// encrypt acts like append() but appends an encrypted version of msg to out.
+func (r *Ratchet) encrypt(out, msg []byte) []byte {
 	if r.ratchet {
 		r.randBytes(r.ourRatchetPrivate[:])
+		copy(r.prevAuthPrivate[:], r.ourAuthPrivate[:])
+		r.randBytes(r.ourAuthPrivate[:])
 		copy(r.sendHeaderKey[:], r.nextSendHeaderKey[:])
 
 		var sharedKey, keyMaterial [32]byte
@@ -184,8 +199,9 @@ func (r *Ratchet) Encrypt(out, msg []byte) []byte {
 	deriveKey(&messageKey, messageKeyLabel, h)
 	deriveKey(&r.sendChainKey, chainKeyStepLabel, h)
 
-	var ourRatchetPublic [32]byte
+	var ourRatchetPublic, ourAuthPublic [32]byte
 	curve25519.ScalarBaseMult(&ourRatchetPublic, &r.ourRatchetPrivate)
+	curve25519.ScalarBaseMult(&ourAuthPublic, &r.ourAuthPrivate)
 	var header [headerSize]byte
 	var headerNonce, messageNonce [24]byte
 	r.randBytes(headerNonce[:])
@@ -194,11 +210,21 @@ func (r *Ratchet) Encrypt(out, msg []byte) []byte {
 	binary.LittleEndian.PutUint32(header[0:4], r.sendCount)
 	binary.LittleEndian.PutUint32(header[4:8], r.prevSendCount)
 	copy(header[8:], ourRatchetPublic[:])
+	copy(header[8+32:], ourAuthPublic[:])
 	copy(header[nonceInHeaderOffset:], messageNonce[:])
 	out = append(out, headerNonce[:]...)
 	out = secretbox.Seal(out, header[:], &headerNonce, &r.sendHeaderKey)
 	r.sendCount++
 	return secretbox.Seal(out, msg, &messageNonce, &messageKey)
+}
+
+// Encrypt acts like append() but appends an encrypted and authenticated version of msg to out.
+func (r *Ratchet) Encrypt(out, msg []byte) []byte {
+	tag_idx := len(out)
+	out = append(out, make([]byte, authSize)...)
+	out = r.encrypt(out, msg)
+	r.fillAuth(out[tag_idx:][:authSize], out[tag_idx+authSize:], &r.theirAuthPublic)
+	return out
 }
 
 // trySavedKeys tries to decrypt ciphertext using keys saved for missing messages.
@@ -323,10 +349,13 @@ func isZeroKey(key *[32]byte) bool {
 	return x == 0
 }
 
-func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
+func (r *Ratchet) decryptAndCheckAuth(authTag, authBody, ciphertext []byte) ([]byte, error) {
 	msg, err := r.trySavedKeys(ciphertext)
-	if err != nil || msg != nil {
+	if err != nil {
 		return msg, err
+	} else if msg != nil {
+		panic(0)
+		// return msg, r.checkAuth(authTag, authBody) // FIXME: move into trySavedKeys
 	}
 
 	sealedHeader := ciphertext[:sealedHeaderSize]
@@ -351,6 +380,9 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 		msg, ok := secretbox.Open(nil, sealedMessage, &nonce, &messageKey)
 		if !ok {
 			return nil, errors.New("ratchet: corrupt message")
+		}
+		if err := r.checkAuth(authTag, authBody, &r.prevAuthPrivate); err != nil {
+			return nil, err
 		}
 
 		copy(r.recvChainKey[:], provisionalChainKey[:])
@@ -379,8 +411,9 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	var dhPublic, sharedKey, rootKey, chainKey, keyMaterial [32]byte
+	var dhPublic, authPublic, sharedKey, rootKey, chainKey, keyMaterial [32]byte
 	copy(dhPublic[:], header[8:])
+	copy(authPublic[:], header[8+32:])
 
 	curve25519.ScalarMult(&sharedKey, &r.ourRatchetPrivate, &dhPublic)
 
@@ -406,6 +439,9 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	if !ok {
 		return nil, errors.New("ratchet: corrupt message")
 	}
+	if err := r.checkAuth(authTag, authBody, &r.ourAuthPrivate); err != nil {
+		return nil, err
+	}
 
 	copy(r.rootKey[:], rootKey[:])
 	copy(r.recvChainKey[:], provisionalChainKey[:])
@@ -415,6 +451,7 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 		r.ourRatchetPrivate[i] = 0
 	}
 	copy(r.theirRatchetPublic[:], dhPublic[:])
+	copy(r.theirAuthPublic[:], authPublic[:])
 
 	r.recvCount = messageNum + 1
 	r.mergeSavedKeys(oldSavedKeys)
@@ -422,6 +459,13 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	r.ratchet = true
 
 	return msg, nil
+}
+
+func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
+	if len(ciphertext) < authSize+sealedHeaderSize {
+		return nil, errors.New("ciphertext too short")
+	}
+	return r.decryptAndCheckAuth(ciphertext[:authSize], ciphertext[authSize:], ciphertext[authSize:])
 }
 
 // mergeSavedKeys takes a map of saved message keys from saveKeys and merges it
@@ -440,4 +484,15 @@ func (r *Ratchet) FlushSavedKeys(now time.Time, lifetime time.Duration) {
 			delete(r.saved, headerKey) // safe: http://golang.org/doc/effective_go.html#for
 		}
 	}
+}
+
+func (r *Ratchet) fillAuth(tag, msg []byte, theirAuthPublic *[32]byte) {
+	fmt.Printf("fillAuth(%x... to %x)\n", msg[:16], theirAuthPublic)
+}
+
+func (r *Ratchet) checkAuth(tag, msg []byte, ourAuthPrivate *[32]byte) error {
+	ourAuthPublic := new([32]byte)
+	curve25519.ScalarBaseMult(ourAuthPublic, &r.ourAuthPrivate)
+	fmt.Printf("checkAuth(%x... to %x)\n", msg[:16], ourAuthPublic)
+	return nil
 }
