@@ -78,7 +78,7 @@ func reinitRatchet(t *testing.T, r *Ratchet) *Ratchet {
 	}
 	newR.rand = rand.Reader
 	newR.now = nowFunc
-	return r
+	return newR
 
 }
 
