@@ -17,13 +17,19 @@ func nowFunc() time.Time {
 	return t
 }
 
+// TODO: test that messages with bad auth are ignored
+var dontFillAuth = func([]byte, []byte, *[32]byte) {}
+var dontCheckAuth = func([]byte, []byte, []byte, *[32]byte) error { return nil }
+
 func pairedRatchet() (a, b *Ratchet) {
 	var preKeyA, preKeyAPrivate [32]byte
 	rand.Read(preKeyAPrivate[:])
 	curve25519.ScalarBaseMult(&preKeyA, &preKeyAPrivate)
 
-	b, msgBtoA := EncryptFirst(nil, nil, &preKeyA, rand.Reader, nowFunc)
-	a, _, err := DecryptFirst(msgBtoA, &preKeyAPrivate, rand.Reader, nowFunc)
+	a = &Ratchet{Now: nowFunc, FillAuth: dontFillAuth, CheckAuth: dontCheckAuth}
+	b = &Ratchet{Now: nowFunc, FillAuth: dontFillAuth, CheckAuth: dontCheckAuth}
+	msgBtoA := b.EncryptFirst(nil, nil, &preKeyA)
+	_, err := a.DecryptFirst(msgBtoA, &preKeyAPrivate)
 	if err != nil {
 		panic(err)
 	}
@@ -72,12 +78,10 @@ func reinitRatchet(t *testing.T, r *Ratchet) *Ratchet {
 	if err != nil {
 		t.Fatalf("Failed to marshal: %s", err)
 	}
-	newR := new(Ratchet)
+	newR := &Ratchet{Now: r.Now, Rand: r.Rand, FillAuth: r.FillAuth, CheckAuth: r.CheckAuth}
 	if err := newR.Unmarshal(data); err != nil {
 		t.Fatalf("Failed to unmarshal: %s", err)
 	}
-	newR.rand = rand.Reader
-	newR.now = nowFunc
 	return newR
 
 }
