@@ -11,6 +11,9 @@ func (r *Ratchet) Proto() proto.Message           { return NewRatchetStateFromFa
 func (r *Ratchet) GetRootKey() *Byte32            { return (*Byte32)(&r.rootKey) }
 func (r *Ratchet) GetOurRatchetPrivate() *Byte32  { return (*Byte32)(&r.ourRatchetPrivate) }
 func (r *Ratchet) GetTheirRatchetPublic() *Byte32 { return (*Byte32)(&r.theirRatchetPublic) }
+func (r *Ratchet) GetPrevAuthPrivate() *Byte32    { return (*Byte32)(&r.ourAuthPrivate) }
+func (r *Ratchet) GetOurAuthPrivate() *Byte32     { return (*Byte32)(&r.ourAuthPrivate) }
+func (r *Ratchet) GetTheirAuthPublic() *Byte32    { return (*Byte32)(&r.theirAuthPublic) }
 func (r *Ratchet) GetRatchet() bool               { return r.ratchet }
 func (r *Ratchet) GetSendHeaderKey() *Byte32      { return (*Byte32)(&r.sendHeaderKey) }
 func (r *Ratchet) GetRecvHeaderKey() *Byte32      { return (*Byte32)(&r.recvHeaderKey) }
@@ -30,6 +33,7 @@ func (r *Ratchet) GetSavedKeys() []RatchetState_SavedKeys {
 		ret[i].MessageKeys = make([]RatchetState_SavedKeys_MessageKey, len(messageKeys))
 		j := 0
 		for messageNum, savedKey := range messageKeys {
+			ret[i].AuthPrivate = (*Byte32)(&savedKey.authPriv)
 			ret[i].MessageKeys[j].Num = messageNum
 			ret[i].MessageKeys[j].Key = (*Byte32)(&savedKey.key)
 			ret[i].MessageKeys[j].CreationTime = savedKey.timestamp.Unix()
@@ -64,6 +68,9 @@ func (r *Ratchet) FillFromFace(that RatchetStateFace) *Ratchet {
 	r.ratchet = that.GetRatchet()
 	r.ourRatchetPrivate = *that.GetOurRatchetPrivate()
 	r.theirRatchetPublic = *that.GetTheirRatchetPublic()
+	r.ourAuthPrivate = *that.GetOurAuthPrivate()
+	r.prevAuthPrivate = *that.GetPrevAuthPrivate()
+	r.theirAuthPublic = *that.GetTheirAuthPublic()
 	r.saved = make(map[[32]byte]map[uint32]savedKey)
 	for _, saved := range that.GetSavedKeys() {
 		messageKeys := make(map[uint32]savedKey)
@@ -71,6 +78,7 @@ func (r *Ratchet) FillFromFace(that RatchetStateFace) *Ratchet {
 			messageKeys[messageKey.GetNum()] = savedKey{
 				key:       *messageKey.Key,
 				timestamp: time.Unix(messageKey.GetCreationTime(), 0),
+				authPriv:  *saved.GetAuthPrivate(),
 			}
 		}
 		r.saved[*saved.HeaderKey] = messageKeys

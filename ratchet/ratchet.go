@@ -14,9 +14,6 @@
 package ratchet
 
 import (
-	"bytes"
-	"fmt"
-
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -492,18 +489,8 @@ func (r *Ratchet) FlushSavedKeys(now time.Time, lifetime time.Duration) {
 }
 
 func (r *Ratchet) fillAuth(tag, msg []byte, theirAuthPublic *[32]byte) {
-	fmt.Printf("fillAuth(%x... to %x)\n", msg[:16], theirAuthPublic)
 }
 
 func (r *Ratchet) checkAuth(tag, msg []byte, ourAuthPrivate *[32]byte) error {
-	ourAuthPublic := new([32]byte)
-	curve25519.ScalarBaseMult(ourAuthPublic, &r.ourAuthPrivate)
-	fmt.Printf("checkAuth(%x... to %x)\n", msg[:16], ourAuthPublic)
-
-	nilPub, nilPriv := new([32]byte), new([32]byte)
-	curve25519.ScalarBaseMult(nilPub, nilPriv)
-	if bytes.Equal(nilPub[:], ourAuthPublic[:]) {
-		panic("we have nil key")
-	}
 	return nil
 }

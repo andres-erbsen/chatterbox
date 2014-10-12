@@ -40,14 +40,23 @@ message RatchetState {
 	required uint32 recv_count = 12 [(gogoproto.nullable) = false];
 	required uint32 prev_send_count = 13 [(gogoproto.nullable) = false];
 
+	// Auth keys are updated together with Diffie-Hellman ratchet keys, but
+	// they are kept around longer. Public-key authenticators between the
+	// sender's long-term key and the receiver's current auth key can be used
+	// to authenticate messages.
+	required bytes prev_auth_private = 14 [(gogoproto.customtype) = "Byte32"];
+	required bytes our_auth_private = 15 [(gogoproto.customtype) = "Byte32"];
+	required bytes their_auth_public = 16 [(gogoproto.customtype) = "Byte32"];
+
 	message SavedKeys {
 		required bytes header_key = 1 [(gogoproto.customtype) = "Byte32"];
+		required bytes auth_private = 2 [(gogoproto.customtype) = "Byte32"];
 		message MessageKey {
 			required uint32 num = 1 [(gogoproto.nullable) = false];
 			required bytes key = 2 [(gogoproto.customtype) = "Byte32"];
 			required int64 creation_time = 3 [(gogoproto.nullable) = false];
 		}
-		repeated MessageKey message_keys = 2 [(gogoproto.nullable) = false];
+		repeated MessageKey message_keys = 3 [(gogoproto.nullable) = false];
 	}
-	repeated SavedKeys saved_keys = 16 [(gogoproto.nullable) = false];
+	repeated SavedKeys saved_keys = 17 [(gogoproto.nullable) = false];
 }

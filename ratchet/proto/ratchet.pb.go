@@ -51,10 +51,17 @@ type RatchetState struct {
 	// Number of messages under the current and the previous header keys, the
 	// send_count variables are sent in headers to enable detection of dropped
 	// or out-of-order messages.
-	SendCount        uint32                   `protobuf:"varint,11,req,name=send_count" json:"send_count"`
-	RecvCount        uint32                   `protobuf:"varint,12,req,name=recv_count" json:"recv_count"`
-	PrevSendCount    uint32                   `protobuf:"varint,13,req,name=prev_send_count" json:"prev_send_count"`
-	SavedKeys        []RatchetState_SavedKeys `protobuf:"bytes,16,rep,name=saved_keys" json:"saved_keys"`
+	SendCount     uint32 `protobuf:"varint,11,req,name=send_count" json:"send_count"`
+	RecvCount     uint32 `protobuf:"varint,12,req,name=recv_count" json:"recv_count"`
+	PrevSendCount uint32 `protobuf:"varint,13,req,name=prev_send_count" json:"prev_send_count"`
+	// Auth keys are updated together with Diffie-Hellman ratchet keys, but
+	// they are kept around longer. Public-key authenticators between the
+	// sender's long-term key and the receiver's current auth key can be used
+	// to authenticate messages.
+	PrevAuthPrivate  *Byte32                  `protobuf:"bytes,14,req,name=prev_auth_private,customtype=Byte32" json:"prev_auth_private,omitempty"`
+	OurAuthPrivate   *Byte32                  `protobuf:"bytes,15,req,name=our_auth_private,customtype=Byte32" json:"our_auth_private,omitempty"`
+	TheirAuthPublic  *Byte32                  `protobuf:"bytes,16,req,name=their_auth_public,customtype=Byte32" json:"their_auth_public,omitempty"`
+	SavedKeys        []RatchetState_SavedKeys `protobuf:"bytes,17,rep,name=saved_keys" json:"saved_keys"`
 	XXX_unrecognized []byte                   `json:"-"`
 }
 
@@ -64,7 +71,8 @@ func (*RatchetState) ProtoMessage()    {}
 
 type RatchetState_SavedKeys struct {
 	HeaderKey        *Byte32                             `protobuf:"bytes,1,req,name=header_key,customtype=Byte32" json:"header_key,omitempty"`
-	MessageKeys      []RatchetState_SavedKeys_MessageKey `protobuf:"bytes,2,rep,name=message_keys" json:"message_keys"`
+	AuthPrivate      *Byte32                             `protobuf:"bytes,2,req,name=auth_private,customtype=Byte32" json:"auth_private,omitempty"`
+	MessageKeys      []RatchetState_SavedKeys_MessageKey `protobuf:"bytes,3,rep,name=message_keys" json:"message_keys"`
 	XXX_unrecognized []byte                              `json:"-"`
 }
 
@@ -391,7 +399,82 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 14:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PrevAuthPrivate", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PrevAuthPrivate = &Byte32{}
+			if err := m.PrevAuthPrivate.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
+			index = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OurAuthPrivate", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OurAuthPrivate = &Byte32{}
+			if err := m.OurAuthPrivate.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
+			index = postIndex
 		case 16:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TheirAuthPublic", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TheirAuthPublic = &Byte32{}
+			if err := m.TheirAuthPublic.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
+			index = postIndex
+		case 17:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field SavedKeys", wireType)
 			}
@@ -482,6 +565,31 @@ func (m *RatchetState_SavedKeys) Unmarshal(data []byte) error {
 			}
 			index = postIndex
 		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AuthPrivate", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AuthPrivate = &Byte32{}
+			if err := m.AuthPrivate.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
+			index = postIndex
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MessageKeys", wireType)
 			}
@@ -667,6 +775,18 @@ func (m *RatchetState) Size() (n int) {
 	n += 1 + sovRatchet(uint64(m.SendCount))
 	n += 1 + sovRatchet(uint64(m.RecvCount))
 	n += 1 + sovRatchet(uint64(m.PrevSendCount))
+	if m.PrevAuthPrivate != nil {
+		l = m.PrevAuthPrivate.Size()
+		n += 1 + l + sovRatchet(uint64(l))
+	}
+	if m.OurAuthPrivate != nil {
+		l = m.OurAuthPrivate.Size()
+		n += 1 + l + sovRatchet(uint64(l))
+	}
+	if m.TheirAuthPublic != nil {
+		l = m.TheirAuthPublic.Size()
+		n += 2 + l + sovRatchet(uint64(l))
+	}
 	if len(m.SavedKeys) > 0 {
 		for _, e := range m.SavedKeys {
 			l = e.Size()
@@ -683,6 +803,10 @@ func (m *RatchetState_SavedKeys) Size() (n int) {
 	_ = l
 	if m.HeaderKey != nil {
 		l = m.HeaderKey.Size()
+		n += 1 + l + sovRatchet(uint64(l))
+	}
+	if m.AuthPrivate != nil {
+		l = m.AuthPrivate.Size()
 		n += 1 + l + sovRatchet(uint64(l))
 	}
 	if len(m.MessageKeys) > 0 {
@@ -739,6 +863,9 @@ func NewPopulatedRatchetState(r randyRatchet, easy bool) *RatchetState {
 	this.SendCount = r.Uint32()
 	this.RecvCount = r.Uint32()
 	this.PrevSendCount = r.Uint32()
+	this.PrevAuthPrivate = NewPopulatedByte32(r)
+	this.OurAuthPrivate = NewPopulatedByte32(r)
+	this.TheirAuthPublic = NewPopulatedByte32(r)
 	if r.Intn(10) != 0 {
 		v1 := r.Intn(10)
 		this.SavedKeys = make([]RatchetState_SavedKeys, v1)
@@ -748,7 +875,7 @@ func NewPopulatedRatchetState(r randyRatchet, easy bool) *RatchetState {
 		}
 	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedRatchet(r, 17)
+		this.XXX_unrecognized = randUnrecognizedRatchet(r, 18)
 	}
 	return this
 }
@@ -756,6 +883,7 @@ func NewPopulatedRatchetState(r randyRatchet, easy bool) *RatchetState {
 func NewPopulatedRatchetState_SavedKeys(r randyRatchet, easy bool) *RatchetState_SavedKeys {
 	this := &RatchetState_SavedKeys{}
 	this.HeaderKey = NewPopulatedByte32(r)
+	this.AuthPrivate = NewPopulatedByte32(r)
 	if r.Intn(10) != 0 {
 		v3 := r.Intn(10)
 		this.MessageKeys = make([]RatchetState_SavedKeys_MessageKey, v3)
@@ -765,7 +893,7 @@ func NewPopulatedRatchetState_SavedKeys(r randyRatchet, easy bool) *RatchetState
 		}
 	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedRatchet(r, 3)
+		this.XXX_unrecognized = randUnrecognizedRatchet(r, 4)
 	}
 	return this
 }
@@ -976,9 +1104,41 @@ func (m *RatchetState) MarshalTo(data []byte) (n int, err error) {
 	data[i] = 0x68
 	i++
 	i = encodeVarintRatchet(data, i, uint64(m.PrevSendCount))
+	if m.PrevAuthPrivate != nil {
+		data[i] = 0x72
+		i++
+		i = encodeVarintRatchet(data, i, uint64(m.PrevAuthPrivate.Size()))
+		n10, err := m.PrevAuthPrivate.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n10
+	}
+	if m.OurAuthPrivate != nil {
+		data[i] = 0x7a
+		i++
+		i = encodeVarintRatchet(data, i, uint64(m.OurAuthPrivate.Size()))
+		n11, err := m.OurAuthPrivate.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n11
+	}
+	if m.TheirAuthPublic != nil {
+		data[i] = 0x82
+		i++
+		data[i] = 0x1
+		i++
+		i = encodeVarintRatchet(data, i, uint64(m.TheirAuthPublic.Size()))
+		n12, err := m.TheirAuthPublic.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n12
+	}
 	if len(m.SavedKeys) > 0 {
 		for _, msg := range m.SavedKeys {
-			data[i] = 0x82
+			data[i] = 0x8a
 			i++
 			data[i] = 0x1
 			i++
@@ -1014,15 +1174,25 @@ func (m *RatchetState_SavedKeys) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0xa
 		i++
 		i = encodeVarintRatchet(data, i, uint64(m.HeaderKey.Size()))
-		n10, err := m.HeaderKey.MarshalTo(data[i:])
+		n13, err := m.HeaderKey.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n10
+		i += n13
+	}
+	if m.AuthPrivate != nil {
+		data[i] = 0x12
+		i++
+		i = encodeVarintRatchet(data, i, uint64(m.AuthPrivate.Size()))
+		n14, err := m.AuthPrivate.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n14
 	}
 	if len(m.MessageKeys) > 0 {
 		for _, msg := range m.MessageKeys {
-			data[i] = 0x12
+			data[i] = 0x1a
 			i++
 			i = encodeVarintRatchet(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -1059,11 +1229,11 @@ func (m *RatchetState_SavedKeys_MessageKey) MarshalTo(data []byte) (n int, err e
 		data[i] = 0x12
 		i++
 		i = encodeVarintRatchet(data, i, uint64(m.Key.Size()))
-		n11, err := m.Key.MarshalTo(data[i:])
+		n15, err := m.Key.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n11
+		i += n15
 	}
 	data[i] = 0x18
 	i++
@@ -1116,6 +1286,9 @@ type RatchetStateFace interface {
 	GetSendCount() uint32
 	GetRecvCount() uint32
 	GetPrevSendCount() uint32
+	GetPrevAuthPrivate() *Byte32
+	GetOurAuthPrivate() *Byte32
+	GetTheirAuthPublic() *Byte32
 	GetSavedKeys() []RatchetState_SavedKeys
 }
 
@@ -1179,6 +1352,18 @@ func (this *RatchetState) GetPrevSendCount() uint32 {
 	return this.PrevSendCount
 }
 
+func (this *RatchetState) GetPrevAuthPrivate() *Byte32 {
+	return this.PrevAuthPrivate
+}
+
+func (this *RatchetState) GetOurAuthPrivate() *Byte32 {
+	return this.OurAuthPrivate
+}
+
+func (this *RatchetState) GetTheirAuthPublic() *Byte32 {
+	return this.TheirAuthPublic
+}
+
 func (this *RatchetState) GetSavedKeys() []RatchetState_SavedKeys {
 	return this.SavedKeys
 }
@@ -1198,6 +1383,9 @@ func NewRatchetStateFromFace(that RatchetStateFace) *RatchetState {
 	this.SendCount = that.GetSendCount()
 	this.RecvCount = that.GetRecvCount()
 	this.PrevSendCount = that.GetPrevSendCount()
+	this.PrevAuthPrivate = that.GetPrevAuthPrivate()
+	this.OurAuthPrivate = that.GetOurAuthPrivate()
+	this.TheirAuthPublic = that.GetTheirAuthPublic()
 	this.SavedKeys = that.GetSavedKeys()
 	return this
 }
@@ -1205,6 +1393,7 @@ func NewRatchetStateFromFace(that RatchetStateFace) *RatchetState {
 type RatchetState_SavedKeysFace interface {
 	Proto() code_google_com_p_gogoprotobuf_proto1.Message
 	GetHeaderKey() *Byte32
+	GetAuthPrivate() *Byte32
 	GetMessageKeys() []RatchetState_SavedKeys_MessageKey
 }
 
@@ -1220,6 +1409,10 @@ func (this *RatchetState_SavedKeys) GetHeaderKey() *Byte32 {
 	return this.HeaderKey
 }
 
+func (this *RatchetState_SavedKeys) GetAuthPrivate() *Byte32 {
+	return this.AuthPrivate
+}
+
 func (this *RatchetState_SavedKeys) GetMessageKeys() []RatchetState_SavedKeys_MessageKey {
 	return this.MessageKeys
 }
@@ -1227,6 +1420,7 @@ func (this *RatchetState_SavedKeys) GetMessageKeys() []RatchetState_SavedKeys_Me
 func NewRatchetState_SavedKeysFromFace(that RatchetState_SavedKeysFace) *RatchetState_SavedKeys {
 	this := &RatchetState_SavedKeys{}
 	this.HeaderKey = that.GetHeaderKey()
+	this.AuthPrivate = that.GetAuthPrivate()
 	this.MessageKeys = that.GetMessageKeys()
 	return this
 }
@@ -1361,6 +1555,27 @@ func (this *RatchetState) Equal(that interface{}) bool {
 	if this.PrevSendCount != that1.PrevSendCount {
 		return false
 	}
+	if that1.PrevAuthPrivate == nil {
+		if this.PrevAuthPrivate != nil {
+			return false
+		}
+	} else if !this.PrevAuthPrivate.Equal(*that1.PrevAuthPrivate) {
+		return false
+	}
+	if that1.OurAuthPrivate == nil {
+		if this.OurAuthPrivate != nil {
+			return false
+		}
+	} else if !this.OurAuthPrivate.Equal(*that1.OurAuthPrivate) {
+		return false
+	}
+	if that1.TheirAuthPublic == nil {
+		if this.TheirAuthPublic != nil {
+			return false
+		}
+	} else if !this.TheirAuthPublic.Equal(*that1.TheirAuthPublic) {
+		return false
+	}
 	if len(this.SavedKeys) != len(that1.SavedKeys) {
 		return false
 	}
@@ -1399,6 +1614,13 @@ func (this *RatchetState_SavedKeys) Equal(that interface{}) bool {
 			return false
 		}
 	} else if !this.HeaderKey.Equal(*that1.HeaderKey) {
+		return false
+	}
+	if that1.AuthPrivate == nil {
+		if this.AuthPrivate != nil {
+			return false
+		}
+	} else if !this.AuthPrivate.Equal(*that1.AuthPrivate) {
 		return false
 	}
 	if len(this.MessageKeys) != len(that1.MessageKeys) {
