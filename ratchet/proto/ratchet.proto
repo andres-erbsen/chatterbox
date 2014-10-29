@@ -1,0 +1,53 @@
+package proto;
+
+import "code.google.com/p/gogoprotobuf/gogoproto/gogo.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.stringer_all) = false;
+option (gogoproto.face_all) = true;
+
+option (gogoproto.equal_all) = true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+
+message RatchetState {
+	// Diffie-Hellman ratchet clicks once per round trip and provides security
+    // against comrpomises of old ratchet states.
+	required bytes root_key = 1 [(gogoproto.customtype) = "Byte32"];
+	required bytes our_ratchet_private = 2 [(gogoproto.customtype) = "Byte32"];
+	required bytes their_ratchet_public = 3 [(gogoproto.customtype) = "Byte32"];
+	// Update the DH ratchet on next send?
+	required bool ratchet = 4 [(gogoproto.nullable) = false];
+	// Header keys are synced to the Diffie-Hellman ratchet
+	required bytes send_header_key = 5 [(gogoproto.customtype) = "Byte32"];
+	required bytes recv_header_key = 6 [(gogoproto.customtype) = "Byte32"];
+	required bytes next_send_header_key = 7 [(gogoproto.customtype) = "Byte32"];
+	required bytes next_recv_header_key = 8 [(gogoproto.customtype) = "Byte32"];
+
+	// The sending and receiving hash ratchets are seeded using the DH-ratchet
+	// and click right after each time a message is sent or received to provide
+	// immediate forward secrecy.
+	required bytes send_chain_key = 9 [(gogoproto.customtype) = "Byte32"];
+	required bytes recv_chain_key = 10 [(gogoproto.customtype) = "Byte32"];
+	// Number of messages under the current and the previous header keys, the
+	// send_count variables are sent in headers to enable detection of dropped
+	// or out-of-order messages.
+	required uint32 send_count = 11 [(gogoproto.nullable) = false];
+	required uint32 recv_count = 12 [(gogoproto.nullable) = false];
+	required uint32 prev_send_count = 13 [(gogoproto.nullable) = false];
+
+	message SavedKeys {
+		required bytes header_key = 1 [(gogoproto.customtype) = "Byte32"];
+		message MessageKey {
+			required uint32 num = 1 [(gogoproto.nullable) = false];
+			required bytes key = 2 [(gogoproto.customtype) = "Byte32"];
+			required int64 creation_time = 3 [(gogoproto.nullable) = false];
+		}
+		repeated MessageKey message_keys = 2 [(gogoproto.nullable) = false];
+	}
+	repeated SavedKeys saved_keys = 16 [(gogoproto.nullable) = false];
+}
