@@ -1,0 +1,16 @@
+What does the client daemon need to do?
+
+
+New messages from server:
+-- regularly query/push notifications --> receive new messages in a timely manner
+---- parse metadata, add to conversation tree
+---- message w/o metadata goes in conversation folder, metadata goes in its own file
+-- what if the message isn't the first one in the conversation and it has conflicting metadata?
+---- only one subject per conversation (comes from the first message)
+---- each message has a file type (MIME/extension/both?); note: need limits on what characters can be in the extension
+
+New messages to the server:
+-- inotify --> detect new messages to send
+-- structure for sent messages: folder for messages to send; within that folder we have another folder for each conversation currently stored
+-- to send a reply to a conversation, move a file into that folder --> daemon detects this file and sends it using that conversation's metadata, then deletes the file
+-- to create a new conversation, create a new conversation folder under temp. Create a metadata file in that folder containing the recipients (and optionally other data like subject, file type, etc). Create the file to send. Move the folder from temp to the send directory --> daemon detects the directory + contents, sends the message, and deletes the folder's contents

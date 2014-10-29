@@ -1,0 +1,27 @@
+UIs -- what does a minimal command line UI need to do?
+
+List of conversations
+-- display a table with columns: sender/alias, date, subject; indicator for read/unread, number unread
+-- fill extra space on line with a snippet of the conversation
+-- delete
+-- inotify --> autorefresh
+
+Messages in a conversation
+-- messages in order; render what it can (conservatively)
+-- possibly: method of selecting messages; allow user to run commands on messages or use a default command. Alternatively just make it easy to copy the path
+-- reply
+-- delete
+-- inotify --> autorefresh
+
+
+Possible features later:
+-- folders/labels: mostly useful if you actually try to save messages
+-- some mechanism for saving messages longer term (set a field in the metadata for how long to keep the message)
+-- some mechanism for warning the user before conversations get deleted (enable per conversation? default enable for conversations you've sent mail in?)
+-- shortcut on conversation for sending an ACK message
+-- something about consistent ordering of messages in a conversation between sender/receiver, or at least alerts of when messages are likely out of order
+-- detect if daemon is alive/connectivity state
+
+-- notifications of new messages: separate process (i.e. might want them to be graphical even if you're using a command line client)
+
+TODO: pretend to use the UI. i.e. one person uses it to browse email, another person manually operates the UI. Figure out what features are mising
