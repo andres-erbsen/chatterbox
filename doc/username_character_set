@@ -1,0 +1,4 @@
+TODO. The basic idea is to avoid:
+-- having characters that look the same to the user but are different
+-- (if the username is being used in a file/directory name) no "/" or ".." or anything messy like that
+-- to the extent possible, conflicts with othe dename names (dename names don't have these restrictions so there will be some collisions. Minimize the impact)
