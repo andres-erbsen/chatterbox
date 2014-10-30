@@ -10,7 +10,7 @@ New messages from server:
 ---- each message has a file type (MIME/extension/both?); note: need limits on what characters can be in the extension
 
 New messages to the server:
--- inotify --> detect new messages to send
+-- inotify --> detect new messages/conversations in the outbox to send
 -- structure for sent messages: folder for messages to send; within that folder we have another folder for each conversation currently stored
 -- to send a reply to a conversation, move a file into that folder --> daemon detects this file and sends it using that conversation's metadata, then deletes the file
--- to create a new conversation, create a new conversation folder under temp. Create a metadata file in that folder containing the recipients (and optionally other data like subject, file type, etc). Create the file to send. Move the folder from temp to the send directory --> daemon detects the directory + contents, sends the message, and deletes the folder's contents
+-- to create a new conversation, create a new conversation folder under tmp. Create a metadata file in that folder containing the recipients (and optionally other data like subject, file type, etc). Create the file to send. Move the folder from temp to the send directory --> daemon detects the directory + contents, sends the message, and deletes the folder's contents
