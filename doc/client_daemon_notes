@@ -14,3 +14,8 @@ New messages to the server:
 -- structure for sent messages: folder for messages to send; within that folder we have another folder for each conversation currently stored
 -- to send a reply to a conversation, move a file into that folder --> daemon detects this file and sends it using that conversation's metadata, then deletes the file
 -- to create a new conversation, create a new conversation folder under tmp. Create a metadata file in that folder containing the recipients (and optionally other data like subject, file type, etc). Create the file to send. Move the folder from temp to the send directory --> daemon detects the directory + contents, sends the message, and deletes the folder's contents
+
+Deleting old messages:
+-- on start iterate through all messages on disk and check their modification times. If a message hasn't been modified in the past <max_age> days then delete it.
+-- Also set a timer for the next expiration time of a message --> delete that when the timer runs out (etc)
+-- Also delete file in /tmp older than <max_tmp_age>
