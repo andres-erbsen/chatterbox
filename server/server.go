@@ -7,13 +7,15 @@ package main
 //make a new user with that connection
 import (
 	"code.google.com/p/gogoprotobuf/io"
+	"crypto/sha256"
+	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/syndtr/goleveldb/leveldb"
 	"net"
 )
 
 type Uid [32]byte
-type Envelope struct{}
+type Envelope []byte
 
 type Server struct {
 	database *leveldb.DB
@@ -64,7 +66,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 	go server.listenForClientShutdown(newConnection)
 	reader := io.NewDelimitedReader(newConnection, 16*1024)
 	writer := io.NewDelimitedWriter(newConnection)
-	command := new(Messages.ClientToServer)
+	command := new(proto.ClientToServer)
 	for {
 		if err := reader.ReadMsg(command); err != nil {
 			return err
@@ -74,24 +76,50 @@ func (server *Server) handleClient(connection net.Conn) error {
 				return err
 			}
 		}
+		if command.DeliverEnvelope != nil {
+			user := *(*Uid)(command.DeliverEnvelope.User)
+			envelope := command.DeliverEnvelope.Envelope
+			if err := server.deliverEnvelope(newConnection, user, envelope, writer); err != nil {
+				return err
+			}
+		}
 	}
 }
 
-func (server *Server) createAccount(connection net.Conn, uid Uid, writer io.Writer) error {
-	if err := server.newUser(connection, uid); err != nil {
-		if err := server.writeResponse(writer, Messages.ServerToClient_PARSE_ERROR.Enum()); err != nil {
+func (server *Server) deliverEnvelope(connection net.Conn, user Uid, envelope Envelope, writer io.Writer) error {
+	fmt.Printf("Something")
+	if err := server.newMessage(connection, user, envelope); err != nil {
+		if err := server.writeResponse(writer, proto.ServerToClient_PARSE_ERROR.Enum()); err != nil {
 			return err
 		}
 		return err
 	}
-	return server.writeResponse(writer, Messages.ServerToClient_OK.Enum())
+	return server.writeResponse(writer, proto.ServerToClient_OK.Enum())
 }
 
-func (Server *Server) writeResponse(writer io.Writer, status *Messages.ServerToClient_StatusCode) error {
-	response := &Messages.ServerToClient{
+func (server *Server) createAccount(connection net.Conn, uid Uid, writer io.Writer) error {
+	fmt.Printf("Something")
+	if err := server.newUser(connection, uid); err != nil {
+		fmt.Printf("%v\n", err)
+		if err := server.writeResponse(writer, proto.ServerToClient_PARSE_ERROR.Enum()); err != nil {
+			return err
+		}
+		return err
+	}
+	return server.writeResponse(writer, proto.ServerToClient_OK.Enum())
+}
+
+func (Server *Server) writeResponse(writer io.Writer, status *proto.ServerToClient_StatusCode) error {
+	response := &proto.ServerToClient{
 		Status: status,
 	}
 	return writer.WriteMsg(response)
+}
+
+func (server *Server) newMessage(connection net.Conn, uid Uid, envelope Envelope) error {
+	// add message to the database
+	messageHash := sha256.Sum256(envelope)
+	return server.database.Put(append(append([]byte{'m'}, uid[:]...), messageHash[:]...), envelope[:], nil)
 }
 
 func (server *Server) newUser(connection net.Conn, uid Uid) error {

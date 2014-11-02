@@ -1,3 +1,7 @@
+package proto;
+
+import "code.google.com/p/gogoprotobuf/gogoproto/gogo.proto";
+
 message ServerToClient {
 	enum StatusCode {
 		OK = 0;
@@ -6,6 +10,13 @@ message ServerToClient {
 	required StatusCode status = 1;
 }
 
-message ClientToServer {
+message ClientToServer {	
+	
 	optional bool create_account = 1;
+	message DeliverEnvelope {
+		required bytes User = 3 [(gogoproto.customtype) = "Byte32"];
+		required bytes Envelope = 4;
+	}	
+	optional DeliverEnvelope deliver_envelope = 2; 
 }
+

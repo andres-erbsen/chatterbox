@@ -18,6 +18,8 @@ import math "math"
 
 // discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
 
+import github_com_andres_erbsen_chatterbox_proto "github.com/andres-erbsen/chatterbox/proto"
+
 import io "io"
 import fmt "fmt"
 import code_google_com_p_gogoprotobuf_proto "code.google.com/p/gogoprotobuf/proto"
@@ -33,21 +35,21 @@ var _ = math.Inf
 type RatchetState struct {
 	// Diffie-Hellman ratchet clicks once per round trip and provides security
 	// against comrpomises of old ratchet states.
-	RootKey            *Byte32 `protobuf:"bytes,1,req,name=root_key,customtype=Byte32" json:"root_key,omitempty"`
-	OurRatchetPrivate  *Byte32 `protobuf:"bytes,2,req,name=our_ratchet_private,customtype=Byte32" json:"our_ratchet_private,omitempty"`
-	TheirRatchetPublic *Byte32 `protobuf:"bytes,3,req,name=their_ratchet_public,customtype=Byte32" json:"their_ratchet_public,omitempty"`
+	RootKey            *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,1,req,name=root_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"root_key,omitempty"`
+	OurRatchetPrivate  *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,2,req,name=our_ratchet_private,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"our_ratchet_private,omitempty"`
+	TheirRatchetPublic *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,3,req,name=their_ratchet_public,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"their_ratchet_public,omitempty"`
 	// Update the DH ratchet on next send?
 	Ratchet bool `protobuf:"varint,4,req,name=ratchet" json:"ratchet"`
 	// Header keys are synced to the Diffie-Hellman ratchet
-	SendHeaderKey     *Byte32 `protobuf:"bytes,5,req,name=send_header_key,customtype=Byte32" json:"send_header_key,omitempty"`
-	RecvHeaderKey     *Byte32 `protobuf:"bytes,6,req,name=recv_header_key,customtype=Byte32" json:"recv_header_key,omitempty"`
-	NextSendHeaderKey *Byte32 `protobuf:"bytes,7,req,name=next_send_header_key,customtype=Byte32" json:"next_send_header_key,omitempty"`
-	NextRecvHeaderKey *Byte32 `protobuf:"bytes,8,req,name=next_recv_header_key,customtype=Byte32" json:"next_recv_header_key,omitempty"`
+	SendHeaderKey     *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,5,req,name=send_header_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"send_header_key,omitempty"`
+	RecvHeaderKey     *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,6,req,name=recv_header_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"recv_header_key,omitempty"`
+	NextSendHeaderKey *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,7,req,name=next_send_header_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"next_send_header_key,omitempty"`
+	NextRecvHeaderKey *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,8,req,name=next_recv_header_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"next_recv_header_key,omitempty"`
 	// The sending and receiving hash ratchets are seeded using the DH-ratchet
 	// and click right after each time a message is sent or received to provide
 	// immediate forward secrecy.
-	SendChainKey *Byte32 `protobuf:"bytes,9,req,name=send_chain_key,customtype=Byte32" json:"send_chain_key,omitempty"`
-	RecvChainKey *Byte32 `protobuf:"bytes,10,req,name=recv_chain_key,customtype=Byte32" json:"recv_chain_key,omitempty"`
+	SendChainKey *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,9,req,name=send_chain_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"send_chain_key,omitempty"`
+	RecvChainKey *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,10,req,name=recv_chain_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"recv_chain_key,omitempty"`
 	// Number of messages under the current and the previous header keys, the
 	// send_count variables are sent in headers to enable detection of dropped
 	// or out-of-order messages.
@@ -63,9 +65,9 @@ func (m *RatchetState) String() string { return proto1.CompactTextString(m) }
 func (*RatchetState) ProtoMessage()    {}
 
 type RatchetState_SavedKeys struct {
-	HeaderKey        *Byte32                             `protobuf:"bytes,1,req,name=header_key,customtype=Byte32" json:"header_key,omitempty"`
-	MessageKeys      []RatchetState_SavedKeys_MessageKey `protobuf:"bytes,2,rep,name=message_keys" json:"message_keys"`
-	XXX_unrecognized []byte                              `json:"-"`
+	HeaderKey        *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,1,req,name=header_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"header_key,omitempty"`
+	MessageKeys      []RatchetState_SavedKeys_MessageKey               `protobuf:"bytes,2,rep,name=message_keys" json:"message_keys"`
+	XXX_unrecognized []byte                                            `json:"-"`
 }
 
 func (m *RatchetState_SavedKeys) Reset()         { *m = RatchetState_SavedKeys{} }
@@ -73,10 +75,10 @@ func (m *RatchetState_SavedKeys) String() string { return proto1.CompactTextStri
 func (*RatchetState_SavedKeys) ProtoMessage()    {}
 
 type RatchetState_SavedKeys_MessageKey struct {
-	Num              uint32  `protobuf:"varint,1,req,name=num" json:"num"`
-	Key              *Byte32 `protobuf:"bytes,2,req,name=key,customtype=Byte32" json:"key,omitempty"`
-	CreationTime     int64   `protobuf:"varint,3,req,name=creation_time" json:"creation_time"`
-	XXX_unrecognized []byte  `json:"-"`
+	Num              uint32                                            `protobuf:"varint,1,req,name=num" json:"num"`
+	Key              *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,2,req,name=key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"key,omitempty"`
+	CreationTime     int64                                             `protobuf:"varint,3,req,name=creation_time" json:"creation_time"`
+	XXX_unrecognized []byte                                            `json:"-"`
 }
 
 func (m *RatchetState_SavedKeys_MessageKey) Reset()         { *m = RatchetState_SavedKeys_MessageKey{} }
@@ -124,7 +126,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RootKey = &Byte32{}
+			m.RootKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.RootKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -149,7 +151,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.OurRatchetPrivate = &Byte32{}
+			m.OurRatchetPrivate = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.OurRatchetPrivate.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -174,7 +176,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.TheirRatchetPublic = &Byte32{}
+			m.TheirRatchetPublic = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.TheirRatchetPublic.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -216,7 +218,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.SendHeaderKey = &Byte32{}
+			m.SendHeaderKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.SendHeaderKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -241,7 +243,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RecvHeaderKey = &Byte32{}
+			m.RecvHeaderKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.RecvHeaderKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -266,7 +268,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.NextSendHeaderKey = &Byte32{}
+			m.NextSendHeaderKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.NextSendHeaderKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -291,7 +293,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.NextRecvHeaderKey = &Byte32{}
+			m.NextRecvHeaderKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.NextRecvHeaderKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -316,7 +318,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.SendChainKey = &Byte32{}
+			m.SendChainKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.SendChainKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -341,7 +343,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RecvChainKey = &Byte32{}
+			m.RecvChainKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.RecvChainKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -476,7 +478,7 @@ func (m *RatchetState_SavedKeys) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.HeaderKey = &Byte32{}
+			m.HeaderKey = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.HeaderKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -581,7 +583,7 @@ func (m *RatchetState_SavedKeys_MessageKey) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Key = &Byte32{}
+			m.Key = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
 			if err := m.Key.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -726,16 +728,16 @@ func sozRatchet(x uint64) (n int) {
 }
 func NewPopulatedRatchetState(r randyRatchet, easy bool) *RatchetState {
 	this := &RatchetState{}
-	this.RootKey = NewPopulatedByte32(r)
-	this.OurRatchetPrivate = NewPopulatedByte32(r)
-	this.TheirRatchetPublic = NewPopulatedByte32(r)
+	this.RootKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.OurRatchetPrivate = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.TheirRatchetPublic = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
 	this.Ratchet = bool(r.Intn(2) == 0)
-	this.SendHeaderKey = NewPopulatedByte32(r)
-	this.RecvHeaderKey = NewPopulatedByte32(r)
-	this.NextSendHeaderKey = NewPopulatedByte32(r)
-	this.NextRecvHeaderKey = NewPopulatedByte32(r)
-	this.SendChainKey = NewPopulatedByte32(r)
-	this.RecvChainKey = NewPopulatedByte32(r)
+	this.SendHeaderKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.RecvHeaderKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.NextSendHeaderKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.NextRecvHeaderKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.SendChainKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
+	this.RecvChainKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
 	this.SendCount = r.Uint32()
 	this.RecvCount = r.Uint32()
 	this.PrevSendCount = r.Uint32()
@@ -755,7 +757,7 @@ func NewPopulatedRatchetState(r randyRatchet, easy bool) *RatchetState {
 
 func NewPopulatedRatchetState_SavedKeys(r randyRatchet, easy bool) *RatchetState_SavedKeys {
 	this := &RatchetState_SavedKeys{}
-	this.HeaderKey = NewPopulatedByte32(r)
+	this.HeaderKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
 	if r.Intn(10) != 0 {
 		v3 := r.Intn(10)
 		this.MessageKeys = make([]RatchetState_SavedKeys_MessageKey, v3)
@@ -773,7 +775,7 @@ func NewPopulatedRatchetState_SavedKeys(r randyRatchet, easy bool) *RatchetState
 func NewPopulatedRatchetState_SavedKeys_MessageKey(r randyRatchet, easy bool) *RatchetState_SavedKeys_MessageKey {
 	this := &RatchetState_SavedKeys_MessageKey{}
 	this.Num = r.Uint32()
-	this.Key = NewPopulatedByte32(r)
+	this.Key = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
 	this.CreationTime = r.Int63()
 	if r.Intn(2) == 0 {
 		this.CreationTime *= -1
@@ -1103,16 +1105,16 @@ func encodeVarintRatchet(data []byte, offset int, v uint64) int {
 
 type RatchetStateFace interface {
 	Proto() code_google_com_p_gogoprotobuf_proto1.Message
-	GetRootKey() *Byte32
-	GetOurRatchetPrivate() *Byte32
-	GetTheirRatchetPublic() *Byte32
+	GetRootKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetOurRatchetPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetTheirRatchetPublic() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetRatchet() bool
-	GetSendHeaderKey() *Byte32
-	GetRecvHeaderKey() *Byte32
-	GetNextSendHeaderKey() *Byte32
-	GetNextRecvHeaderKey() *Byte32
-	GetSendChainKey() *Byte32
-	GetRecvChainKey() *Byte32
+	GetSendHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetRecvHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetNextSendHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetNextRecvHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetSendChainKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
+	GetRecvChainKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetSendCount() uint32
 	GetRecvCount() uint32
 	GetPrevSendCount() uint32
@@ -1127,15 +1129,15 @@ func (this *RatchetState) TestProto() code_google_com_p_gogoprotobuf_proto1.Mess
 	return NewRatchetStateFromFace(this)
 }
 
-func (this *RatchetState) GetRootKey() *Byte32 {
+func (this *RatchetState) GetRootKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.RootKey
 }
 
-func (this *RatchetState) GetOurRatchetPrivate() *Byte32 {
+func (this *RatchetState) GetOurRatchetPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.OurRatchetPrivate
 }
 
-func (this *RatchetState) GetTheirRatchetPublic() *Byte32 {
+func (this *RatchetState) GetTheirRatchetPublic() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.TheirRatchetPublic
 }
 
@@ -1143,27 +1145,27 @@ func (this *RatchetState) GetRatchet() bool {
 	return this.Ratchet
 }
 
-func (this *RatchetState) GetSendHeaderKey() *Byte32 {
+func (this *RatchetState) GetSendHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.SendHeaderKey
 }
 
-func (this *RatchetState) GetRecvHeaderKey() *Byte32 {
+func (this *RatchetState) GetRecvHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.RecvHeaderKey
 }
 
-func (this *RatchetState) GetNextSendHeaderKey() *Byte32 {
+func (this *RatchetState) GetNextSendHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.NextSendHeaderKey
 }
 
-func (this *RatchetState) GetNextRecvHeaderKey() *Byte32 {
+func (this *RatchetState) GetNextRecvHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.NextRecvHeaderKey
 }
 
-func (this *RatchetState) GetSendChainKey() *Byte32 {
+func (this *RatchetState) GetSendChainKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.SendChainKey
 }
 
-func (this *RatchetState) GetRecvChainKey() *Byte32 {
+func (this *RatchetState) GetRecvChainKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.RecvChainKey
 }
 
@@ -1204,7 +1206,7 @@ func NewRatchetStateFromFace(that RatchetStateFace) *RatchetState {
 
 type RatchetState_SavedKeysFace interface {
 	Proto() code_google_com_p_gogoprotobuf_proto1.Message
-	GetHeaderKey() *Byte32
+	GetHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetMessageKeys() []RatchetState_SavedKeys_MessageKey
 }
 
@@ -1216,7 +1218,7 @@ func (this *RatchetState_SavedKeys) TestProto() code_google_com_p_gogoprotobuf_p
 	return NewRatchetState_SavedKeysFromFace(this)
 }
 
-func (this *RatchetState_SavedKeys) GetHeaderKey() *Byte32 {
+func (this *RatchetState_SavedKeys) GetHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.HeaderKey
 }
 
@@ -1234,7 +1236,7 @@ func NewRatchetState_SavedKeysFromFace(that RatchetState_SavedKeysFace) *Ratchet
 type RatchetState_SavedKeys_MessageKeyFace interface {
 	Proto() code_google_com_p_gogoprotobuf_proto1.Message
 	GetNum() uint32
-	GetKey() *Byte32
+	GetKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetCreationTime() int64
 }
 
@@ -1250,7 +1252,7 @@ func (this *RatchetState_SavedKeys_MessageKey) GetNum() uint32 {
 	return this.Num
 }
 
-func (this *RatchetState_SavedKeys_MessageKey) GetKey() *Byte32 {
+func (this *RatchetState_SavedKeys_MessageKey) GetKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.Key
 }
 

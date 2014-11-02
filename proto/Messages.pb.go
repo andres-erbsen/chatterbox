@@ -3,7 +3,7 @@
 // DO NOT EDIT!
 
 /*
-Package Messages is a generated protocol buffer package.
+Package proto is a generated protocol buffer package.
 
 It is generated from these files:
 	Messages.proto
@@ -12,13 +12,15 @@ It has these top-level messages:
 	ServerToClient
 	ClientToServer
 */
-package Messages
+package proto
 
-import proto "code.google.com/p/gogoprotobuf/proto"
+import proto1 "code.google.com/p/gogoprotobuf/proto"
 import math "math"
 
+// discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
+
 // Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
+var _ = proto1.Marshal
 var _ = math.Inf
 
 type ServerToClient_StatusCode int32
@@ -43,10 +45,10 @@ func (x ServerToClient_StatusCode) Enum() *ServerToClient_StatusCode {
 	return p
 }
 func (x ServerToClient_StatusCode) String() string {
-	return proto.EnumName(ServerToClient_StatusCode_name, int32(x))
+	return proto1.EnumName(ServerToClient_StatusCode_name, int32(x))
 }
 func (x *ServerToClient_StatusCode) UnmarshalJSON(data []byte) error {
-	value, err := proto.UnmarshalJSONEnum(ServerToClient_StatusCode_value, data, "ServerToClient_StatusCode")
+	value, err := proto1.UnmarshalJSONEnum(ServerToClient_StatusCode_value, data, "ServerToClient_StatusCode")
 	if err != nil {
 		return err
 	}
@@ -55,12 +57,12 @@ func (x *ServerToClient_StatusCode) UnmarshalJSON(data []byte) error {
 }
 
 type ServerToClient struct {
-	Status           *ServerToClient_StatusCode `protobuf:"varint,1,req,name=status,enum=ServerToClient_StatusCode" json:"status,omitempty"`
+	Status           *ServerToClient_StatusCode `protobuf:"varint,1,req,name=status,enum=proto.ServerToClient_StatusCode" json:"status,omitempty"`
 	XXX_unrecognized []byte                     `json:"-"`
 }
 
 func (m *ServerToClient) Reset()         { *m = ServerToClient{} }
-func (m *ServerToClient) String() string { return proto.CompactTextString(m) }
+func (m *ServerToClient) String() string { return proto1.CompactTextString(m) }
 func (*ServerToClient) ProtoMessage()    {}
 
 func (m *ServerToClient) GetStatus() ServerToClient_StatusCode {
@@ -71,12 +73,13 @@ func (m *ServerToClient) GetStatus() ServerToClient_StatusCode {
 }
 
 type ClientToServer struct {
-	CreateAccount    *bool  `protobuf:"varint,1,opt,name=create_account" json:"create_account,omitempty"`
-	XXX_unrecognized []byte `json:"-"`
+	CreateAccount    *bool                           `protobuf:"varint,1,opt,name=create_account" json:"create_account,omitempty"`
+	DeliverEnvelope  *ClientToServer_DeliverEnvelope `protobuf:"bytes,2,opt,name=deliver_envelope" json:"deliver_envelope,omitempty"`
+	XXX_unrecognized []byte                          `json:"-"`
 }
 
 func (m *ClientToServer) Reset()         { *m = ClientToServer{} }
-func (m *ClientToServer) String() string { return proto.CompactTextString(m) }
+func (m *ClientToServer) String() string { return proto1.CompactTextString(m) }
 func (*ClientToServer) ProtoMessage()    {}
 
 func (m *ClientToServer) GetCreateAccount() bool {
@@ -86,6 +89,30 @@ func (m *ClientToServer) GetCreateAccount() bool {
 	return false
 }
 
+func (m *ClientToServer) GetDeliverEnvelope() *ClientToServer_DeliverEnvelope {
+	if m != nil {
+		return m.DeliverEnvelope
+	}
+	return nil
+}
+
+type ClientToServer_DeliverEnvelope struct {
+	User             *Byte32 `protobuf:"bytes,3,req,customtype=Byte32" json:"User,omitempty"`
+	Envelope         []byte  `protobuf:"bytes,4,req" json:"Envelope,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *ClientToServer_DeliverEnvelope) Reset()         { *m = ClientToServer_DeliverEnvelope{} }
+func (m *ClientToServer_DeliverEnvelope) String() string { return proto1.CompactTextString(m) }
+func (*ClientToServer_DeliverEnvelope) ProtoMessage()    {}
+
+func (m *ClientToServer_DeliverEnvelope) GetEnvelope() []byte {
+	if m != nil {
+		return m.Envelope
+	}
+	return nil
+}
+
 func init() {
-	proto.RegisterEnum("ServerToClient_StatusCode", ServerToClient_StatusCode_name, ServerToClient_StatusCode_value)
+	proto1.RegisterEnum("proto.ServerToClient_StatusCode", ServerToClient_StatusCode_name, ServerToClient_StatusCode_value)
 }
