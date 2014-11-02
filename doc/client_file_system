@@ -1,0 +1,41 @@
+File System:
+
+root_dir
+|-- conversations
+|   |-- <conversationName>
+|   |   |-- metadata 
+|   |   |-- <messageName>
+|   |   |-- (other messages in the conversation)
+|   |-- (other conversations)
+|-- outbox
+|   |-- <conversationName> (for every existing conversation in the conversations list)
+|   |   |-- metadata (a copy of the one in the conversations list, not a symlink)
+|   |-- <conversationName> (might or might not match an existing conversation in the conversations directory
+|   |   |-- metadata (TODO: ...actually do we need different data here than in an existing conversation?)
+|   |   |-- <messageName> (message to send, TODO: should this be a different format than the other message name?)
+|   |   |-- (other messages to send)
+|-- contacts (TODO: should this be under ui_info? I don't think the daemon needs to know about it...)
+|   |-- <user>
+|   |-- (other users)
+|-- tmp
+|-- keys
+|-- daemon.conf
+|-- ui_info
+
+Details:
+-- <conversationName> is "date-number-sender-recipient-recipient-..."
+   |-- date is the date of the first message in the conversation in the format YYYY-MM-DDTHH:MM:SS
+   |-- sender/recipient are the dename names of these users represented in a reduced character set (see docs/username_character_set)
+   |-- The recipient list is sorted alphabetically but omits the user's address
+   |-- number is the minimum non-negative integer that avoids a naming conflict with another conversation. (Note that since dename names can contain hyphens two conversations with different sets of participants can have naming conflicts. Also note that conversations can be deleted so there could be a conversation with number 1 without any conversation number 0. The name of this folder is meant to provide a brief description of its contents; it should not be parsed for metadata.)
+-- metadata is a file containing metadata for the conversation
+   |-- TODO: details on what the metadata file contains + what structure (definitely includes a participant list, message type, optional subject)
+   |-- TODO: we might end up using an official protobuf metadata file augmented by a secondary metadata file that will be easier for external scripts to parse
+-- <messageName> is "date-number-sender", optionally followed by an extension ".<EXT>". The contents are the message body.
+   |-- see details under conversationName
+-- tmp is a folder for temporary files. It is primarily used for making file system writes atomic (i.e. write a message file in tmp then atomically move it elsewhere). TODO: possibly contains a "currentAction" file that specifies what the daemon is currently doing --> if it dies the action can be restarted.
+-- keys contains ratchet keys for contacts
+   |-- TODO: details on structure within this folder
+-- <user> is "username-number" (a dename username with a reduced character set followed by the minimum non-negative integer to ensure uniqueness). The file contains the user's dename record and optionally a local alias. TODO: format?
+-- daemon.conf contains configuration parameters for the daemon (i.e. max message age before deleting it, dename record of the local user). TODO: format?
+-- ui_info is a directory for UIs to use to store UI-specific information. Each UI should create a uniquely-named directory under this directory to store its information. The structure/contents of this directory are up to the UI
