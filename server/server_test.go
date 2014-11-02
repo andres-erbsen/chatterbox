@@ -21,17 +21,17 @@ func TestAccountCreation(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 	db, err := leveldb.OpenFile(dir, nil)
-	defer db.Close()
 	if err != nil {
 		t.Error(err)
 	}
+	defer db.Close()
 	shutdown := make(chan struct{})
 	go RunServer(db, shutdown)
 	conn, err := net.Dial("tcp", "localhost:8888")
-	defer conn.Close()
 	if err != nil {
 		t.Error(err)
 	}
+	defer conn.Close()
 	writer := io.NewDelimitedWriter(conn)
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
@@ -70,10 +70,10 @@ func TestMessageUploading(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 	db, err := leveldb.OpenFile(dir, nil)
-	defer db.Close()
 	if err != nil {
 		t.Error(err)
 	}
+	defer db.Close()
 	shutdown := make(chan struct{})
 	go RunServer(db, shutdown)
 	conn, err := net.Dial("tcp", "localhost:8888")
