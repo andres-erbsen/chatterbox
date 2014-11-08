@@ -58,6 +58,7 @@ func (x *ServerToClient_StatusCode) UnmarshalJSON(data []byte) error {
 
 type ServerToClient struct {
 	Status           *ServerToClient_StatusCode `protobuf:"varint,1,req,name=status,enum=proto.ServerToClient_StatusCode" json:"status,omitempty"`
+	MessageList      [][]byte                   `protobuf:"bytes,3,rep,name=message_list" json:"message_list"`
 	XXX_unrecognized []byte                     `json:"-"`
 }
 
@@ -72,9 +73,17 @@ func (m *ServerToClient) GetStatus() ServerToClient_StatusCode {
 	return ServerToClient_OK
 }
 
+func (m *ServerToClient) GetMessageList() [][]byte {
+	if m != nil {
+		return m.MessageList
+	}
+	return nil
+}
+
 type ClientToServer struct {
 	CreateAccount    *bool                           `protobuf:"varint,1,opt,name=create_account" json:"create_account,omitempty"`
 	DeliverEnvelope  *ClientToServer_DeliverEnvelope `protobuf:"bytes,2,opt,name=deliver_envelope" json:"deliver_envelope,omitempty"`
+	ListMessages     *bool                           `protobuf:"varint,5,opt,name=list_messages" json:"list_messages,omitempty"`
 	XXX_unrecognized []byte                          `json:"-"`
 }
 
@@ -94,6 +103,13 @@ func (m *ClientToServer) GetDeliverEnvelope() *ClientToServer_DeliverEnvelope {
 		return m.DeliverEnvelope
 	}
 	return nil
+}
+
+func (m *ClientToServer) GetListMessages() bool {
+	if m != nil && m.ListMessages != nil {
+		return *m.ListMessages
+	}
+	return false
 }
 
 type ClientToServer_DeliverEnvelope struct {
