@@ -3,6 +3,10 @@
 *.swp
 *.swo
 
+chatterbox
+client/client
+server/server
+
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
 *.a
