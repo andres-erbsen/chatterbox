@@ -4,6 +4,8 @@ package filesystem
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -24,7 +26,7 @@ func GetOutboxDir(rootDir string) string {
 	return rootDir + "/outbox"
 }
 
-func GetTmpDir(rootDir string) string {
+func getTmpDir(rootDir string) string {
 	return rootDir + "/tmp"
 }
 
@@ -36,13 +38,43 @@ func GetUiInfoDir(rootDir string) string {
 	return rootDir + "/ui_info"
 }
 
+func GetUniqueTmpDir(rootDir string) (string, error) {
+	return ioutil.TempDir(getTmpDir(rootDir), "")
+}
+
+const (
+	MetadataFileName = "METADATA"
+)
+
+func Copy(source string, dest string, perm os.FileMode) error {
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
+
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+
+	cerr := out.Close()
+	if err != nil {
+		return err
+	}
+	return cerr
+}
 func InitFs(rootDir string) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(rootDir, 0700)
 	subdirs := []string{
 		GetConversationDir(rootDir),
 		GetOutboxDir(rootDir),
-		GetTmpDir(rootDir),
+		getTmpDir(rootDir),
 		GetKeysDir(rootDir),
 		GetUiInfoDir(rootDir),
 	}
@@ -59,15 +91,40 @@ func InitFs(rootDir string) error {
 			if f.IsDir() {
 				log.Printf("Found conversation %s\n", cPath)
 
-				fileInfo, err := os.Stat(cPath)
+				// create the outbox directory in tmp, then (atomically) move it to outbox
+				tmpDir, err := GetUniqueTmpDir(rootDir)
 				if err != nil {
-					log.Printf("Error reading permissions on a conversation directory %s", cPath)
+					return err
 				}
-				var perm = fileInfo.Mode()
+				defer os.RemoveAll(tmpDir)
+				conversationInfo, err := os.Stat(cPath)
+				if err != nil {
+					// skip this conversation; can't read it
+					log.Printf("Error reading permissions on a conversation directory %s", cPath)
+					return nil
+				}
+				var c_perm = conversationInfo.Mode()
+				metadataFile := cPath + "/" + MetadataFileName
+				metadataInfo, err := os.Stat(metadataFile)
+				if err != nil {
+					// skip this conversation; it probably doesn't have a metadata file
+					log.Printf("Error reading permissions on metadata file %s", metadataFile)
+					return nil
+				}
+				var m_perm = metadataInfo.Mode()
 				oldUmask := syscall.Umask(0000)
-				os.Mkdir(GetOutboxDir(rootDir)+"/"+path.Base(cPath), perm)
-				syscall.Umask(oldUmask)
-				// TODO figure out how metadata works and if that needs to be copied too
+				defer syscall.Umask(oldUmask)
+				os.Mkdir(tmpDir+"/"+path.Base(cPath), c_perm)
+				err = Copy(metadataFile, tmpDir+"/"+path.Base(cPath)+"/"+MetadataFileName, m_perm)
+				if err != nil {
+					log.Printf("Error, can't copy metadata file to temp: %s", metadataFile)
+					return err
+				}
+				err = os.Rename(tmpDir+"/"+path.Base(cPath), GetOutboxDir(rootDir)+"/"+path.Base(cPath))
+				if err != nil {
+					// skip this conversation; this probably means it already exists in the outbox
+					return nil
+				}
 			}
 		}
 		return nil
