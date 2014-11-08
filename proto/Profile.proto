@@ -1,0 +1,23 @@
+package proto;
+
+import "code.google.com/p/gogoprotobuf/gogoproto/gogo.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.stringer_all) = false;
+
+option (gogoproto.equal_all) = true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+
+message Profile {
+	required string ServerAddressTCP = 1 [(gogoproto.nullable) = false];
+	// allowing the port to be specified might open a DOS vector, so not now
+	required bytes ServerTransportPK = 2 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes UserIDAtServer = 3 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes KeySigningKey = 4 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes MessageAuthKey = 5 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+}

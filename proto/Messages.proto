@@ -2,6 +2,17 @@ package proto;
 
 import "code.google.com/p/gogoprotobuf/gogoproto/gogo.proto";
 
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.stringer_all) = false;
+
+option (gogoproto.equal_all) = true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+
 message ServerToClient {
 	enum StatusCode {
 		OK = 0;
