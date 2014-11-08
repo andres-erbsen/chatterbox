@@ -65,6 +65,7 @@ func (x *ServerToClient_StatusCode) UnmarshalJSON(data []byte) error {
 
 type ServerToClient struct {
 	Status           *ServerToClient_StatusCode `protobuf:"varint,1,req,name=status,enum=proto.ServerToClient_StatusCode" json:"status,omitempty"`
+	MessageList      [][]byte                   `protobuf:"bytes,3,rep,name=message_list" json:"message_list"`
 	XXX_unrecognized []byte                     `json:"-"`
 }
 
@@ -75,6 +76,7 @@ func (*ServerToClient) ProtoMessage()    {}
 type ClientToServer struct {
 	CreateAccount    *bool                           `protobuf:"varint,1,opt,name=create_account" json:"create_account,omitempty"`
 	DeliverEnvelope  *ClientToServer_DeliverEnvelope `protobuf:"bytes,2,opt,name=deliver_envelope" json:"deliver_envelope,omitempty"`
+	ListMessages     *bool                           `protobuf:"varint,5,opt,name=list_messages" json:"list_messages,omitempty"`
 	XXX_unrecognized []byte                          `json:"-"`
 }
 
@@ -131,6 +133,29 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 				}
 			}
 			m.Status = &v
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageList", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MessageList = append(m.MessageList, make([]byte, postIndex-index))
+			copy(m.MessageList[len(m.MessageList)-1], data[index:postIndex])
+			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -218,6 +243,24 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ListMessages", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.ListMessages = &b
 		default:
 			var sizeOfWire int
 			for {
@@ -336,6 +379,12 @@ func (m *ServerToClient) Size() (n int) {
 	if m.Status != nil {
 		n += 1 + sovMessages(uint64(*m.Status))
 	}
+	if len(m.MessageList) > 0 {
+		for _, b := range m.MessageList {
+			l = len(b)
+			n += 1 + l + sovMessages(uint64(l))
+		}
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -350,6 +399,9 @@ func (m *ClientToServer) Size() (n int) {
 	if m.DeliverEnvelope != nil {
 		l = m.DeliverEnvelope.Size()
 		n += 1 + l + sovMessages(uint64(l))
+	}
+	if m.ListMessages != nil {
+		n += 2
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -390,8 +442,19 @@ func NewPopulatedServerToClient(r randyMessages, easy bool) *ServerToClient {
 	this := &ServerToClient{}
 	v1 := ServerToClient_StatusCode([]int32{0, 1}[r.Intn(2)])
 	this.Status = &v1
+	if r.Intn(10) != 0 {
+		v2 := r.Intn(100)
+		this.MessageList = make([][]byte, v2)
+		for i := 0; i < v2; i++ {
+			v3 := r.Intn(100)
+			this.MessageList[i] = make([]byte, v3)
+			for j := 0; j < v3; j++ {
+				this.MessageList[i][j] = byte(r.Intn(256))
+			}
+		}
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedMessages(r, 2)
+		this.XXX_unrecognized = randUnrecognizedMessages(r, 4)
 	}
 	return this
 }
@@ -399,14 +462,18 @@ func NewPopulatedServerToClient(r randyMessages, easy bool) *ServerToClient {
 func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 	this := &ClientToServer{}
 	if r.Intn(10) != 0 {
-		v2 := bool(r.Intn(2) == 0)
-		this.CreateAccount = &v2
+		v4 := bool(r.Intn(2) == 0)
+		this.CreateAccount = &v4
 	}
 	if r.Intn(10) != 0 {
 		this.DeliverEnvelope = NewPopulatedClientToServer_DeliverEnvelope(r, easy)
 	}
+	if r.Intn(10) != 0 {
+		v5 := bool(r.Intn(2) == 0)
+		this.ListMessages = &v5
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedMessages(r, 3)
+		this.XXX_unrecognized = randUnrecognizedMessages(r, 6)
 	}
 	return this
 }
@@ -414,9 +481,9 @@ func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 func NewPopulatedClientToServer_DeliverEnvelope(r randyMessages, easy bool) *ClientToServer_DeliverEnvelope {
 	this := &ClientToServer_DeliverEnvelope{}
 	this.User = NewPopulatedByte32(r)
-	v3 := r.Intn(100)
-	this.Envelope = make([]byte, v3)
-	for i := 0; i < v3; i++ {
+	v6 := r.Intn(100)
+	this.Envelope = make([]byte, v6)
+	for i := 0; i < v6; i++ {
 		this.Envelope[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -442,9 +509,9 @@ func randUTF8RuneMessages(r randyMessages) rune {
 	return res
 }
 func randStringMessages(r randyMessages) string {
-	v4 := r.Intn(100)
-	tmps := make([]rune, v4)
-	for i := 0; i < v4; i++ {
+	v7 := r.Intn(100)
+	tmps := make([]rune, v7)
+	for i := 0; i < v7; i++ {
 		tmps[i] = randUTF8RuneMessages(r)
 	}
 	return string(tmps)
@@ -466,11 +533,11 @@ func randFieldMessages(data []byte, r randyMessages, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateMessages(data, uint64(key))
-		v5 := r.Int63()
+		v8 := r.Int63()
 		if r.Intn(2) == 0 {
-			v5 *= -1
+			v8 *= -1
 		}
-		data = encodeVarintPopulateMessages(data, uint64(v5))
+		data = encodeVarintPopulateMessages(data, uint64(v8))
 	case 1:
 		data = encodeVarintPopulateMessages(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -515,6 +582,14 @@ func (m *ServerToClient) MarshalTo(data []byte) (n int, err error) {
 		i++
 		i = encodeVarintMessages(data, i, uint64(*m.Status))
 	}
+	if len(m.MessageList) > 0 {
+		for _, b := range m.MessageList {
+			data[i] = 0x1a
+			i++
+			i = encodeVarintMessages(data, i, uint64(len(b)))
+			i += copy(data[i:], b)
+		}
+	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -554,6 +629,16 @@ func (m *ClientToServer) MarshalTo(data []byte) (n int, err error) {
 			return 0, err
 		}
 		i += n1
+	}
+	if m.ListMessages != nil {
+		data[i] = 0x28
+		i++
+		if *m.ListMessages {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -652,6 +737,14 @@ func (this *ServerToClient) Equal(that interface{}) bool {
 	} else if that1.Status != nil {
 		return false
 	}
+	if len(this.MessageList) != len(that1.MessageList) {
+		return false
+	}
+	for i := range this.MessageList {
+		if !bytes.Equal(this.MessageList[i], that1.MessageList[i]) {
+			return false
+		}
+	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
@@ -687,6 +780,15 @@ func (this *ClientToServer) Equal(that interface{}) bool {
 		return false
 	}
 	if !this.DeliverEnvelope.Equal(that1.DeliverEnvelope) {
+		return false
+	}
+	if this.ListMessages != nil && that1.ListMessages != nil {
+		if *this.ListMessages != *that1.ListMessages {
+			return false
+		}
+	} else if this.ListMessages != nil {
+		return false
+	} else if that1.ListMessages != nil {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
