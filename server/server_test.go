@@ -1,14 +1,17 @@
 package main
 
 import (
-	//	"bytes"
+	"bytes"
 	"code.google.com/p/gogoprotobuf/io"
 	protobuf "code.google.com/p/gogoprotobuf/proto"
+	"crypto/sha256"
+	//	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -24,15 +27,20 @@ func TestAccountCreation(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	defer db.Close()
 	shutdown := make(chan struct{})
-	go RunServer(db, shutdown)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { RunServer(db, shutdown); wg.Done() }()
+
 	conn, err := net.Dial("tcp", "localhost:8888")
 	if err != nil {
 		t.Error(err)
 	}
 	defer conn.Close()
 	writer := io.NewDelimitedWriter(conn)
+	defer writer.Close()
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
@@ -42,10 +50,12 @@ func TestAccountCreation(t *testing.T) {
 	}
 	handleResponse(conn, t)
 	close(shutdown)
+
 	iter := db.NewIterator(nil, nil)
 	if !iter.First() {
 		t.Error("Nothing in database")
 	}
+	wg.Wait()
 }
 
 func handleResponse(connection net.Conn, t *testing.T) error {
@@ -75,12 +85,14 @@ func TestMessageUploading(t *testing.T) {
 	}
 	defer db.Close()
 	shutdown := make(chan struct{})
-	go RunServer(db, shutdown)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { RunServer(db, shutdown); wg.Done() }()
 	conn, err := net.Dial("tcp", "localhost:8888")
-	defer conn.Close()
 	if err != nil {
 		t.Error(err)
 	}
+	defer conn.Close()
 	writer := io.NewDelimitedWriter(conn)
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
@@ -90,32 +102,33 @@ func TestMessageUploading(t *testing.T) {
 		t.Error(err)
 	}
 	handleResponse(conn, t)
+	userIter := db.NewIterator(nil, nil)
+	userIter.First()
+	user := [32]byte{}
+	copy(user[:], userIter.Key()[1:32])
+	message := &proto.ClientToServer_DeliverEnvelope{
+		User:     (*proto.Byte32)(&user),
+		Envelope: []byte("Envelope"),
+	}
+	deliverCommand := &proto.ClientToServer{
+		DeliverEnvelope: message,
+	}
+	err = writer.WriteMsg(deliverCommand)
+	if err != nil {
+		t.Error(err)
+	}
+	handleResponse(conn, t)
 	close(shutdown)
-	//	userIter := db.NewIterator(nil, nil)
-	//	userIter.First()
-	//	user := [32]byte{}
-	//	copy(user[:], userIter.Key()[1:32])
-	//	message := &proto.ClientToServer_DeliverEnvelope{
-	//		User:     (*proto.Byte32)(&user),
-	//		Envelope: []byte("Envelope"),
-	//	}
-	//	deliverCommand := &proto.ClientToServer{
-	//		DeliverEnvelope: message,
-	//	}
-	//	err = writer.WriteMsg(deliverCommand)
-	//	if err != nil {
-	//		t.Error(err)
-	//	}
-	//	handleResponse(conn, t)
-	//	close(shutdown)
-	//	envelopeHash := []byte("47a1436c7090cfb59614a6bee2c6ef99043cddceda2b6df9d996427f6e42077d")
-	//	expectedKey := append(append([]byte{'u'}, user[:]...), envelopeHash[:]...)
-	//	iter := db.NewIterator(nil, nil)
-	//	for iter.Next() {
-	//		key := iter.Key()
-	//		if bytes.Equal(key, expectedKey) {
-	//			return
-	//		}
-	//	}
-	//	t.Error("Expected message entry not found")
+	envelopeHash := sha256.Sum256([]byte("Envelope"))
+	expectedKey := append(append([]byte{'m'}, user[:]...), envelopeHash[:]...)
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		key := iter.Key()
+
+		if bytes.Equal(key, expectedKey) {
+			return
+		}
+	}
+	t.Error("Expected message entry not found")
+	wg.Wait()
 }
