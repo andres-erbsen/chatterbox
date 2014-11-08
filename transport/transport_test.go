@@ -17,9 +17,12 @@ func runHandshake(t *testing.T, haveClient bool) (c1 *Conn, c2 *Conn) {
 	if err1 != nil || err2 != nil {
 		t.Fatal("key generation failed")
 	}
-	var pk2_1, pk1_2 *[32]byte
-	go func() { c1, pk2_1, err1 = Handshake(p1, pk1, sk1, haveClient, 1<<12); close(ch1) }()
-	go func() { c2, pk1_2, err2 = Handshake(p2, pk2, sk2, false, 1<<12); defer close(ch2) }()
+	var pk2_1, pk1_2, expectedPK *[32]byte
+	if haveClient {
+		expectedPK = pk2
+	}
+	go func() { c1, pk2_1, err1 = Handshake(p1, pk1, sk1, expectedPK, 1<<12); close(ch1) }()
+	go func() { c2, pk1_2, err2 = Handshake(p2, pk2, sk2, nil, 1<<12); defer close(ch2) }()
 	<-ch1
 	<-ch2
 	if err1 != nil {

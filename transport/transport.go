@@ -17,7 +17,7 @@ import (
 	"code.google.com/p/go.crypto/nacl/box"
 )
 
-// Conn is an ancrypted and authenticated connection that is NOT concurrency-safe
+// Conn is an encrypted and authenticated connection that is NOT concurrency-safe
 type Conn struct {
 	unencrypted           net.Conn
 	readNonce, writeNonce uint64
@@ -28,7 +28,16 @@ type Conn struct {
 
 var nullNonce = [24]byte{}
 
-func Handshake(unencrypted net.Conn, pk, sk *[32]byte, amClient bool, maxFrameSize int) (*Conn, *[32]byte, error) {
+// Handshake performs an ephemeral key exchange. unencrypted is the underlying
+// connection that will be used for the handshake and the following calls to
+// ReadFrame and WriteFrame. The connection should not be used after calling
+// Handshake. pk and sk are the Curve25519 public and private keys of the
+// caller.  if expectedPK is not nil, pk will not be revealed to the other
+// party unless they prove that they hold the secret key that corresponds to
+// expectedPK.  Note that both sides of a connection using this option will
+// result in a deadlock. The public key of the other party is returned along
+// with the wrapped connection.
+func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize int) (*Conn, *[32]byte, error) {
 	ourEphemeralPublic, ourEphemeralSecret, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
@@ -65,14 +74,17 @@ func Handshake(unencrypted net.Conn, pk, sk *[32]byte, amClient bool, maxFrameSi
 		copy(theirPK[:], theirHandshake[:32])
 		hs, ok := box.Open(nil, theirHandshake[32:], &nullNonce, &theirPK, ourEphemeralSecret)
 		if !ok || !bytes.Equal(hs, append(theirEphemeralPublic[:], ourEphemeralPublic[:]...)) {
-			readErr = errors.New("authentication failed")
+			readErr = errors.New("authentication failed (ephemeral pk mismatch)")
+		}
+		if expectedPK != nil && !bytes.Equal(theirPK[:], expectedPK[:]) {
+			readErr = errors.New("authentication failed (observed pk != expected pk)")
 		}
 	}()
 	go func() {
 		defer close(writeDone)
 		ourHandshake := box.Seal(pk[:], append(ourEphemeralPublic[:], theirEphemeralPublic[:]...),
 			&nullNonce, &theirEphemeralPublic, sk)
-		if amClient {
+		if expectedPK != nil {
 			if <-readDone; readErr != nil { // only talk to the right server
 				return
 			}
@@ -91,6 +103,8 @@ func Handshake(unencrypted net.Conn, pk, sk *[32]byte, amClient bool, maxFrameSi
 	return ret, &theirPK, nil
 }
 
+// WriteFrame(b) writes the frame to the connection in a length-value-encoded
+// for so it can be read using ReadFrame on the other side. Returns len(b).
 func (c *Conn) WriteFrame(b []byte) (int, error) {
 	if len(b) > c.maxFrameSize {
 		return 0, errors.New("write frame too large")
@@ -114,6 +128,9 @@ func (r byteReader) ReadByte() (byte, error) {
 	return ret[0], err
 }
 
+// ReadFrame(b) reads a single frame into b and returns an integer n such that
+// b[:n] is the frame after possibly modifying b. If b does not have enough
+// space (maxFrameSize bytes), this function may panic.
 func (c *Conn) ReadFrame(b []byte) (int, error) {
 	var nonce [24]byte
 	binary.LittleEndian.PutUint64(nonce[:], c.readNonce)
