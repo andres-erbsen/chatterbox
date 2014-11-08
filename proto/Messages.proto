@@ -8,6 +8,7 @@ message ServerToClient {
 		PARSE_ERROR = 1;
 	}
 	required StatusCode status = 1;
+	repeated bytes message_list = 3 [(gogoproto.nullable) = false];
 }
 
 message ClientToServer {	
@@ -17,6 +18,7 @@ message ClientToServer {
 		required bytes User = 3 [(gogoproto.customtype) = "Byte32"];
 		required bytes Envelope = 4;
 	}	
-	optional DeliverEnvelope deliver_envelope = 2; 
+	optional DeliverEnvelope deliver_envelope = 2;
+	optional bool list_messages = 5;
 }
 
