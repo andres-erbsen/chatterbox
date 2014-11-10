@@ -28,15 +28,15 @@ type Conn struct {
 
 var nullNonce = [24]byte{}
 
-// Handshake performs an ephemeral key exchange. unencrypted is the underlying
-// connection that will be used for the handshake and the following calls to
-// ReadFrame and WriteFrame. The connection should not be used after calling
-// Handshake. pk and sk are the Curve25519 public and private keys of the
-// caller.  if expectedPK is not nil, pk will not be revealed to the other
-// party unless they prove that they hold the secret key that corresponds to
-// expectedPK.  Note that both sides of a connection using this option will
-// result in a deadlock. The public key of the other party is returned along
-// with the wrapped connection.
+// Handshake establishes an encrypted and authenticated connection. unencrypted
+// is the underlying connection that will be used for the handshake and the
+// following calls to ReadFrame and WriteFrame. The connection should not be
+// used after calling Handshake. pk and sk are the Curve25519 public and
+// private keys of the caller. If expectedPK is not nil, pk will not be
+// revealed to the other party unless they prove that they hold the secret key
+// that corresponds to expectedPK.  Note that both sides of a connection using
+// this option will result in a deadlock. The public key of the other party is
+// returned along with the wrapped connection.
 func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize int) (*Conn, *[32]byte, error) {
 	ourEphemeralPublic, ourEphemeralSecret, err := box.GenerateKey(rand.Reader)
 	if err != nil {
