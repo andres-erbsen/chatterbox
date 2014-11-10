@@ -7,17 +7,21 @@ package main
 //make a new user with that connection
 import (
 	"bytes"
-	"code.google.com/p/gogoprotobuf/io"
+	//"code.google.com/p/gogoprotobuf/io"
 	"crypto/sha256"
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"net"
 	"sync"
 )
 
-type Uid [32]byte
+//
+//TODO: Check that sent messages go to user that exists
+const MAX_MESSAGE_SIZE = 16 * 1024
+
 type Envelope []byte
 
 type Server struct {
@@ -25,9 +29,13 @@ type Server struct {
 	shutdown chan struct{}
 	listener net.Listener
 	wg       sync.WaitGroup
+	pk       *[32]byte
+	sk       *[32]byte
 }
 
-func StartServer(db *leveldb.DB, shutdown chan struct{}) (*Server, error) {
+var _ = fmt.Printf
+
+func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]byte) (*Server, error) {
 	//TODO: It's possible we want to call defer db.Close() here and not in the calling method
 	listener, err := net.Listen("tcp", ":8888")
 	if err != nil {
@@ -37,6 +45,8 @@ func StartServer(db *leveldb.DB, shutdown chan struct{}) (*Server, error) {
 		database: db,
 		shutdown: shutdown,
 		listener: listener,
+		pk:       pk,
+		sk:       sk,
 	}
 	server.wg.Add(1)
 	go server.RunServer()
@@ -68,21 +78,13 @@ serverLoop:
 		server.wg.Add(1)
 		go server.handleClient(conn)
 	}
-	fmt.Printf("wg %v\n", server.wg)
 	return nil
 }
 
-func (server *Server) handleClientShutdown(connection net.Conn) {
+func (server *Server) handleClientShutdown(connection *transport.Conn) {
 	defer server.wg.Done()
-clientShutdown:
-	for {
-		select {
-		case <-server.shutdown:
-			connection.Close()
-			break clientShutdown
-		default:
-		}
-	}
+	<-server.shutdown
+	connection.Close()
 	return
 }
 
@@ -92,19 +94,25 @@ func (server *Server) handleClient(connection net.Conn) error {
 	//err := server.database.Put([]byte("yolo"), []byte(""), nil)
 	//return err
 	defer server.wg.Done()
-	uid, newConnection, err := authenticateClient(connection)
+	newConnection, uid, err := transport.Handshake(connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
 	if err != nil {
 		return err
 	}
 	server.wg.Add(1)
 	go server.handleClientShutdown(newConnection)
 
-	reader := io.NewDelimitedReader(newConnection, 16*1024)
-	writer := io.NewDelimitedWriter(newConnection)
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	//	reader := io.NewDelimitedReader(newConnection, 16*1024)
+	//writer := io.NewDelimitedWriter(newConnection)
 	command := new(proto.ClientToServer)
+	response := new(proto.ServerToClient)
 clientCommands:
 	for {
-		if err := reader.ReadMsg(command); err != nil {
+		num, err := newConnection.ReadFrame(inBuf)
+		//fmt.Printf("R %x\n", inBuf[:num])
+
+		if err != nil {
 			select {
 			case <-server.shutdown:
 				break clientCommands
@@ -112,48 +120,45 @@ clientCommands:
 			}
 			return err
 		}
+		if err := command.Unmarshal(inBuf[:num]); err != nil {
+			return err
+		}
 		if command.CreateAccount != nil {
-			if err := server.createAccount(newConnection, uid, writer); err != nil {
-				return err
-			}
-		}
-		if command.DeliverEnvelope != nil {
-			user := *(*Uid)(command.DeliverEnvelope.User)
+			err = server.newUser(uid)
+		} else if command.DeliverEnvelope != nil {
+			user := (*[32]byte)(command.DeliverEnvelope.User)
 			envelope := command.DeliverEnvelope.Envelope
-			if err := server.deliverEnvelope(newConnection, user, envelope, writer); err != nil {
-				return err
-			}
+			err = server.newMessage(user, envelope)
+		} else if command.ListMessages != nil {
+			response.MessageList, err = server.getMessageList(uid)
 		}
-		if command.ListMessages != nil {
-			if err := server.listMessages(newConnection, uid, writer); err != nil {
-				return err
-			}
+
+		if err != nil {
+			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
+		} else {
+			response.Status = proto.ServerToClient_OK.Enum()
 		}
+		if err = server.writeProtobuf(newConnection, outBuf, response); err != nil {
+			return err
+		}
+		command.Reset()
+		response.Reset()
 	}
 	return nil
 }
 
-func (server *Server) listMessages(connection net.Conn, user Uid, writer io.Writer) error {
-	messages, err := server.getMessageList(user)
+func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ServerToClient) error {
+	size, err := message.MarshalTo(outBuf)
 	if err != nil {
-		messageList := &proto.ServerToClient{
-			Status: proto.ServerToClient_PARSE_ERROR.Enum(),
-		}
-		if err := writer.WriteMsg(messageList); err != nil {
-			return err
-		}
 		return err
 	}
-	messageList := &proto.ServerToClient{
-		Status:      proto.ServerToClient_OK.Enum(),
-		MessageList: messages,
-	}
-	return writer.WriteMsg(messageList)
+	conn.WriteFrame(outBuf[:size])
+	return nil
 }
 
-func (server *Server) getMessageList(user Uid) ([][]byte, error) {
+func (server *Server) getMessageList(user *[32]byte) ([][]byte, error) {
 	messages := make([][]byte, 0, 64) //TODO: Reasonable starting cap for this buffer
-	prefix := append([]byte{'m'}, user[:]...)
+	prefix := append([]byte{'m'}, (*user)[:]...)
 	messageRange := util.BytesPrefix(prefix)
 	iter := server.database.NewIterator(messageRange, nil)
 	for iter.Next() {
@@ -164,48 +169,22 @@ func (server *Server) getMessageList(user Uid) ([][]byte, error) {
 	err := iter.Error()
 	return messages, err
 }
-func (server *Server) deliverEnvelope(connection net.Conn, user Uid, envelope Envelope, writer io.Writer) error {
-	if err := server.newMessage(user, envelope); err != nil {
-		if err := server.writeResponse(writer, proto.ServerToClient_PARSE_ERROR.Enum()); err != nil {
-			return err
-		}
-		return err
-	}
-	return server.writeResponse(writer, proto.ServerToClient_OK.Enum())
-}
 
-func (server *Server) createAccount(connection net.Conn, uid Uid, writer io.Writer) error {
-	if err := server.newUser(uid); err != nil {
-		fmt.Printf("Error")
-		fmt.Printf("%v\n", err)
-		if err := server.writeResponse(writer, proto.ServerToClient_PARSE_ERROR.Enum()); err != nil {
-			return err
-		}
-		return err
-	}
-	return server.writeResponse(writer, proto.ServerToClient_OK.Enum())
-}
-
-func (server *Server) writeResponse(writer io.Writer, status *proto.ServerToClient_StatusCode) error {
-	response := &proto.ServerToClient{
-		Status: status,
-	}
-	return writer.WriteMsg(response)
-}
-
-func (server *Server) newMessage(uid Uid, envelope Envelope) error {
+func (server *Server) newMessage(uid *[32]byte, envelope Envelope) error {
 	// add message to the database
 	messageHash := sha256.Sum256(envelope)
-	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
+	key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
 	return server.database.Put(key, envelope[:], nil)
 }
 
-func (server *Server) newUser(uid Uid) error {
+func (server *Server) newUser(uid *[32]byte) error {
 	// add user to the database
-	err := server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), nil)
+	err := server.database.Put(append([]byte{'u'}, (*uid)[:]...), []byte(""), nil)
 	return err
 }
 
-func authenticateClient(connection net.Conn) (Uid, net.Conn, error) {
-	return [32]byte{}, connection, nil
-}
+//func authenticateClient(connection transport.Conn) ([32]byte, transport.Conn, error) {
+//
+//	return
+//	[32]byte{}, connection, nil
+//}
