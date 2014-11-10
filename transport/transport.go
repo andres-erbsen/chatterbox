@@ -13,6 +13,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"time"
 
 	"code.google.com/p/go.crypto/nacl/box"
 )
@@ -158,3 +159,7 @@ func (c *Conn) Close() error {
 	}
 	return c.unencrypted.Close()
 }
+
+func (c *Conn) SetDeadline(t time.Time) error      { return c.unencrypted.SetDeadline(t) }
+func (c *Conn) SetWriteDeadline(t time.Time) error { return c.unencrypted.SetDeadline(t) }
+func (c *Conn) SetReadDeadline(t time.Time) error  { return c.unencrypted.SetDeadline(t) }
