@@ -290,3 +290,92 @@ func TestMessageDeletion(t *testing.T) {
 
 	server.StopServer()
 }
+
+func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList *[][]byte) {
+	uploadKeys := &proto.ClientToServer{
+		UploadKeys: *keyList,
+	}
+	writeProtobuf(conn, outBuf, uploadKeys, t)
+
+	receiveProtobuf(conn, inBuf, t)
+}
+
+func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[]byte {
+	getKey := &proto.ClientToServer{
+		GetKey: (*proto.Byte32)(pk),
+	}
+	writeProtobuf(conn, outBuf, getKey, t)
+
+	response := receiveProtobuf(conn, inBuf, t)
+	return &response.Key
+}
+
+func gotKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, key *[]byte) {
+	keyMessage := &proto.ClientToServer_GotKey{
+		User: (*proto.Byte32)(pk),
+		Key:  *key,
+	}
+	gotKey := &proto.ClientToServer{
+		GotKey: keyMessage,
+	}
+	writeProtobuf(conn, outBuf, gotKey, t)
+
+	receiveProtobuf(conn, inBuf, t)
+}
+
+func TestKeyUploadDownload(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+
+	envelope1 := []byte("Envelope1")
+	envelope2 := []byte("Envelope2")
+
+	createAccount(conn, inBuf, outBuf, t)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+
+	pk1, _, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	pk2, _, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	keyList := make([][]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, pk1[:])
+	keyList = append(keyList, pk2[:])
+
+	uploadKeys(conn, inBuf, outBuf, t, &keyList)
+	newKey1 := *getKey(conn, inBuf, outBuf, t, pkp)
+
+	if newKey1 == nil {
+		t.Error("No keys in server")
+	}
+	if !(containsByteSlice(keyList, newKey1)) {
+		t.Error("Non-uploaded key returned")
+	}
+
+	gotKey(conn, inBuf, outBuf, t, pkp, &newKey1)
+
+	newKey2 := *getKey(conn, inBuf, outBuf, t, pkp)
+	if newKey2 == nil {
+		t.Error("No keys in server")
+	}
+	if !(containsByteSlice(keyList, newKey2)) {
+		t.Error("Non-uploaded key returned")
+	}
+	if bytes.Equal(newKey1, newKey2) {
+		t.Error("Key not deleted from server")
+	}
+
+	gotKey(conn, inBuf, outBuf, t, pkp, &newKey2)
+
+	server.StopServer()
+}

@@ -6,8 +6,8 @@ Order of things to do/test (- opaque blobs of crypto):
 Message uploading X
 Message listing X
 Message download X
-4. Uploading keys
-5. Downloading keys
+4. Uploading keys X
+5. Downloading keys X
 6. Getting stuff to notify
 7. Listening stuff to notify
 8. Deleting messages X

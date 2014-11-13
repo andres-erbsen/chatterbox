@@ -1,5 +1,6 @@
 package main
 
+//TODO: Ask Andres about key acceptance protocol
 //accept connection
 //new thread!
 //authenticate client
@@ -9,6 +10,7 @@ import (
 	"bytes"
 	//"code.google.com/p/gogoprotobuf/io"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
@@ -132,10 +134,28 @@ clientCommands:
 			response.MessageList = *messageList
 		} else if command.DownloadEnvelope != nil {
 			messageHash := command.DownloadEnvelope
-			response.Envelope, err = server.getEnvelope(uid, &messageHash)
+			envelope, errTemp := server.getEnvelope(uid, &messageHash)
+			err = errTemp
+			if envelope != nil {
+				response.Envelope = envelope
+			}
 		} else if command.DeleteMessages != nil {
 			messageList := command.DeleteMessages
 			err = server.deleteMessages(uid, &messageList)
+		} else if command.UploadKeys != nil {
+			keyList := command.UploadKeys
+			err = server.newKeys(uid, &keyList)
+		} else if command.GetKey != nil {
+			user := (*[32]byte)(command.GetKey)
+			key, errTemp := server.getKey(user)
+			err = errTemp
+			if key != nil {
+				response.Key = *key
+			}
+		} else if command.GotKey != nil {
+			user := (*[32]byte)(command.GotKey.User)
+			key := &command.GotKey.Key
+			err = server.deleteKey(user, key)
 		}
 		if err != nil {
 			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
@@ -151,16 +171,45 @@ clientCommands:
 	return nil
 }
 
-func (server *Server) deleteMessages(uid *[32]byte, messageList *[][]byte) error {
-	err := error(nil)
-	for _, messageHash := range *messageList {
-		key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
-		errTemp := server.database.Delete(key, nil)
-		if errTemp != nil { //TODO: Ask Andres if there was a better way to do this
-			err = errTemp
+func (server *Server) deleteKey(uid *[32]byte, key *[]byte) error {
+	keyHash := sha256.Sum256(*key)
+	dbKey := append(append([]byte{'k'}, (*uid)[:]...), keyHash[:]...)
+	return server.database.Delete(dbKey, nil)
+}
+
+func (server *Server) getKey(user *[32]byte) (*[]byte, error) {
+	prefix := append([]byte{'k'}, (*user)[:]...)
+	keyRange := util.BytesPrefix(prefix)
+	iter := server.database.NewIterator(keyRange, nil)
+	defer iter.Release()
+	if iter.First() == false {
+		return nil, errors.New("No keys left in database")
+	}
+	err := iter.Error()
+	key := iter.Value()
+	return &key, err
+}
+
+func (server *Server) newKeys(uid *[32]byte, keyList *[][]byte) error {
+	for _, key := range *keyList {
+		keyHash := sha256.Sum256(key)
+		dbKey := append(append([]byte{'k'}, (*uid)[:]...), keyHash[:]...)
+		err := server.database.Put(dbKey, key, nil)
+		if err != nil {
+			return err
 		}
 	}
-	return err
+	return nil
+}
+func (server *Server) deleteMessages(uid *[32]byte, messageList *[][]byte) error {
+	for _, messageHash := range *messageList {
+		key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
+		err := server.database.Delete(key, nil)
+		if err != nil { //TODO: Ask Andres if there was a better way to do this
+			return err
+		}
+	}
+	return nil
 }
 
 func (server *Server) getEnvelope(uid *[32]byte, messageHash *[]byte) ([]byte, error) {
