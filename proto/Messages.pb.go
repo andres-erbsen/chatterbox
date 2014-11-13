@@ -79,6 +79,7 @@ type ClientToServer struct {
 	DeliverEnvelope  *ClientToServer_DeliverEnvelope `protobuf:"bytes,2,opt,name=deliver_envelope" json:"deliver_envelope,omitempty"`
 	DownloadEnvelope []byte                          `protobuf:"bytes,6,opt,name=download_envelope" json:"download_envelope,omitempty"`
 	ListMessages     *bool                           `protobuf:"varint,5,opt,name=list_messages" json:"list_messages,omitempty"`
+	DeleteMessages   [][]byte                        `protobuf:"bytes,7,rep,name=delete_messages" json:"delete_messages,omitempty"`
 	XXX_unrecognized []byte                          `json:"-"`
 }
 
@@ -307,6 +308,29 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			b := bool(v != 0)
 			m.ListMessages = &b
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeleteMessages", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DeleteMessages = append(m.DeleteMessages, make([]byte, postIndex-index))
+			copy(m.DeleteMessages[len(m.DeleteMessages)-1], data[index:postIndex])
+			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -457,6 +481,12 @@ func (m *ClientToServer) Size() (n int) {
 	if m.ListMessages != nil {
 		n += 2
 	}
+	if len(m.DeleteMessages) > 0 {
+		for _, b := range m.DeleteMessages {
+			l = len(b)
+			n += 1 + l + sovMessages(uint64(l))
+		}
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -540,8 +570,19 @@ func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 		v7 := bool(r.Intn(2) == 0)
 		this.ListMessages = &v7
 	}
+	if r.Intn(10) != 0 {
+		v8 := r.Intn(100)
+		this.DeleteMessages = make([][]byte, v8)
+		for i := 0; i < v8; i++ {
+			v9 := r.Intn(100)
+			this.DeleteMessages[i] = make([]byte, v9)
+			for j := 0; j < v9; j++ {
+				this.DeleteMessages[i][j] = byte(r.Intn(256))
+			}
+		}
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedMessages(r, 7)
+		this.XXX_unrecognized = randUnrecognizedMessages(r, 8)
 	}
 	return this
 }
@@ -549,9 +590,9 @@ func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 func NewPopulatedClientToServer_DeliverEnvelope(r randyMessages, easy bool) *ClientToServer_DeliverEnvelope {
 	this := &ClientToServer_DeliverEnvelope{}
 	this.User = NewPopulatedByte32(r)
-	v8 := r.Intn(100)
-	this.Envelope = make([]byte, v8)
-	for i := 0; i < v8; i++ {
+	v10 := r.Intn(100)
+	this.Envelope = make([]byte, v10)
+	for i := 0; i < v10; i++ {
 		this.Envelope[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -577,9 +618,9 @@ func randUTF8RuneMessages(r randyMessages) rune {
 	return res
 }
 func randStringMessages(r randyMessages) string {
-	v9 := r.Intn(100)
-	tmps := make([]rune, v9)
-	for i := 0; i < v9; i++ {
+	v11 := r.Intn(100)
+	tmps := make([]rune, v11)
+	for i := 0; i < v11; i++ {
 		tmps[i] = randUTF8RuneMessages(r)
 	}
 	return string(tmps)
@@ -601,11 +642,11 @@ func randFieldMessages(data []byte, r randyMessages, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateMessages(data, uint64(key))
-		v10 := r.Int63()
+		v12 := r.Int63()
 		if r.Intn(2) == 0 {
-			v10 *= -1
+			v12 *= -1
 		}
-		data = encodeVarintPopulateMessages(data, uint64(v10))
+		data = encodeVarintPopulateMessages(data, uint64(v12))
 	case 1:
 		data = encodeVarintPopulateMessages(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -719,6 +760,14 @@ func (m *ClientToServer) MarshalTo(data []byte) (n int, err error) {
 			data[i] = 0
 		}
 		i++
+	}
+	if len(m.DeleteMessages) > 0 {
+		for _, b := range m.DeleteMessages {
+			data[i] = 0x3a
+			i++
+			i = encodeVarintMessages(data, i, uint64(len(b)))
+			i += copy(data[i:], b)
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -876,6 +925,14 @@ func (this *ClientToServer) Equal(that interface{}) bool {
 		return false
 	} else if that1.ListMessages != nil {
 		return false
+	}
+	if len(this.DeleteMessages) != len(that1.DeleteMessages) {
+		return false
+	}
+	for i := range this.DeleteMessages {
+		if !bytes.Equal(this.DeleteMessages[i], that1.DeleteMessages[i]) {
+			return false
+		}
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false

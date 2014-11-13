@@ -157,7 +157,7 @@ func TestMessageUploading(t *testing.T) {
 	t.Error("Expected message entry not found")
 }
 
-func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[][]byte {
+func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) *[][]byte {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -188,7 +188,7 @@ func TestMessageListing(t *testing.T) {
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
 
-	messageList := *listUserMessages(conn, inBuf, outBuf, t, pkp)
+	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
 	expected := make([][]byte, 0, 64)
 	envelope1Hash := sha256.Sum256(envelope1)
@@ -204,7 +204,7 @@ func TestMessageListing(t *testing.T) {
 	server.StopServer()
 }
 
-func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, messageHash *[]byte) *[]byte {
+func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[]byte) *[]byte {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: *messageHash,
 	}
@@ -234,15 +234,11 @@ func TestEnvelopeDownload(t *testing.T) {
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
 
-	messageList := *listUserMessages(conn, inBuf, outBuf, t, pkp)
-
-	envelopes := make([][]byte, 0, 64) //TODO: Reasonable starting cap
-	envelopes = append(envelopes, []byte("Envelope"))
-	envelopes = append(envelopes, []byte("Envelope2"))
+	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
 	//TODO: Should messageHash just be 32-bytes? Answer: Probably yes, oh well
 	for _, message := range messageList {
-		envelope := downloadEnvelope(conn, inBuf, outBuf, t, pkp, &message)
+		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &message)
 
 		var message32 [32]byte
 		copy(message32[:], message[0:32])
@@ -250,6 +246,46 @@ func TestEnvelopeDownload(t *testing.T) {
 		if !(message32 == sha256.Sum256(*envelope)) {
 			t.Error("Wrong envelope associated with message")
 		}
+	}
+	server.StopServer()
+}
+
+func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList *[][]byte) {
+	deleteMessages := &proto.ClientToServer{
+		DeleteMessages: *messageList,
+	}
+	writeProtobuf(conn, outBuf, deleteMessages, t)
+
+	receiveProtobuf(conn, inBuf, t)
+}
+
+func TestMessageDeletion(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+
+	envelope1 := []byte("Envelope1")
+	envelope2 := []byte("Envelope2")
+
+	createAccount(conn, inBuf, outBuf, t)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+
+	messageList := *listUserMessages(conn, inBuf, outBuf, t)
+
+	deleteMessages(conn, inBuf, outBuf, t, &messageList)
+
+	newMessageList := *listUserMessages(conn, inBuf, outBuf, t)
+
+	if !(len(newMessageList) == 0) {
+		t.Error("Not all messages properly deleted")
 	}
 
 	server.StopServer()

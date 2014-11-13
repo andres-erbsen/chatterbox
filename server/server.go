@@ -125,7 +125,7 @@ clientCommands:
 			user := (*[32]byte)(command.DeliverEnvelope.User)
 			envelope := &command.DeliverEnvelope.Envelope
 			err = server.newMessage(user, envelope)
-		} else if command.ListMessages != nil {
+		} else if command.ListMessages != nil && *command.ListMessages != false {
 			//TODO: Ask Andres how to do the next two lines properly
 			messageList, errTemp := server.getMessageList(uid)
 			err = errTemp
@@ -133,6 +133,9 @@ clientCommands:
 		} else if command.DownloadEnvelope != nil {
 			messageHash := command.DownloadEnvelope
 			response.Envelope, err = server.getEnvelope(uid, &messageHash)
+		} else if command.DeleteMessages != nil {
+			messageList := command.DeleteMessages
+			err = server.deleteMessages(uid, &messageList)
 		}
 		if err != nil {
 			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
@@ -146,6 +149,18 @@ clientCommands:
 		response.Reset()
 	}
 	return nil
+}
+
+func (server *Server) deleteMessages(uid *[32]byte, messageList *[][]byte) error {
+	err := error(nil)
+	for _, messageHash := range *messageList {
+		key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
+		errTemp := server.database.Delete(key, nil)
+		if errTemp != nil { //TODO: Ask Andres if there was a better way to do this
+			err = errTemp
+		}
+	}
+	return err
 }
 
 func (server *Server) getEnvelope(uid *[32]byte, messageHash *[]byte) ([]byte, error) {

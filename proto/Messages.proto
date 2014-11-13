@@ -33,5 +33,6 @@ message ClientToServer {
 	optional DeliverEnvelope deliver_envelope = 2;
 	optional bytes download_envelope = 6; 
 	optional bool list_messages = 5;
+	repeated bytes delete_messages = 7;
 }
 
