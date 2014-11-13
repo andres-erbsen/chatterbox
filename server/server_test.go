@@ -19,16 +19,42 @@ import (
 
 var _ = fmt.Printf
 
-//Tests whether database contains new account after creating one
-func TestAccountCreation(t *testing.T) {
-	dir, err := ioutil.TempDir("", "testdb")
-	handleError(err, t)
+func handleError(err error, t *testing.T) {
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-	defer os.RemoveAll(dir)
-	db, err := leveldb.OpenFile(dir, nil)
+func writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer, t *testing.T) {
+	size, err := message.MarshalTo(outBuf)
 	handleError(err, t)
+	conn.WriteFrame(outBuf[:size])
+}
 
-	defer db.Close()
+func receiveProtobuf(conn *transport.Conn, inBuf []byte, t *testing.T) *proto.ServerToClient {
+	response := new(proto.ServerToClient)
+	conn.SetDeadline(time.Now().Add(time.Second))
+	num, err := conn.ReadFrame(inBuf)
+	handleError(err, t)
+	if err := response.Unmarshal(inBuf[:num]); err != nil {
+		t.Error(err)
+	}
+	if *response.Status == proto.ServerToClient_PARSE_ERROR {
+		t.Error("Server threw a parse error.")
+	}
+	return response
+}
+
+func containsByteSlice(arr [][]byte, element []byte) bool {
+	for _, arrElement := range arr {
+		if bytes.Equal(arrElement, element) {
+			return true
+		}
+	}
+	return false
+}
+
+func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []byte, []byte, *[32]byte) {
 	shutdown := make(chan struct{})
 
 	pks, sks, err := box.GenerateKey(rand.Reader)
@@ -46,15 +72,35 @@ func TestAccountCreation(t *testing.T) {
 	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
 	handleError(err, t)
 
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
+	return server, conn, inBuf, outBuf, pkp
+}
+
+func createAccount(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
-	err = writeProtobuf(conn, outBuf, command, t)
+	writeProtobuf(conn, outBuf, command, t)
+
+	receiveProtobuf(conn, inBuf, t)
+}
+
+//Tests whether database contains new account after creating one
+func TestAccountCreation(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
 	handleError(err, t)
 
-	handleResponse(conn, t)
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, _ := setUpServerTest(db, t)
+
+	createAccount(conn, inBuf, outBuf, t)
 
 	server.StopServer()
 
@@ -65,55 +111,17 @@ func TestAccountCreation(t *testing.T) {
 	}
 }
 
-func handleError(err error, t *testing.T) {
-	if err != nil {
-		t.Error(err)
+func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, envelope *[]byte) {
+	message := &proto.ClientToServer_DeliverEnvelope{
+		User:     (*proto.Byte32)(pk),
+		Envelope: *envelope,
 	}
-}
-
-//func TestMarshalTo(t *testing.T) {
-//	outBuf := make([]byte, MAX_MESSAGE_SIZE)
-//	user := [32]byte{}
-//	message := &proto.ClientToServer_DeliverEnvelope{
-//		User:     (*proto.Byte32)(&user),
-//		Envelope: []byte("Envelope"),
-//	}
-//	sent := &proto.ClientToServer{
-//		DeliverEnvelope: message,
-//	}
-//	fmt.Printf("Original object\n %v\n", sent)
-//	size, err := sent.MarshalTo(outBuf)
-//	handleError(err, t)
-//
-//	received := new(proto.ClientToServer)
-//
-//	received.Unmarshal(outBuf[:size])
-//	fmt.Printf("Unmarshalled object\n %v\n", received)
-//}
-
-func writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer, t *testing.T) error {
-	size, err := message.MarshalTo(outBuf)
-	handleError(err, t)
-	conn.WriteFrame(outBuf[:size])
-	return nil
-}
-
-func handleResponse(connection *transport.Conn, t *testing.T) error {
-	response := new(proto.ServerToClient)
-
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	connection.SetDeadline(time.Now().Add(time.Second))
-
-	num, err := connection.ReadFrame(inBuf)
-	handleError(err, t)
-
-	if err := response.Unmarshal(inBuf[:num]); err != nil {
-		t.Error(err)
+	deliverCommand := &proto.ClientToServer{
+		DeliverEnvelope: message,
 	}
-	if *response.Status == proto.ServerToClient_PARSE_ERROR {
-		t.Error("Server failed to update database.")
-	}
-	return nil //We did it!
+	writeProtobuf(conn, outBuf, deliverCommand, t)
+
+	receiveProtobuf(conn, inBuf, t)
 }
 
 // Tests whether database contains new message after uploading one
@@ -126,46 +134,17 @@ func TestMessageUploading(t *testing.T) {
 	handleError(err, t)
 
 	defer db.Close()
-	shutdown := make(chan struct{})
 
-	pk, sk, err := box.GenerateKey(rand.Reader)
-	handleError(err, t)
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
 
-	server, err := StartServer(db, shutdown, pk, sk)
-	handleError(err, t)
+	envelope := []byte("Envelope")
 
-	oldConn, err := net.Dial("tcp", "localhost:8888")
-	handleError(err, t)
-
-	pkp, skp, err := box.GenerateKey(rand.Reader)
-	handleError(err, t)
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
-	handleError(err, t)
-
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
-	command := &proto.ClientToServer{
-		CreateAccount: protobuf.Bool(false),
-	}
-	err = writeProtobuf(conn, outBuf, command, t)
-	handleError(err, t)
-
-	handleResponse(conn, t)
-
-	message := &proto.ClientToServer_DeliverEnvelope{
-		User:     (*proto.Byte32)(pkp),
-		Envelope: []byte("Envelope"),
-	}
-	deliverCommand := &proto.ClientToServer{
-		DeliverEnvelope: message,
-	}
-	err = writeProtobuf(conn, outBuf, deliverCommand, t)
-	handleError(err, t)
-
-	handleResponse(conn, t)
+	createAccount(conn, inBuf, outBuf, t)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope)
 
 	server.StopServer()
-	envelopeHash := sha256.Sum256([]byte("Envelope"))
+
+	envelopeHash := sha256.Sum256(envelope)
 	expectedKey := append(append([]byte{'m'}, (*pkp)[:]...), envelopeHash[:]...)
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
@@ -176,6 +155,17 @@ func TestMessageUploading(t *testing.T) {
 		}
 	}
 	t.Error("Expected message entry not found")
+}
+
+func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[][]byte {
+	listMessages := &proto.ClientToServer{
+		ListMessages: protobuf.Bool(true),
+	}
+	writeProtobuf(conn, outBuf, listMessages, t)
+
+	response := receiveProtobuf(conn, inBuf, t)
+
+	return &response.MessageList
 }
 
 //Test message listing
@@ -189,81 +179,20 @@ func TestMessageListing(t *testing.T) {
 
 	defer db.Close()
 
-	shutdown := make(chan struct{})
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
 
-	pk, sk, err := box.GenerateKey(rand.Reader)
-	handleError(err, t)
+	envelope1 := []byte("Envelope1")
+	envelope2 := []byte("Envelope2")
 
-	server, err := StartServer(db, shutdown, pk, sk)
-	handleError(err, t)
+	createAccount(conn, inBuf, outBuf, t)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
 
-	oldConn, err := net.Dial("tcp", "localhost:8888")
-	handleError(err, t)
+	messageList := *listUserMessages(conn, inBuf, outBuf, t, pkp)
 
-	pkp, skp, err := box.GenerateKey(rand.Reader)
-	handleError(err, t)
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
-	handleError(err, t)
-
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
-
-	command := &proto.ClientToServer{
-		CreateAccount: protobuf.Bool(true),
-	}
-	err = writeProtobuf(conn, outBuf, command, t)
-	handleError(err, t)
-
-	handleResponse(conn, t)
-
-	message := &proto.ClientToServer_DeliverEnvelope{
-		User:     (*proto.Byte32)(pkp),
-		Envelope: []byte("Envelope"),
-	}
-	deliverCommand := &proto.ClientToServer{
-		DeliverEnvelope: message,
-	}
-	err = writeProtobuf(conn, outBuf, deliverCommand, t)
-	handleError(err, t)
-
-	handleResponse(conn, t)
-
-	message2 := &proto.ClientToServer_DeliverEnvelope{
-		User:     (*proto.Byte32)(pkp),
-		Envelope: []byte("Envelope2"),
-	}
-	deliverCommand2 := &proto.ClientToServer{
-		DeliverEnvelope: message2,
-	}
-	err = writeProtobuf(conn, outBuf, deliverCommand2, t)
-	handleError(err, t)
-
-	handleResponse(conn, t)
-
-	listMessages := &proto.ClientToServer{
-		ListMessages: protobuf.Bool(true),
-	}
-	err = writeProtobuf(conn, outBuf, listMessages, t)
-
-	handleError(err, t)
-
-	response := new(proto.ServerToClient)
-
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	conn.SetDeadline(time.Now().Add(time.Second))
-	num, err := conn.ReadFrame(inBuf)
-	handleError(err, t)
-	if err := response.Unmarshal(inBuf[:num]); err != nil {
-		t.Error(err)
-	}
-
-	if *response.Status == proto.ServerToClient_PARSE_ERROR {
-		t.Error("Server failed to get message list.")
-	}
-	messageList := response.MessageList
 	expected := make([][]byte, 0, 64)
-	envelope1Hash := sha256.Sum256([]byte("Envelope"))
-	envelope2Hash := sha256.Sum256([]byte("Envelope2"))
+	envelope1Hash := sha256.Sum256(envelope1)
+	envelope2Hash := sha256.Sum256(envelope2)
 	expected = append(expected, envelope1Hash[:])
 	expected = append(expected, envelope2Hash[:])
 
@@ -275,11 +204,53 @@ func TestMessageListing(t *testing.T) {
 	server.StopServer()
 }
 
-func containsByteSlice(arr [][]byte, element []byte) bool {
-	for _, arrElement := range arr {
-		if bytes.Equal(arrElement, element) {
-			return true
+func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, messageHash *[]byte) *[]byte {
+	getEnvelope := &proto.ClientToServer{
+		DownloadEnvelope: *messageHash,
+	}
+	writeProtobuf(conn, outBuf, getEnvelope, t)
+
+	response := receiveProtobuf(conn, inBuf, t)
+	return &response.Envelope
+}
+
+//Test downloading envelopes
+func TestEnvelopeDownload(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+
+	envelope1 := []byte("Envelope1")
+	envelope2 := []byte("Envelope2")
+
+	createAccount(conn, inBuf, outBuf, t)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+
+	messageList := *listUserMessages(conn, inBuf, outBuf, t, pkp)
+
+	envelopes := make([][]byte, 0, 64) //TODO: Reasonable starting cap
+	envelopes = append(envelopes, []byte("Envelope"))
+	envelopes = append(envelopes, []byte("Envelope2"))
+
+	//TODO: Should messageHash just be 32-bytes? Answer: Probably yes, oh well
+	for _, message := range messageList {
+		envelope := downloadEnvelope(conn, inBuf, outBuf, t, pkp, &message)
+
+		var message32 [32]byte
+		copy(message32[:], message[0:32])
+
+		if !(message32 == sha256.Sum256(*envelope)) {
+			t.Error("Wrong envelope associated with message")
 		}
 	}
-	return false
+
+	server.StopServer()
 }

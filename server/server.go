@@ -22,8 +22,6 @@ import (
 //TODO: Check that sent messages go to user that exists
 const MAX_MESSAGE_SIZE = 16 * 1024
 
-type Envelope []byte
-
 type Server struct {
 	database *leveldb.DB
 	shutdown chan struct{}
@@ -76,7 +74,7 @@ serverLoop:
 		}
 
 		server.wg.Add(1)
-		go server.handleClient(conn)
+		go server.handleClient(&conn)
 	}
 	return nil
 }
@@ -84,17 +82,17 @@ serverLoop:
 func (server *Server) handleClientShutdown(connection *transport.Conn) {
 	defer server.wg.Done()
 	<-server.shutdown
-	connection.Close()
+	(*connection).Close()
 	return
 }
 
 //for each client, listen for commands
-func (server *Server) handleClient(connection net.Conn) error {
+func (server *Server) handleClient(connection *net.Conn) error {
 	//return nil
 	//err := server.database.Put([]byte("yolo"), []byte(""), nil)
 	//return err
 	defer server.wg.Done()
-	newConnection, uid, err := transport.Handshake(connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
+	newConnection, uid, err := transport.Handshake(*connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
 	if err != nil {
 		return err
 	}
@@ -103,8 +101,6 @@ func (server *Server) handleClient(connection net.Conn) error {
 
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
-	//	reader := io.NewDelimitedReader(newConnection, 16*1024)
-	//writer := io.NewDelimitedWriter(newConnection)
 	command := new(proto.ClientToServer)
 	response := new(proto.ServerToClient)
 clientCommands:
@@ -123,16 +119,21 @@ clientCommands:
 		if err := command.Unmarshal(inBuf[:num]); err != nil {
 			return err
 		}
-		if command.CreateAccount != nil {
+		if command.CreateAccount != nil && *command.CreateAccount != false {
 			err = server.newUser(uid)
 		} else if command.DeliverEnvelope != nil {
 			user := (*[32]byte)(command.DeliverEnvelope.User)
-			envelope := command.DeliverEnvelope.Envelope
+			envelope := &command.DeliverEnvelope.Envelope
 			err = server.newMessage(user, envelope)
 		} else if command.ListMessages != nil {
-			response.MessageList, err = server.getMessageList(uid)
+			//TODO: Ask Andres how to do the next two lines properly
+			messageList, errTemp := server.getMessageList(uid)
+			err = errTemp
+			response.MessageList = *messageList
+		} else if command.DownloadEnvelope != nil {
+			messageHash := command.DownloadEnvelope
+			response.Envelope, err = server.getEnvelope(uid, &messageHash)
 		}
-
 		if err != nil {
 			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
 		} else {
@@ -147,6 +148,12 @@ clientCommands:
 	return nil
 }
 
+func (server *Server) getEnvelope(uid *[32]byte, messageHash *[]byte) ([]byte, error) {
+	key := append(append([]byte{'m'}, (*uid)[:]...), (*messageHash)[:]...)
+	envelope, err := server.database.Get(key, nil)
+	return envelope, err
+}
+
 func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ServerToClient) error {
 	size, err := message.MarshalTo(outBuf)
 	if err != nil {
@@ -156,7 +163,7 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 	return nil
 }
 
-func (server *Server) getMessageList(user *[32]byte) ([][]byte, error) {
+func (server *Server) getMessageList(user *[32]byte) (*[][]byte, error) {
 	messages := make([][]byte, 0, 64) //TODO: Reasonable starting cap for this buffer
 	prefix := append([]byte{'m'}, (*user)[:]...)
 	messageRange := util.BytesPrefix(prefix)
@@ -167,14 +174,14 @@ func (server *Server) getMessageList(user *[32]byte) ([][]byte, error) {
 	}
 	iter.Release()
 	err := iter.Error()
-	return messages, err
+	return &messages, err
 }
 
-func (server *Server) newMessage(uid *[32]byte, envelope Envelope) error {
+func (server *Server) newMessage(uid *[32]byte, envelope *[]byte) error {
 	// add message to the database
-	messageHash := sha256.Sum256(envelope)
+	messageHash := sha256.Sum256(*envelope)
 	key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
-	return server.database.Put(key, envelope[:], nil)
+	return server.database.Put(key, (*envelope)[:], nil)
 }
 
 func (server *Server) newUser(uid *[32]byte) error {

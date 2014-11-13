@@ -1,6 +1,7 @@
 package main
 
 type Uid [32]byte
+type Envelope []byte
 
 //Notifier map which can't be tested for a while
 func NewNotifier() *Notifier {
