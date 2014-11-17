@@ -1,63 +1,44 @@
 package main
 
-type Uid [32]byte
-type Envelope []byte
-
-//Notifier map which can't be tested for a while
-func NewNotifier() *Notifier {
-	notifier := &Notifier{
-		newClients:      make(chan Client),
-		clientsToRemove: make(chan Uid),
-		users:           make(map[Uid]chan *Envelope),
-		notifications:   make(chan *Notification),
-	}
-
-	notifier.Listen()
-
-	return notifier
-}
-
-func (notifier *Notifier) Listen() {
-	go notifier.addClients()
-	go notifier.removeClients()
-	go notifier.getEnvelopes()
-}
-
-func (notifier *Notifier) addClients() {
-	for client := range notifier.newClients {
-		notifier.users[client.user] = client.channel
-	}
-}
-
-func (notifier *Notifier) removeClients() {
-	for uid := range notifier.clientsToRemove {
-		delete(notifier.users, uid)
-	}
-}
-
-func (notifier *Notifier) getEnvelopes() {
-	for notification := range notifier.notifications {
-		if channel, ok := notifier.users[notification.user]; ok == true {
-			channel <- notification.envelopes
-		}
-	}
-}
-
-type Client struct {
-	user    Uid
-	channel chan *Envelope
-}
-
-type Notification struct {
-	user      Uid
-	envelopes *Envelope
-}
+import "sync"
 
 type Notifier struct {
-	newClients      chan Client
-	clientsToRemove chan Uid
-	users           map[Uid]chan *Envelope
-	notifications   chan *Notification
+	sync.RWMutex
+	waiters map[[32]byte][]chan []byte
 }
 
-func main() {}
+func (n *Notifier) StartWaiting(uid [32]byte) chan<- []byte {
+	ch := make(chan []byte)
+	n.Lock()
+	defer n.Unlock()
+	n.waiters[uid] = append(n.waiters[uid], ch)
+	return ch
+}
+
+// StopWaitingSync blocks returns after closing removeCh. Calling
+// StopWaitingSync while a notification is pending will wait for that
+// notification to be handled. Calling StopWaitingSync from the thread that
+// should be handling the notification will therefore result in a deadlock.
+// When removeCh is not waiting, nothing is done (but the blocking
+// considerations still apply).
+func (n *Notifier) StopWaitingSync(uid [32]byte, removeCh chan []byte) {
+	n.Lock()
+	defer n.Unlock()
+	l := n.waiters[uid]
+	i := 0
+	for _, ch := range l {
+		if ch != removeCh {
+			l[i] = ch
+			i++
+		}
+	}
+	n.waiters[uid] = l[:i]
+}
+
+func (n *Notifier) Notify(uid [32]byte, notification []byte) {
+	n.Lock()
+	defer n.Unlock()
+	for _, ch := range n.waiters[uid] {
+		go func(ch chan []byte) { ch <- notification }(ch)
+	}
+}
