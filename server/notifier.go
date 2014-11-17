@@ -8,7 +8,7 @@ type Notifier struct {
 }
 
 func (n *Notifier) StartWaiting(uid [32]byte) chan<- []byte {
-	ch := make(chan []byte)
+	ch := make(chan []byte, 10) // FIXME: use elastic channels
 	n.Lock()
 	defer n.Unlock()
 	n.waiters[uid] = append(n.waiters[uid], ch)
@@ -40,6 +40,6 @@ func (n *Notifier) Notify(uid [32]byte, notification []byte) {
 	n.Lock()
 	defer n.Unlock()
 	for _, ch := range n.waiters[uid] {
-		go func(ch chan []byte) { ch <- notification }(ch)
+		ch <- notification
 	}
 }
