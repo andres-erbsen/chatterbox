@@ -310,19 +310,6 @@ func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk 
 	return &response.Key
 }
 
-func gotKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, key *[]byte) {
-	keyMessage := &proto.ClientToServer_GotKey{
-		User: (*proto.Byte32)(pk),
-		Key:  *key,
-	}
-	gotKey := &proto.ClientToServer{
-		GotKey: keyMessage,
-	}
-	writeProtobuf(conn, outBuf, gotKey, t)
-
-	receiveProtobuf(conn, inBuf, t)
-}
-
 func TestKeyUploadDownload(t *testing.T) {
 	dir, err := ioutil.TempDir("", "testdb")
 	handleError(err, t)
@@ -362,8 +349,6 @@ func TestKeyUploadDownload(t *testing.T) {
 		t.Error("Non-uploaded key returned")
 	}
 
-	gotKey(conn, inBuf, outBuf, t, pkp, &newKey1)
-
 	newKey2 := *getKey(conn, inBuf, outBuf, t, pkp)
 	if newKey2 == nil {
 		t.Error("No keys in server")
@@ -374,8 +359,6 @@ func TestKeyUploadDownload(t *testing.T) {
 	if bytes.Equal(newKey1, newKey2) {
 		t.Error("Key not deleted from server")
 	}
-
-	gotKey(conn, inBuf, outBuf, t, pkp, &newKey2)
 
 	server.StopServer()
 }

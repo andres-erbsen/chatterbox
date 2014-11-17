@@ -22,6 +22,7 @@ message ServerToClient {
 	repeated bytes message_list = 3;
 	optional bytes envelope = 4;
 	optional bytes key = 5;
+	optional bytes notification = 6;
 }
 
 message ClientToServer {	
@@ -37,10 +38,5 @@ message ClientToServer {
 	repeated bytes delete_messages = 7;
 	repeated bytes upload_keys = 8;
 	optional bytes get_key = 9 [(gogoproto.customtype) = "Byte32"];
-	message GotKey {
-		required bytes User = 10 [(gogoproto.customtype) = "Byte32"];
-		required bytes Key = 11;
-	}
-	optional GotKey got_key = 10;
 }
 

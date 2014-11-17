@@ -152,10 +152,6 @@ clientCommands:
 			if key != nil {
 				response.Key = *key
 			}
-		} else if command.GotKey != nil {
-			user := (*[32]byte)(command.GotKey.User)
-			key := &command.GotKey.Key
-			err = server.deleteKey(user, key)
 		}
 		if err != nil {
 			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
@@ -187,6 +183,7 @@ func (server *Server) getKey(user *[32]byte) (*[]byte, error) {
 	}
 	err := iter.Error()
 	key := iter.Value()
+	server.deleteKey(user, &key)
 	return &key, err
 }
 
