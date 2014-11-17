@@ -33,6 +33,7 @@ func (n *Notifier) StopWaitingSync(uid [32]byte, removeCh chan []byte) {
 		}
 	}
 	n.waiters[uid] = l[:i]
+	close(removeCh)
 }
 
 func (n *Notifier) Notify(uid [32]byte, notification []byte) {

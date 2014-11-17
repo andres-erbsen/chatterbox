@@ -161,5 +161,5 @@ func (c *Conn) Close() error {
 }
 
 func (c *Conn) SetDeadline(t time.Time) error      { return c.unencrypted.SetDeadline(t) }
-func (c *Conn) SetWriteDeadline(t time.Time) error { return c.unencrypted.SetDeadline(t) }
-func (c *Conn) SetReadDeadline(t time.Time) error  { return c.unencrypted.SetDeadline(t) }
+func (c *Conn) SetWriteDeadline(t time.Time) error { return c.unencrypted.SetWriteDeadline(t) }
+func (c *Conn) SetReadDeadline(t time.Time) error  { return c.unencrypted.SetReadDeadline(t) }

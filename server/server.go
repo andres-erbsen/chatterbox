@@ -7,7 +7,6 @@ package main
 //get new cool connection
 //make a new user with that connection
 import (
-	"bytes"
 	//"code.google.com/p/gogoprotobuf/io"
 	"crypto/sha256"
 	"errors"
@@ -90,9 +89,6 @@ func (server *Server) handleClientShutdown(connection *transport.Conn) {
 
 //for each client, listen for commands
 func (server *Server) handleClient(connection *net.Conn) error {
-	//return nil
-	//err := server.database.Put([]byte("yolo"), []byte(""), nil)
-	//return err
 	defer server.wg.Done()
 	newConnection, uid, err := transport.Handshake(*connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
 	if err != nil {
@@ -107,6 +103,7 @@ func (server *Server) handleClient(connection *net.Conn) error {
 	response := new(proto.ServerToClient)
 clientCommands:
 	for {
+		newConnection.SetDeadline(5 * time.Second)
 		num, err := newConnection.ReadFrame(inBuf)
 		//fmt.Printf("R %x\n", inBuf[:num])
 
@@ -114,9 +111,9 @@ clientCommands:
 			select {
 			case <-server.shutdown:
 				break clientCommands
-			default: //
+			default:
+				return err
 			}
-			return err
 		}
 		if err := command.Unmarshal(inBuf[:num]); err != nil {
 			return err
@@ -124,34 +121,19 @@ clientCommands:
 		if command.CreateAccount != nil && *command.CreateAccount != false {
 			err = server.newUser(uid)
 		} else if command.DeliverEnvelope != nil {
-			user := (*[32]byte)(command.DeliverEnvelope.User)
-			envelope := &command.DeliverEnvelope.Envelope
-			err = server.newMessage(user, envelope)
+			err = server.newMessage((*[32]byte)(command.DeliverEnvelope.User),
+				command.DeliverEnvelope.Envelope)
 		} else if command.ListMessages != nil && *command.ListMessages != false {
-			//TODO: Ask Andres how to do the next two lines properly
-			messageList, errTemp := server.getMessageList(uid)
-			err = errTemp
-			response.MessageList = *messageList
+			response.MessageList, err = server.getMessageList(uid)
 		} else if command.DownloadEnvelope != nil {
-			messageHash := command.DownloadEnvelope
-			envelope, errTemp := server.getEnvelope(uid, &messageHash)
-			err = errTemp
-			if envelope != nil {
-				response.Envelope = envelope
-			}
+			response.Envelope, err = server.getEnvelope(uid, command.DownloadEnvelope)
 		} else if command.DeleteMessages != nil {
 			messageList := command.DeleteMessages
 			err = server.deleteMessages(uid, &messageList)
 		} else if command.UploadKeys != nil {
-			keyList := command.UploadKeys
-			err = server.newKeys(uid, &keyList)
+			err = server.newKeys(uid, command.UploadKeys)
 		} else if command.GetKey != nil {
-			user := (*[32]byte)(command.GetKey)
-			key, errTemp := server.getKey(user)
-			err = errTemp
-			if key != nil {
-				response.Key = *key
-			}
+			response.Key, err = server.getKey((*[32]byte)(command.GetKey))
 		}
 		if err != nil {
 			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
@@ -167,13 +149,15 @@ clientCommands:
 	return nil
 }
 
-func (server *Server) deleteKey(uid *[32]byte, key *[]byte) error {
-	keyHash := sha256.Sum256(*key)
-	dbKey := append(append([]byte{'k'}, (*uid)[:]...), keyHash[:]...)
+func (server *Server) deleteKey(uid *[32]byte, key []byte) error {
+	keyHash := sha256.Sum256(key)
+	dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
 	return server.database.Delete(dbKey, nil)
 }
 
-func (server *Server) getKey(user *[32]byte) (*[]byte, error) {
+func (server *Server) getKey(user *[32]byte) ([]byte, error) {
+	// TODO: synchronization. Two concurrent gets MUST get different keys
+	// unless it is the last one.
 	prefix := append([]byte{'k'}, (*user)[:]...)
 	keyRange := util.BytesPrefix(prefix)
 	iter := server.database.NewIterator(keyRange, nil)
@@ -183,14 +167,14 @@ func (server *Server) getKey(user *[32]byte) (*[]byte, error) {
 	}
 	err := iter.Error()
 	key := iter.Value()
-	server.deleteKey(user, &key)
-	return &key, err
+	server.deleteKey(user, key)
+	return key, err
 }
 
-func (server *Server) newKeys(uid *[32]byte, keyList *[][]byte) error {
-	for _, key := range *keyList {
+func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
+	for _, key := range keyList {
 		keyHash := sha256.Sum256(key)
-		dbKey := append(append([]byte{'k'}, (*uid)[:]...), keyHash[:]...)
+		dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
 		err := server.database.Put(dbKey, key, nil)
 		if err != nil {
 			return err
@@ -200,7 +184,7 @@ func (server *Server) newKeys(uid *[32]byte, keyList *[][]byte) error {
 }
 func (server *Server) deleteMessages(uid *[32]byte, messageList *[][]byte) error {
 	for _, messageHash := range *messageList {
-		key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
+		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 		err := server.database.Delete(key, nil)
 		if err != nil { //TODO: Ask Andres if there was a better way to do this
 			return err
@@ -209,8 +193,8 @@ func (server *Server) deleteMessages(uid *[32]byte, messageList *[][]byte) error
 	return nil
 }
 
-func (server *Server) getEnvelope(uid *[32]byte, messageHash *[]byte) ([]byte, error) {
-	key := append(append([]byte{'m'}, (*uid)[:]...), (*messageHash)[:]...)
+func (server *Server) getEnvelope(uid *[32]byte, messageHash []byte) ([]byte, error) {
+	key := append(append([]byte{'m'}, uid[:]...), (messageHash)[:]...)
 	envelope, err := server.database.Get(key, nil)
 	return envelope, err
 }
@@ -224,35 +208,27 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 	return nil
 }
 
-func (server *Server) getMessageList(user *[32]byte) (*[][]byte, error) {
-	messages := make([][]byte, 0, 64) //TODO: Reasonable starting cap for this buffer
+func (server *Server) getMessageList(user *[32]byte) ([][]byte, error) {
+	messages := make([][]byte, 0)
 	prefix := append([]byte{'m'}, (*user)[:]...)
 	messageRange := util.BytesPrefix(prefix)
 	iter := server.database.NewIterator(messageRange, nil)
 	for iter.Next() {
-		message := append([]byte{}, bytes.TrimPrefix(iter.Key(), prefix)...)
+		message := append([]byte{}, iter.Key()[len(prefix):]...)
 		messages = append(messages, message)
 	}
-	iter.Release()
 	err := iter.Error()
-	return &messages, err
+	iter.Release()
+	return messages, err
 }
 
-func (server *Server) newMessage(uid *[32]byte, envelope *[]byte) error {
+func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	// add message to the database
-	messageHash := sha256.Sum256(*envelope)
-	key := append(append([]byte{'m'}, (*uid)[:]...), messageHash[:]...)
-	return server.database.Put(key, (*envelope)[:], nil)
+	messageHash := sha256.Sum256(envelope)
+	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
+	return server.database.Put(key, (envelope)[:], nil)
 }
 
 func (server *Server) newUser(uid *[32]byte) error {
-	// add user to the database
-	err := server.database.Put(append([]byte{'u'}, (*uid)[:]...), []byte(""), nil)
-	return err
+	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), nil)
 }
-
-//func authenticateClient(connection transport.Conn) ([32]byte, transport.Conn, error) {
-//
-//	return
-//	[32]byte{}, connection, nil
-//}

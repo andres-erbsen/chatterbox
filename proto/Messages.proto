@@ -38,5 +38,6 @@ message ClientToServer {
 	repeated bytes delete_messages = 7;
 	repeated bytes upload_keys = 8;
 	optional bytes get_key = 9 [(gogoproto.customtype) = "Byte32"];
+	optional bool receive_envelopes = 10;
 }
 
