@@ -17,8 +17,6 @@ import (
 	"time"
 )
 
-var _ = fmt.Printf
-
 func handleError(err error, t *testing.T) {
 	if err != nil {
 		t.Error(err)

@@ -1,16 +1,9 @@
 package main
 
-//TODO: Ask Andres about key acceptance protocol
-//accept connection
-//new thread!
-//authenticate client
-//get new cool connection
-//make a new user with that connection
 import (
 	//"code.google.com/p/gogoprotobuf/io"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -19,8 +12,6 @@ import (
 	"sync"
 )
 
-//
-//TODO: Check that sent messages go to user that exists
 const MAX_MESSAGE_SIZE = 16 * 1024
 
 type Server struct {
@@ -33,10 +24,7 @@ type Server struct {
 	sk       *[32]byte
 }
 
-var _ = fmt.Printf
-
 func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]byte) (*Server, error) {
-	//TODO: It's possible we want to call defer db.Close() here and not in the calling method
 	listener, err := net.Listen("tcp", ":8888")
 	if err != nil {
 		return nil, err
@@ -51,7 +39,6 @@ func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]b
 	}
 	server.wg.Add(1)
 	go server.RunServer()
-	//err = server.database.Put([]byte("yolo"), []byte(""), nil)
 	return server, nil
 }
 
@@ -62,13 +49,11 @@ func (server *Server) StopServer() {
 }
 
 func (server *Server) RunServer() error {
-	//server.writeResponse(writer, proto.ServerToClient_OK.Enum())
 	defer server.wg.Done()
-serverLoop:
 	for {
 		select {
 		case <-server.shutdown:
-			break serverLoop
+			return nil
 		default: //
 		}
 		conn, err := server.listener.Accept()
@@ -77,7 +62,7 @@ serverLoop:
 		}
 
 		server.wg.Add(1)
-		go server.handleClient(&conn)
+		go server.handleClient(conn)
 	}
 	return nil
 }
@@ -136,9 +121,9 @@ func (server *Server) readClientNotifications(notificationsIn chan []byte, notif
 }
 
 //for each client, listen for commands
-func (server *Server) handleClient(connection *net.Conn) error {
+func (server *Server) handleClient(connection net.Conn) error {
 	defer server.wg.Done()
-	newConnection, uid, err := transport.Handshake(*connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
+	newConnection, uid, err := transport.Handshake(connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
 	if err != nil {
 		return err
 	}
@@ -164,18 +149,18 @@ func (server *Server) handleClient(connection *net.Conn) error {
 		case err := <-disconnected:
 			return err
 		case cmd := <-commands:
-			if cmd.CreateAccount != nil && *cmd.CreateAccount != false {
+			if cmd.CreateAccount != nil && *cmd.CreateAccount {
 				err = server.newUser(uid)
 			} else if cmd.DeliverEnvelope != nil {
 				err = server.newMessage((*[32]byte)(cmd.DeliverEnvelope.User),
 					cmd.DeliverEnvelope.Envelope)
-			} else if cmd.ListMessages != nil && *cmd.ListMessages != false {
+			} else if cmd.ListMessages != nil && *cmd.ListMessages {
 				response.MessageList, err = server.getMessageList(uid)
 			} else if cmd.DownloadEnvelope != nil {
 				response.Envelope, err = server.getEnvelope(uid, cmd.DownloadEnvelope)
 			} else if cmd.DeleteMessages != nil {
 				messageList := cmd.DeleteMessages
-				err = server.deleteMessages(uid, &messageList)
+				err = server.deleteMessages(uid, messageList)
 			} else if cmd.UploadKeys != nil {
 				err = server.newKeys(uid, cmd.UploadKeys)
 			} else if cmd.GetKey != nil {
@@ -254,8 +239,8 @@ func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 	}
 	return nil
 }
-func (server *Server) deleteMessages(uid *[32]byte, messageList *[][]byte) error {
-	for _, messageHash := range *messageList {
+func (server *Server) deleteMessages(uid *[32]byte, messageList [][]byte) error {
+	for _, messageHash := range messageList {
 		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 		err := server.database.Delete(key, nil)
 		if err != nil { //TODO: Ask Andres if there was a better way to do this
@@ -272,7 +257,6 @@ func (server *Server) getEnvelope(uid *[32]byte, messageHash []byte) ([]byte, er
 }
 
 func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ServerToClient) error {
-	fmt.Printf("send \"%s\"\n", message)
 	size, err := message.MarshalTo(outBuf)
 	if err != nil {
 		return err
@@ -296,7 +280,7 @@ func (server *Server) getMessageList(user *[32]byte) ([][]byte, error) {
 }
 
 func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
-	// add message to the database
+	// TODO: check that user exists
 	messageHash := sha256.Sum256(envelope)
 	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 	err := server.database.Put(key, (envelope)[:], nil)
