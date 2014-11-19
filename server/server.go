@@ -45,6 +45,7 @@ func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]b
 		database: db,
 		shutdown: shutdown,
 		listener: listener,
+		notifier: Notifier{waiters: make(map[[32]byte][]chan []byte)},
 		pk:       pk,
 		sk:       sk,
 	}
@@ -150,6 +151,11 @@ func (server *Server) handleClient(connection *net.Conn) error {
 
 	var notificationsUnbuffered, notifications chan []byte
 	var notifyEnabled bool
+	defer func() {
+		if notifyEnabled {
+			server.notifier.StopWaitingSync(uid, notificationsUnbuffered)
+		}
+	}()
 
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 	response := new(proto.ServerToClient)
@@ -266,6 +272,7 @@ func (server *Server) getEnvelope(uid *[32]byte, messageHash []byte) ([]byte, er
 }
 
 func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ServerToClient) error {
+	fmt.Printf("send \"%s\"\n", message)
 	size, err := message.MarshalTo(outBuf)
 	if err != nil {
 		return err
@@ -296,7 +303,7 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	if err != nil {
 		return err
 	}
-	server.notifier.Notify(uid, envelope)
+	server.notifier.Notify(uid, append([]byte{}, envelope...))
 	return nil
 }
 

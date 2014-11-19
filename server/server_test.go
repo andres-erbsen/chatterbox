@@ -39,6 +39,9 @@ func receiveProtobuf(conn *transport.Conn, inBuf []byte, t *testing.T) *proto.Se
 	if err := response.Unmarshal(inBuf[:num]); err != nil {
 		t.Error(err)
 	}
+	if response.Status == nil {
+		t.Error("Server returned nil status.")
+	}
 	if *response.Status == proto.ServerToClient_PARSE_ERROR {
 		t.Error("Server threw a parse error.")
 	}
@@ -63,7 +66,7 @@ func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []
 	server, err := StartServer(db, shutdown, pks, sks)
 	handleError(err, t)
 
-	oldConn, err := net.Dial("tcp", "localhost:8888")
+	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
 	handleError(err, t)
 
 	pkp, skp, err := box.GenerateKey(rand.Reader)
@@ -358,6 +361,69 @@ func TestKeyUploadDownload(t *testing.T) {
 	}
 	if bytes.Equal(newKey1, newKey2) {
 		t.Error("Key not deleted from server")
+	}
+
+	server.StopServer()
+}
+
+func enablePush(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) {
+	true_ := true
+	command := &proto.ClientToServer{
+		ReceiveEnvelopes: &true_,
+	}
+	writeProtobuf(conn, outBuf, command, t)
+	receiveProtobuf(conn, inBuf, t)
+}
+
+func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
+	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
+	handleError(err, t)
+
+	pkp, skp, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
+	handleError(err, t)
+
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+
+	uploadMessageToUser(conn, inBuf, outBuf, t, uid, &message)
+}
+
+func TestPushNotifications(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+
+	envelope1 := []byte("First")
+	envelope2 := []byte("Second")
+	envelope3 := []byte("Third")
+
+	createAccount(conn, inBuf, outBuf, t)
+	enablePush(conn, inBuf, outBuf, t)
+	dropMessage(t, server, pkp, envelope1)
+	dropMessage(t, server, pkp, envelope2)
+	r1 := receiveProtobuf(conn, inBuf, t)
+	r2 := receiveProtobuf(conn, inBuf, t)
+	dropMessage(t, server, pkp, envelope3)
+	r3 := receiveProtobuf(conn, inBuf, t)
+
+	if !bytes.Equal(r1.Envelope, envelope1) {
+		t.Error(fmt.Sprintf("first message mismatch: \"%s\" != \"%s\"", r1.Envelope, envelope1))
+	}
+	if !bytes.Equal(r2.Envelope, envelope2) {
+		t.Error(fmt.Sprintf("first message mismatch: \"%s\" != \"%s\"", r2.Envelope, envelope2))
+	}
+	if !bytes.Equal(r3.Envelope, envelope3) {
+		t.Error(fmt.Sprintf("first message mismatch: \"%s\" != \"%s\"", r3.Envelope, envelope3))
 	}
 
 	server.StopServer()
