@@ -27,6 +27,7 @@ type Server struct {
 	database *leveldb.DB
 	shutdown chan struct{}
 	listener net.Listener
+	notifier Notifier
 	wg       sync.WaitGroup
 	pk       *[32]byte
 	sk       *[32]byte
@@ -87,6 +88,52 @@ func (server *Server) handleClientShutdown(connection *transport.Conn) {
 	return
 }
 
+// readClientCommands reads client commands from a connnection and sends them
+// to channel commands. On error, the error is sent to channel disconnect and
+// both channels (but not the connection are closed).
+// commands is a TWO-WAY channel! the reader must reach return each cmd after
+// interpreting it, readClientCommands will call cmd.Reset() and reuse it.
+func (server *Server) readClientCommands(conn *transport.Conn,
+	commands chan *proto.ClientToServer, disconnected chan error) {
+	defer server.wg.Done()
+	defer close(commands)
+	defer close(disconnected)
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	cmd := new(proto.ClientToServer)
+	for {
+		num, err := conn.ReadFrame(inBuf)
+		if err != nil {
+			disconnected <- err
+			return
+		}
+		if err := cmd.Unmarshal(inBuf[:num]); err != nil {
+			disconnected <- err
+			return
+		}
+		commands <- cmd
+		cmd = <-commands
+		cmd.Reset()
+	}
+}
+
+// readClientNotifications is a for loop of blocking reads on notificationsIn
+// and non-blocking sends on notificationsOut. If the input channel is closed
+// or a send would block, the output channel is closed.
+func (server *Server) readClientNotifications(notificationsIn chan []byte, notificationsOut chan []byte) {
+	var hasOverflowed bool
+	defer server.wg.Done()
+	for n := range notificationsIn {
+		if !hasOverflowed {
+			select {
+			case notificationsOut <- n:
+			default:
+				hasOverflowed = true
+				close(notificationsOut)
+			}
+		}
+	}
+}
+
 //for each client, listen for commands
 func (server *Server) handleClient(connection *net.Conn) error {
 	defer server.wg.Done()
@@ -94,56 +141,75 @@ func (server *Server) handleClient(connection *net.Conn) error {
 	if err != nil {
 		return err
 	}
-	server.wg.Add(1)
+
+	commands := make(chan *proto.ClientToServer)
+	disconnected := make(chan error)
+	server.wg.Add(2)
+	go server.readClientCommands(newConnection, commands, disconnected)
 	go server.handleClientShutdown(newConnection)
 
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
-	command := new(proto.ClientToServer)
-	response := new(proto.ServerToClient)
-clientCommands:
-	for {
-		newConnection.SetDeadline(5 * time.Second)
-		num, err := newConnection.ReadFrame(inBuf)
-		//fmt.Printf("R %x\n", inBuf[:num])
+	var notificationsUnbuffered, notifications chan []byte
+	var notifyEnabled bool
 
-		if err != nil {
-			select {
-			case <-server.shutdown:
-				break clientCommands
-			default:
+	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	response := new(proto.ServerToClient)
+	for {
+		select {
+		case err := <-disconnected:
+			return err
+		case cmd := <-commands:
+			if cmd.CreateAccount != nil && *cmd.CreateAccount != false {
+				err = server.newUser(uid)
+			} else if cmd.DeliverEnvelope != nil {
+				err = server.newMessage((*[32]byte)(cmd.DeliverEnvelope.User),
+					cmd.DeliverEnvelope.Envelope)
+			} else if cmd.ListMessages != nil && *cmd.ListMessages != false {
+				response.MessageList, err = server.getMessageList(uid)
+			} else if cmd.DownloadEnvelope != nil {
+				response.Envelope, err = server.getEnvelope(uid, cmd.DownloadEnvelope)
+			} else if cmd.DeleteMessages != nil {
+				messageList := cmd.DeleteMessages
+				err = server.deleteMessages(uid, &messageList)
+			} else if cmd.UploadKeys != nil {
+				err = server.newKeys(uid, cmd.UploadKeys)
+			} else if cmd.GetKey != nil {
+				response.Key, err = server.getKey((*[32]byte)(cmd.GetKey))
+			} else if cmd.ReceiveEnvelopes != nil {
+				if *cmd.ReceiveEnvelopes && !notifyEnabled {
+					notifyEnabled = true
+					notificationsUnbuffered = server.notifier.StartWaiting(uid)
+					notifications = make(chan []byte)
+					server.wg.Add(1)
+					go server.readClientNotifications(notificationsUnbuffered, notifications)
+				} else if !*cmd.ReceiveEnvelopes && notifyEnabled {
+					server.notifier.StopWaitingSync(uid, notificationsUnbuffered)
+					notifyEnabled = false
+				}
+			}
+			if err != nil {
+				response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
+			} else {
+				response.Status = proto.ServerToClient_OK.Enum()
+			}
+			if err = server.writeProtobuf(newConnection, outBuf, response); err != nil {
+				return err
+			}
+			commands <- cmd
+		case notification, ok := <-notifications:
+			if !notifyEnabled {
+				continue
+			}
+			if !ok {
+				notifyEnabled = false
+				go server.notifier.StopWaitingSync(uid, notificationsUnbuffered)
+				continue
+			}
+			response.Envelope = notification
+			response.Status = proto.ServerToClient_OK.Enum()
+			if err = server.writeProtobuf(newConnection, outBuf, response); err != nil {
 				return err
 			}
 		}
-		if err := command.Unmarshal(inBuf[:num]); err != nil {
-			return err
-		}
-		if command.CreateAccount != nil && *command.CreateAccount != false {
-			err = server.newUser(uid)
-		} else if command.DeliverEnvelope != nil {
-			err = server.newMessage((*[32]byte)(command.DeliverEnvelope.User),
-				command.DeliverEnvelope.Envelope)
-		} else if command.ListMessages != nil && *command.ListMessages != false {
-			response.MessageList, err = server.getMessageList(uid)
-		} else if command.DownloadEnvelope != nil {
-			response.Envelope, err = server.getEnvelope(uid, command.DownloadEnvelope)
-		} else if command.DeleteMessages != nil {
-			messageList := command.DeleteMessages
-			err = server.deleteMessages(uid, &messageList)
-		} else if command.UploadKeys != nil {
-			err = server.newKeys(uid, command.UploadKeys)
-		} else if command.GetKey != nil {
-			response.Key, err = server.getKey((*[32]byte)(command.GetKey))
-		}
-		if err != nil {
-			response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
-		} else {
-			response.Status = proto.ServerToClient_OK.Enum()
-		}
-		if err = server.writeProtobuf(newConnection, outBuf, response); err != nil {
-			return err
-		}
-		command.Reset()
 		response.Reset()
 	}
 	return nil
@@ -226,7 +292,12 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	// add message to the database
 	messageHash := sha256.Sum256(envelope)
 	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
-	return server.database.Put(key, (envelope)[:], nil)
+	err := server.database.Put(key, (envelope)[:], nil)
+	if err != nil {
+		return err
+	}
+	server.notifier.Notify(uid, envelope)
+	return nil
 }
 
 func (server *Server) newUser(uid *[32]byte) error {

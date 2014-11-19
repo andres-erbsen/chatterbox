@@ -7,11 +7,11 @@ type Notifier struct {
 	waiters map[[32]byte][]chan []byte
 }
 
-func (n *Notifier) StartWaiting(uid [32]byte) chan<- []byte {
-	ch := make(chan []byte, 10) // FIXME: use elastic channels
+func (n *Notifier) StartWaiting(uid *[32]byte) chan []byte {
+	ch := make(chan []byte)
 	n.Lock()
 	defer n.Unlock()
-	n.waiters[uid] = append(n.waiters[uid], ch)
+	n.waiters[*uid] = append(n.waiters[*uid], ch)
 	return ch
 }
 
@@ -21,10 +21,10 @@ func (n *Notifier) StartWaiting(uid [32]byte) chan<- []byte {
 // should be handling the notification will therefore result in a deadlock.
 // When removeCh is not waiting, nothing is done (but the blocking
 // considerations still apply).
-func (n *Notifier) StopWaitingSync(uid [32]byte, removeCh chan []byte) {
+func (n *Notifier) StopWaitingSync(uid *[32]byte, removeCh chan []byte) {
 	n.Lock()
 	defer n.Unlock()
-	l := n.waiters[uid]
+	l := n.waiters[*uid]
 	i := 0
 	for _, ch := range l {
 		if ch != removeCh {
@@ -32,14 +32,14 @@ func (n *Notifier) StopWaitingSync(uid [32]byte, removeCh chan []byte) {
 			i++
 		}
 	}
-	n.waiters[uid] = l[:i]
+	n.waiters[*uid] = l[:i]
 	close(removeCh)
 }
 
-func (n *Notifier) Notify(uid [32]byte, notification []byte) {
+func (n *Notifier) Notify(uid *[32]byte, notification []byte) {
 	n.Lock()
 	defer n.Unlock()
-	for _, ch := range n.waiters[uid] {
+	for _, ch := range n.waiters[*uid] {
 		ch <- notification
 	}
 }
