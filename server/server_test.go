@@ -404,7 +404,6 @@ func TestKeyUploadDownload(t *testing.T) {
 	if numKeys != 2 {
 		t.Error(fmt.Sprintf("Returned %d keys instead of 2.", numKeys))
 	}
-
 	server.StopServer()
 }
 

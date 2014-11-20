@@ -234,6 +234,7 @@ func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch
 	server.keyMutex.Lock()
 	snapshot, err := server.database.GetSnapshot()
 	if err != nil {
+		server.keyMutex.Unlock()
 		return nil, err
 	}
 	server.keyMutex.Unlock()
@@ -257,17 +258,22 @@ func (server *Server) deleteKey(uid *[32]byte, key *[32]byte) error {
 func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch read of some kind?
 	prefix := append([]byte{'k'}, (*user)[:]...)
 	server.keyMutex.Lock()
+	defer server.keyMutex.Unlock()
+	snapshot, err := server.database.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
 	keyRange := util.BytesPrefix(prefix)
-	iter := server.database.NewIterator(keyRange, nil)
+	iter := snapshot.NewIterator(keyRange, nil)
 	defer iter.Release()
 	if iter.First() == false {
 		return nil, errors.New("No keys left in database")
 	}
-	err := iter.Error()
+	err = iter.Error()
 	var key [32]byte
 	copy(key[:], iter.Value()[:])
 	server.deleteKey(user, &key)
-	server.keyMutex.Unlock()
 	return &key, err
 }
 
@@ -304,18 +310,23 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 	return nil
 }
 
-func (server *Server) getMessageList(user *[32]byte) (*[][32]byte, error) { //TODO: Do I need to batchify this somehow?
+func (server *Server) getMessageList(user *[32]byte) (*[][32]byte, error) {
 	messages := make([][32]byte, 0)
 	prefix := append([]byte{'m'}, (*user)[:]...)
 	messageRange := util.BytesPrefix(prefix)
-	iter := server.database.NewIterator(messageRange, nil)
+	snapshot, err := server.database.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	iter := snapshot.NewIterator(messageRange, nil)
+	defer iter.Release()
 	for iter.Next() {
 		var message [32]byte
 		copy(message[:], iter.Key()[len(prefix):len(prefix)+32])
 		messages = append(messages, message)
 	}
-	err := iter.Error()
-	iter.Release()
+	err = iter.Error()
 	return &messages, err
 }
 
