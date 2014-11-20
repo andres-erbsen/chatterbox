@@ -55,6 +55,14 @@ func containsByteSlice(arr [][]byte, element []byte) bool {
 	return false
 }
 
+func contains32Byte(arr [][32]byte, element [32]byte) bool {
+	for _, arrElement := range arr {
+		if arrElement == element {
+			return true
+		}
+	}
+	return false
+}
 func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []byte, []byte, *[32]byte) {
 	shutdown := make(chan struct{})
 
@@ -158,7 +166,7 @@ func TestMessageUploading(t *testing.T) {
 	t.Error("Expected message entry not found")
 }
 
-func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) *[][]byte {
+func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) *[][32]byte {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -166,7 +174,7 @@ func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *test
 
 	response := receiveProtobuf(conn, inBuf, t)
 
-	return &response.MessageList
+	return to32ByteList(&response.MessageList)
 }
 
 //Test message listing
@@ -191,23 +199,23 @@ func TestMessageListing(t *testing.T) {
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
-	expected := make([][]byte, 0, 64)
+	expected := make([][32]byte, 0, 64)
 	envelope1Hash := sha256.Sum256(envelope1)
 	envelope2Hash := sha256.Sum256(envelope2)
-	expected = append(expected, envelope1Hash[:])
-	expected = append(expected, envelope2Hash[:])
+	expected = append(expected, envelope1Hash)
+	expected = append(expected, envelope2Hash)
 
 	for _, hash := range expected {
-		if !containsByteSlice(messageList, hash) {
+		if !contains32Byte(messageList, hash) {
 			t.Error("Wrong message list returned")
 		}
 	}
 	server.StopServer()
 }
 
-func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[]byte) *[]byte {
+func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[32]byte) *[]byte {
 	getEnvelope := &proto.ClientToServer{
-		DownloadEnvelope: *messageHash,
+		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
 	writeProtobuf(conn, outBuf, getEnvelope, t)
 
@@ -241,19 +249,16 @@ func TestEnvelopeDownload(t *testing.T) {
 	for _, message := range messageList {
 		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &message)
 
-		var message32 [32]byte
-		copy(message32[:], message[0:32])
-
-		if !(message32 == sha256.Sum256(*envelope)) {
+		if !(message == sha256.Sum256(*envelope)) {
 			t.Error("Wrong envelope associated with message")
 		}
 	}
 	server.StopServer()
 }
 
-func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList *[][]byte) {
+func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList *[][32]byte) {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: *messageList,
+		DeleteMessages: *toProtoByte32List(messageList),
 	}
 	writeProtobuf(conn, outBuf, deleteMessages, t)
 
@@ -292,23 +297,23 @@ func TestMessageDeletion(t *testing.T) {
 	server.StopServer()
 }
 
-func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList *[][]byte) {
+func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList *[][32]byte) {
 	uploadKeys := &proto.ClientToServer{
-		UploadKeys: *keyList,
+		UploadKeys: *toProtoByte32List(keyList),
 	}
 	writeProtobuf(conn, outBuf, uploadKeys, t)
 
 	receiveProtobuf(conn, inBuf, t)
 }
 
-func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[]byte {
+func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[32]byte {
 	getKey := &proto.ClientToServer{
 		GetKey: (*proto.Byte32)(pk),
 	}
 	writeProtobuf(conn, outBuf, getKey, t)
 
 	response := receiveProtobuf(conn, inBuf, t)
-	return &response.Key
+	return (*[32]byte)(response.Key)
 }
 
 func TestKeyUploadDownload(t *testing.T) {
@@ -336,28 +341,28 @@ func TestKeyUploadDownload(t *testing.T) {
 	pk2, _, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	keyList := make([][]byte, 0, 64) //TODO: Make this a reasonable size
-	keyList = append(keyList, pk1[:])
-	keyList = append(keyList, pk2[:])
+	keyList := make([][32]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, *pk1)
+	keyList = append(keyList, *pk2)
 
 	uploadKeys(conn, inBuf, outBuf, t, &keyList)
 	newKey1 := *getKey(conn, inBuf, outBuf, t, pkp)
 
-	if newKey1 == nil {
+	if newKey1 == [32]byte{} {
 		t.Error("No keys in server")
 	}
-	if !(containsByteSlice(keyList, newKey1)) {
+	if !(contains32Byte(keyList, newKey1)) {
 		t.Error("Non-uploaded key returned")
 	}
 
 	newKey2 := *getKey(conn, inBuf, outBuf, t, pkp)
-	if newKey2 == nil {
+	if newKey2 == [32]byte{} {
 		t.Error("No keys in server")
 	}
-	if !(containsByteSlice(keyList, newKey2)) {
+	if !(contains32Byte(keyList, newKey2)) {
 		t.Error("Non-uploaded key returned")
 	}
-	if bytes.Equal(newKey1, newKey2) {
+	if newKey1 == newKey2 {
 		t.Error("Key not deleted from server")
 	}
 

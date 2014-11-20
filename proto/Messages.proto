@@ -19,9 +19,9 @@ message ServerToClient {
 		PARSE_ERROR = 1;
 	}
 	required StatusCode status = 1;
-	repeated bytes message_list = 3;
+	repeated bytes message_list = 3 [(gogoproto.customtype) = "Byte32"];
 	optional bytes envelope = 4;
-	optional bytes key = 5;
+	optional bytes key = 5 [(gogoproto.customtype) = "Byte32"];
 	optional bytes notification = 6;
 }
 
@@ -33,10 +33,10 @@ message ClientToServer {
 		required bytes Envelope = 4;
 	}	
 	optional DeliverEnvelope deliver_envelope = 2;
-	optional bytes download_envelope = 6; 
+	optional bytes download_envelope = 6 [(gogoproto.customtype) = "Byte32"]; 
 	optional bool list_messages = 5;
-	repeated bytes delete_messages = 7;
-	repeated bytes upload_keys = 8;
+	repeated bytes delete_messages = 7 [(gogoproto.customtype) = "Byte32"];
+	repeated bytes upload_keys = 8 [(gogoproto.customtype) = "Byte32"];
 	optional bytes get_key = 9 [(gogoproto.customtype) = "Byte32"];
 	optional bool receive_envelopes = 10;
 }
