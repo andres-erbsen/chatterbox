@@ -250,25 +250,21 @@ func (server *Server) getKey(user *[32]byte) (*[32]byte, error) {
 }
 
 func (server *Server) newKeys(uid *[32]byte, keyList *[][32]byte) error {
+	batch := new(leveldb.Batch)
 	for _, key := range *keyList {
 		keyHash := sha256.Sum256(key[:])
 		dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
-		err := server.database.Put(dbKey, key[:], nil)
-		if err != nil {
-			return err
-		}
+		batch.Put(dbKey, key[:])
 	}
-	return nil
+	return server.database.Write(batch, nil)
 }
 func (server *Server) deleteMessages(uid *[32]byte, messageList *[][32]byte) error {
+	batch := new(leveldb.Batch)
 	for _, messageHash := range *messageList {
 		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
-		err := server.database.Delete(key, nil)
-		if err != nil { //TODO: Ask Andres if there was a better way to do this
-			return err
-		}
+		batch.Delete(key)
 	}
-	return nil
+	return server.database.Write(batch, nil)
 }
 
 func (server *Server) getEnvelope(uid *[32]byte, messageHash *[32]byte) ([]byte, error) {
@@ -286,7 +282,7 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 	return nil
 }
 
-func (server *Server) getMessageList(user *[32]byte) (*[][32]byte, error) {
+func (server *Server) getMessageList(user *[32]byte) (*[][32]byte, error) { //TODO: Do I need to batchify this somehow?
 	messages := make([][32]byte, 0)
 	prefix := append([]byte{'m'}, (*user)[:]...)
 	messageRange := util.BytesPrefix(prefix)
