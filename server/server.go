@@ -22,6 +22,7 @@ type Server struct {
 	wg       sync.WaitGroup
 	pk       *[32]byte
 	sk       *[32]byte
+	keyMutex sync.Mutex
 }
 
 func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]byte) (*Server, error) {
@@ -232,10 +233,9 @@ func (server *Server) deleteKey(uid *[32]byte, key *[32]byte) error {
 	return server.database.Delete(dbKey, nil)
 }
 
-func (server *Server) getKey(user *[32]byte) (*[32]byte, error) {
-	// TODO: synchronization. Two concurrent gets MUST get different keys
-	// unless it is the last one.
+func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch read of some kind?
 	prefix := append([]byte{'k'}, (*user)[:]...)
+	server.keyMutex.Lock()
 	keyRange := util.BytesPrefix(prefix)
 	iter := server.database.NewIterator(keyRange, nil)
 	defer iter.Release()
@@ -246,6 +246,7 @@ func (server *Server) getKey(user *[32]byte) (*[32]byte, error) {
 	var key [32]byte
 	copy(key[:], iter.Value()[:])
 	server.deleteKey(user, &key)
+	server.keyMutex.Unlock()
 	return &key, err
 }
 
