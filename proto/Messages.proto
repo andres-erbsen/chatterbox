@@ -23,6 +23,7 @@ message ServerToClient {
 	optional bytes envelope = 4;
 	optional bytes key = 5 [(gogoproto.customtype) = "Byte32"];
 	optional bytes notification = 6;
+	optional int64 num_keys = 7;
 }
 
 message ClientToServer {	
@@ -39,5 +40,6 @@ message ClientToServer {
 	repeated bytes upload_keys = 8 [(gogoproto.customtype) = "Byte32"];
 	optional bytes get_key = 9 [(gogoproto.customtype) = "Byte32"];
 	optional bool receive_envelopes = 10;
+	optional bytes get_num_keys = 11 [(gogoproto.customtype) = "Byte32"];
 }
 

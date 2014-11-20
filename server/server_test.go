@@ -316,7 +316,17 @@ func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk 
 	return (*[32]byte)(response.Key)
 }
 
-func TestKeyUploadDownload(t *testing.T) {
+func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) int64 {
+	getNumKeys := &proto.ClientToServer{
+		GetNumKeys: (*proto.Byte32)(pk),
+	}
+	writeProtobuf(conn, outBuf, getNumKeys, t)
+
+	response := receiveProtobuf(conn, inBuf, t)
+	return *response.NumKeys
+}
+
+func TestGetNumberOfKeys(t *testing.T) {
 	dir, err := ioutil.TempDir("", "testdb")
 	handleError(err, t)
 
@@ -328,12 +338,7 @@ func TestKeyUploadDownload(t *testing.T) {
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
 
-	envelope1 := []byte("Envelope1")
-	envelope2 := []byte("Envelope2")
-
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
 
 	pk1, _, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
@@ -364,6 +369,40 @@ func TestKeyUploadDownload(t *testing.T) {
 	}
 	if newKey1 == newKey2 {
 		t.Error("Key not deleted from server")
+	}
+
+	server.StopServer()
+}
+
+func TestKeyUploadDownload(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+
+	createAccount(conn, inBuf, outBuf, t)
+
+	pk1, _, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	pk2, _, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	keyList := make([][32]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, *pk1)
+	keyList = append(keyList, *pk2)
+
+	uploadKeys(conn, inBuf, outBuf, t, &keyList)
+	numKeys := getNumKeys(conn, inBuf, outBuf, t, pkp)
+
+	if numKeys != 2 {
+		t.Error(fmt.Sprintf("Returned %d keys instead of 2.", numKeys))
 	}
 
 	server.StopServer()

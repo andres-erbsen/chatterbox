@@ -186,6 +186,8 @@ func (server *Server) handleClient(connection net.Conn) error {
 				var key *[32]byte
 				key, err = server.getKey((*[32]byte)(cmd.GetKey))
 				response.Key = (*proto.Byte32)(key)
+			} else if cmd.GetNumKeys != nil {
+				response.NumKeys, err = server.getNumKeys((*[32]byte)(cmd.GetNumKeys))
 			} else if cmd.ReceiveEnvelopes != nil {
 				if *cmd.ReceiveEnvelopes && !notifyEnabled {
 					notifyEnabled = true
@@ -225,6 +227,25 @@ func (server *Server) handleClient(connection net.Conn) error {
 		response.Reset()
 	}
 	return nil
+}
+
+func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch read of some kind?
+	prefix := append([]byte{'k'}, (*user)[:]...)
+	server.keyMutex.Lock()
+	snapshot, err := server.database.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	server.keyMutex.Unlock()
+	defer snapshot.Release()
+	keyRange := util.BytesPrefix(prefix)
+	iter := snapshot.NewIterator(keyRange, nil)
+	defer iter.Release()
+	var numRecords int64
+	for iter.Next() {
+		numRecords = numRecords + 1
+	}
+	return &numRecords, iter.Error()
 }
 
 func (server *Server) deleteKey(uid *[32]byte, key *[32]byte) error {
