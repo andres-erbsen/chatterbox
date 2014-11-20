@@ -120,10 +120,10 @@ func TestAccountCreation(t *testing.T) {
 	}
 }
 
-func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, envelope *[]byte) {
+func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, envelope []byte) {
 	message := &proto.ClientToServer_DeliverEnvelope{
 		User:     (*proto.Byte32)(pk),
-		Envelope: *envelope,
+		Envelope: envelope,
 	}
 	deliverCommand := &proto.ClientToServer{
 		DeliverEnvelope: message,
@@ -149,7 +149,7 @@ func TestMessageUploading(t *testing.T) {
 	envelope := []byte("Envelope")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope)
 
 	server.StopServer()
 
@@ -194,8 +194,8 @@ func TestMessageListing(t *testing.T) {
 	envelope2 := []byte("Envelope2")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
@@ -213,14 +213,14 @@ func TestMessageListing(t *testing.T) {
 	server.StopServer()
 }
 
-func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[32]byte) *[]byte {
+func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[32]byte) []byte {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
 	writeProtobuf(conn, outBuf, getEnvelope, t)
 
 	response := receiveProtobuf(conn, inBuf, t)
-	return &response.Envelope
+	return response.Envelope
 }
 
 //Test downloading envelopes
@@ -240,8 +240,8 @@ func TestEnvelopeDownload(t *testing.T) {
 	envelope2 := []byte("Envelope2")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
@@ -249,7 +249,7 @@ func TestEnvelopeDownload(t *testing.T) {
 	for _, message := range messageList {
 		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &message)
 
-		if !(message == sha256.Sum256(*envelope)) {
+		if !(message == sha256.Sum256(envelope)) {
 			t.Error("Wrong envelope associated with message")
 		}
 	}
@@ -281,8 +281,8 @@ func TestMessageDeletion(t *testing.T) {
 	envelope2 := []byte("Envelope2")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
@@ -429,7 +429,7 @@ func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	uploadMessageToUser(conn, inBuf, outBuf, t, uid, &message)
+	uploadMessageToUser(conn, inBuf, outBuf, t, uid, message)
 }
 
 func TestPushNotifications(t *testing.T) {
