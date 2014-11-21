@@ -44,8 +44,14 @@ type Ratchet struct {
 	// message key.
 	saved map[[32]byte]map[uint32]savedKey
 
-	rand io.Reader
-	now  func() time.Time
+	// ourAuthPrivate is updated together with ourRatchetPrivate, but not flushed
+	ourAuthPrivate, prevAuthPrivate, theirAuthPublic [32]byte
+
+	FillAuth  func(tag, data []byte, theirAuthPublic *[32]byte)
+	CheckAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error
+
+	Rand io.Reader
+	Now  func() time.Time
 }
 
 // savedKey contains a message key and timestamp for a message which has not
@@ -53,13 +59,14 @@ type Ratchet struct {
 // missing message.
 type savedKey struct {
 	key       [32]byte
+	authPriv  [32]byte
 	timestamp time.Time
 }
 
 func (r *Ratchet) randBytes(buf []byte) {
 	rnd := rand.Reader
-	if r.rand != nil {
-		rnd = r.rand
+	if r.Rand != nil {
+		rnd = r.Rand
 	}
 	if _, err := io.ReadFull(rnd, buf); err != nil {
 		panic(err)
@@ -91,29 +98,28 @@ var (
 )
 
 const (
+	authSize = 16 // in the very beginning of each message
 	// handshakePreHeaderSize bytes are added before the header of the first message
 	handshakePreHeaderSize = 32 // sender's ephemeral curve25519 pk
 	// headerSize is the size, in bytes, of a header's plaintext contents.
 	headerSize = 4 /* uint32 message count */ +
 		4 /* uint32 previous message count */ +
 		32 /* curve25519 ratchet public */ +
+		32 /* curve25519 auth public */ +
 		24 /* nonce for message */
 	// sealedHeader is the size, in bytes, of an encrypted header.
 	sealedHeaderSize = 24 /* nonce */ + headerSize + secretbox.Overhead
 	// nonceInHeaderOffset is the offset of the message nonce in the
 	// header's plaintext.
-	nonceInHeaderOffset = 4 + 4 + 32
+	nonceInHeaderOffset = 4 + 4 + 32 + 32
 	// maxMissingMessages is the maximum number of missing messages that
 	// we'll keep track of.
 	maxMissingMessages = 8
 )
 
-func EncryptFirst(out, msg []byte, theirRatchetPublic *[32]byte, rand io.Reader, now func() time.Time) (*Ratchet, []byte) {
-	r := &Ratchet{saved: make(map[[32]byte]map[uint32]savedKey),
-		rand:    rand,
-		now:     now,
-		ratchet: true,
-	}
+func (r *Ratchet) EncryptFirst(out, msg []byte, theirRatchetPublic *[32]byte) []byte {
+	r.saved = make(map[[32]byte]map[uint32]savedKey)
+	r.ratchet = true
 	r.randBytes(r.ourRatchetPrivate[:])
 	copy(r.theirRatchetPublic[:], theirRatchetPublic[:])
 
@@ -128,22 +134,25 @@ func EncryptFirst(out, msg []byte, theirRatchetPublic *[32]byte, rand io.Reader,
 
 	var ourRatchetPublic [32]byte
 	curve25519.ScalarBaseMult(&ourRatchetPublic, &r.ourRatchetPrivate)
-	out = append(out, ourRatchetPublic[:]...) // TODO: use elligator for this?
-	return r, r.Encrypt(out, msg)
+	tag_idx := len(out)
+	out = append(out, make([]byte, authSize)...)
+	out = append(out, ourRatchetPublic[:]...)
+	out = r.encrypt(out, msg)
+	r.FillAuth(out[tag_idx:][:authSize], out[tag_idx+authSize:], theirRatchetPublic)
+	return out
 }
 
-func DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte, rand io.Reader, now func() time.Time) (*Ratchet, []byte, error) {
-	if len(ciphertext) < handshakePreHeaderSize+headerSize {
-		return nil, nil, errors.New("first message too short")
-	}
-	r := &Ratchet{saved: make(map[[32]byte]map[uint32]savedKey),
-		rand: rand,
-		now:  now,
+func (r *Ratchet) DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte) ([]byte, error) {
+	r.saved = make(map[[32]byte]map[uint32]savedKey)
+	if len(ciphertext) < authSize+handshakePreHeaderSize+headerSize {
+		return nil, errors.New("first message too short")
 	}
 	copy(r.ourRatchetPrivate[:], ourRatchetPrivate[:])
+	copy(r.ourAuthPrivate[:], ourRatchetPrivate[:])
 
+	tag := ciphertext[:authSize]
 	var sharedKey [32]byte
-	copy(r.theirRatchetPublic[:], ciphertext[:handshakePreHeaderSize])
+	copy(r.theirRatchetPublic[:], ciphertext[authSize:][:handshakePreHeaderSize])
 	curve25519.ScalarMult(&sharedKey, &r.ourRatchetPrivate, &r.theirRatchetPublic)
 	h := hmac.New(sha256.New, sharedKey[:])
 	deriveKey(&r.rootKey, rootKeyLabel, h)
@@ -152,14 +161,15 @@ func DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte, rand io.Reader
 	deriveKey(&r.nextSendHeaderKey, nextRecvHeaderKeyLabel, h)
 	deriveKey(&r.sendChainKey, chainKeyLabel, h)
 
-	msg, err := r.Decrypt(ciphertext[handshakePreHeaderSize:])
-	return r, msg, err
+	return r.decryptAndCheckAuth(tag, ciphertext[authSize:], ciphertext[authSize+handshakePreHeaderSize:])
 }
 
-// Encrypt acts like append() but appends an encrypted version of msg to out.
-func (r *Ratchet) Encrypt(out, msg []byte) []byte {
+// encrypt acts like append() but appends an encrypted version of msg to out.
+func (r *Ratchet) encrypt(out, msg []byte) []byte {
 	if r.ratchet {
 		r.randBytes(r.ourRatchetPrivate[:])
+		copy(r.prevAuthPrivate[:], r.ourAuthPrivate[:])
+		r.randBytes(r.ourAuthPrivate[:])
 		copy(r.sendHeaderKey[:], r.nextSendHeaderKey[:])
 
 		var sharedKey, keyMaterial [32]byte
@@ -184,8 +194,9 @@ func (r *Ratchet) Encrypt(out, msg []byte) []byte {
 	deriveKey(&messageKey, messageKeyLabel, h)
 	deriveKey(&r.sendChainKey, chainKeyStepLabel, h)
 
-	var ourRatchetPublic [32]byte
+	var ourRatchetPublic, ourAuthPublic [32]byte
 	curve25519.ScalarBaseMult(&ourRatchetPublic, &r.ourRatchetPrivate)
+	curve25519.ScalarBaseMult(&ourAuthPublic, &r.ourAuthPrivate)
 	var header [headerSize]byte
 	var headerNonce, messageNonce [24]byte
 	r.randBytes(headerNonce[:])
@@ -194,6 +205,7 @@ func (r *Ratchet) Encrypt(out, msg []byte) []byte {
 	binary.LittleEndian.PutUint32(header[0:4], r.sendCount)
 	binary.LittleEndian.PutUint32(header[4:8], r.prevSendCount)
 	copy(header[8:], ourRatchetPublic[:])
+	copy(header[8+32:], ourAuthPublic[:])
 	copy(header[nonceInHeaderOffset:], messageNonce[:])
 	out = append(out, headerNonce[:]...)
 	out = secretbox.Seal(out, header[:], &headerNonce, &r.sendHeaderKey)
@@ -201,8 +213,17 @@ func (r *Ratchet) Encrypt(out, msg []byte) []byte {
 	return secretbox.Seal(out, msg, &messageNonce, &messageKey)
 }
 
+// Encrypt acts like append() but appends an encrypted and authenticated version of msg to out.
+func (r *Ratchet) Encrypt(out, msg []byte) []byte {
+	tag_idx := len(out)
+	out = append(out, make([]byte, authSize)...)
+	out = r.encrypt(out, msg)
+	r.FillAuth(out[tag_idx:][:authSize], out[tag_idx+authSize:], &r.theirAuthPublic)
+	return out
+}
+
 // trySavedKeys tries to decrypt ciphertext using keys saved for missing messages.
-func (r *Ratchet) trySavedKeys(ciphertext []byte) ([]byte, error) {
+func (r *Ratchet) trySavedKeysAndCheckAuth(authTag, authBody, ciphertext []byte) ([]byte, error) {
 	if len(ciphertext) < sealedHeaderSize {
 		return nil, errors.New("ratchet: header too small to be valid")
 	}
@@ -235,6 +256,9 @@ func (r *Ratchet) trySavedKeys(ciphertext []byte) ([]byte, error) {
 		if !ok {
 			return nil, errors.New("ratchet: corrupt message")
 		}
+		if err := r.CheckAuth(authTag, authBody, msg, &msgKey.authPriv); err != nil {
+			return nil, err
+		}
 		delete(messageKeys, msgNum)
 		if len(messageKeys) == 0 {
 			delete(r.saved, headerKey)
@@ -251,7 +275,7 @@ func (r *Ratchet) trySavedKeys(ciphertext []byte) ([]byte, error) {
 // key. If any messages have been skipped over, it also returns savedKeys, a
 // map suitable for merging with r.saved, that contains the message keys for
 // the missing messages.
-func (r *Ratchet) saveKeys(headerKey, recvChainKey *[32]byte, messageNum, receivedCount uint32) (provisionalChainKey, messageKey [32]byte, savedKeys map[[32]byte]map[uint32]savedKey, err error) {
+func (r *Ratchet) saveKeys(headerKey, recvChainKey *[32]byte, messageNum, receivedCount uint32, authPrivate *[32]byte) (provisionalChainKey, messageKey [32]byte, savedKeys map[[32]byte]map[uint32]savedKey, err error) {
 	if messageNum < receivedCount {
 		// This is a message from the past, but we didn't have a saved
 		// key for it, which means that it's a duplicate message or we
@@ -271,10 +295,10 @@ func (r *Ratchet) saveKeys(headerKey, recvChainKey *[32]byte, messageNum, receiv
 	var now time.Time
 	if missingMessages > 0 {
 		messageKeys = make(map[uint32]savedKey)
-		if r.now == nil {
+		if r.Now == nil {
 			now = time.Now()
 		} else {
-			now = r.now()
+			now = r.Now()
 		}
 	}
 
@@ -285,7 +309,7 @@ func (r *Ratchet) saveKeys(headerKey, recvChainKey *[32]byte, messageNum, receiv
 		deriveKey(&messageKey, messageKeyLabel, h)
 		deriveKey(&provisionalChainKey, chainKeyStepLabel, h)
 		if n < messageNum {
-			messageKeys[n] = savedKey{messageKey, now}
+			messageKeys[n] = savedKey{messageKey, *authPrivate, now}
 		}
 	}
 
@@ -323,8 +347,8 @@ func isZeroKey(key *[32]byte) bool {
 	return x == 0
 }
 
-func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
-	msg, err := r.trySavedKeys(ciphertext)
+func (r *Ratchet) decryptAndCheckAuth(authTag, authBody, ciphertext []byte) ([]byte, error) {
+	msg, err := r.trySavedKeysAndCheckAuth(authTag, authBody, ciphertext)
 	if err != nil || msg != nil {
 		return msg, err
 	}
@@ -342,7 +366,7 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 			return nil, errors.New("ratchet: incorrect header size")
 		}
 		messageNum := binary.LittleEndian.Uint32(header[:4])
-		provisionalChainKey, messageKey, savedKeys, err := r.saveKeys(&r.recvHeaderKey, &r.recvChainKey, messageNum, r.recvCount)
+		provisionalChainKey, messageKey, savedKeys, err := r.saveKeys(&r.recvHeaderKey, &r.recvChainKey, messageNum, r.recvCount, &r.prevAuthPrivate)
 		if err != nil {
 			return nil, err
 		}
@@ -351,6 +375,9 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 		msg, ok := secretbox.Open(nil, sealedMessage, &nonce, &messageKey)
 		if !ok {
 			return nil, errors.New("ratchet: corrupt message")
+		}
+		if err := r.CheckAuth(authTag, authBody, msg, &r.prevAuthPrivate); err != nil {
+			return nil, err
 		}
 
 		copy(r.recvChainKey[:], provisionalChainKey[:])
@@ -374,13 +401,14 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	messageNum := binary.LittleEndian.Uint32(header[:4])
 	prevMessageCount := binary.LittleEndian.Uint32(header[4:8])
 
-	_, _, oldSavedKeys, err := r.saveKeys(&r.recvHeaderKey, &r.recvChainKey, prevMessageCount, r.recvCount)
+	_, _, oldSavedKeys, err := r.saveKeys(&r.recvHeaderKey, &r.recvChainKey, prevMessageCount, r.recvCount, &r.prevAuthPrivate)
 	if err != nil {
 		return nil, err
 	}
 
-	var dhPublic, sharedKey, rootKey, chainKey, keyMaterial [32]byte
+	var dhPublic, authPublic, sharedKey, rootKey, chainKey, keyMaterial [32]byte
 	copy(dhPublic[:], header[8:])
+	copy(authPublic[:], header[8+32:])
 
 	curve25519.ScalarMult(&sharedKey, &r.ourRatchetPrivate, &dhPublic)
 
@@ -396,7 +424,7 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	deriveKey(&rootKey, rootKeyLabel, rootKeyHMAC)
 	deriveKey(&chainKey, chainKeyLabel, rootKeyHMAC)
 
-	provisionalChainKey, messageKey, savedKeys, err := r.saveKeys(&r.nextRecvHeaderKey, &chainKey, messageNum, 0)
+	provisionalChainKey, messageKey, savedKeys, err := r.saveKeys(&r.nextRecvHeaderKey, &chainKey, messageNum, 0, &r.ourAuthPrivate)
 	if err != nil {
 		return nil, err
 	}
@@ -405,6 +433,9 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	msg, ok = secretbox.Open(nil, sealedMessage, &nonce, &messageKey)
 	if !ok {
 		return nil, errors.New("ratchet: corrupt message")
+	}
+	if err := r.CheckAuth(authTag, authBody, msg, &r.ourAuthPrivate); err != nil {
+		return nil, err
 	}
 
 	copy(r.rootKey[:], rootKey[:])
@@ -415,6 +446,7 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 		r.ourRatchetPrivate[i] = 0
 	}
 	copy(r.theirRatchetPublic[:], dhPublic[:])
+	copy(r.theirAuthPublic[:], authPublic[:])
 
 	r.recvCount = messageNum + 1
 	r.mergeSavedKeys(oldSavedKeys)
@@ -422,6 +454,13 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	r.ratchet = true
 
 	return msg, nil
+}
+
+func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
+	if len(ciphertext) < authSize+sealedHeaderSize {
+		return nil, errors.New("ciphertext too short")
+	}
+	return r.decryptAndCheckAuth(ciphertext[:authSize], ciphertext[authSize:], ciphertext[authSize:])
 }
 
 // mergeSavedKeys takes a map of saved message keys from saveKeys and merges it
@@ -432,6 +471,9 @@ func (r *Ratchet) FlushSavedKeys(now time.Time, lifetime time.Duration) {
 			if now.Sub(savedKey.timestamp) > lifetime {
 				for i := range savedKey.key {
 					savedKey.key[i] = 0
+				}
+				for i := range savedKey.authPriv {
+					savedKey.authPriv[i] = 0
 				}
 				delete(messageKeys, messageNum) // safe: http://golang.org/doc/effective_go.html#for
 			}
