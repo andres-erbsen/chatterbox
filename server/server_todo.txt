@@ -8,7 +8,7 @@ Message listing X
 Message download X
 4. Uploading keys X
 5. Downloading keys X
-6. Getting stuff to notify
-7. Listening stuff to notify
+6. Getting stuff to notify X
+7. Listening stuff to notify X
 8. Deleting messages X
 9. Database locks/thread safety ensurance

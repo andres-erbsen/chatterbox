@@ -55,6 +55,14 @@ func containsByteSlice(arr [][]byte, element []byte) bool {
 	return false
 }
 
+func contains32Byte(arr [][32]byte, element [32]byte) bool {
+	for _, arrElement := range arr {
+		if arrElement == element {
+			return true
+		}
+	}
+	return false
+}
 func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []byte, []byte, *[32]byte) {
 	shutdown := make(chan struct{})
 
@@ -112,10 +120,10 @@ func TestAccountCreation(t *testing.T) {
 	}
 }
 
-func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, envelope *[]byte) {
+func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, envelope []byte) {
 	message := &proto.ClientToServer_DeliverEnvelope{
 		User:     (*proto.Byte32)(pk),
-		Envelope: *envelope,
+		Envelope: envelope,
 	}
 	deliverCommand := &proto.ClientToServer{
 		DeliverEnvelope: message,
@@ -141,7 +149,7 @@ func TestMessageUploading(t *testing.T) {
 	envelope := []byte("Envelope")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope)
 
 	server.StopServer()
 
@@ -158,7 +166,7 @@ func TestMessageUploading(t *testing.T) {
 	t.Error("Expected message entry not found")
 }
 
-func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) *[][]byte {
+func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) *[][32]byte {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -166,7 +174,7 @@ func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *test
 
 	response := receiveProtobuf(conn, inBuf, t)
 
-	return &response.MessageList
+	return to32ByteList(&response.MessageList)
 }
 
 //Test message listing
@@ -186,33 +194,33 @@ func TestMessageListing(t *testing.T) {
 	envelope2 := []byte("Envelope2")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
-	expected := make([][]byte, 0, 64)
+	expected := make([][32]byte, 0, 64)
 	envelope1Hash := sha256.Sum256(envelope1)
 	envelope2Hash := sha256.Sum256(envelope2)
-	expected = append(expected, envelope1Hash[:])
-	expected = append(expected, envelope2Hash[:])
+	expected = append(expected, envelope1Hash)
+	expected = append(expected, envelope2Hash)
 
 	for _, hash := range expected {
-		if !containsByteSlice(messageList, hash) {
+		if !contains32Byte(messageList, hash) {
 			t.Error("Wrong message list returned")
 		}
 	}
 	server.StopServer()
 }
 
-func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[]byte) *[]byte {
+func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[32]byte) []byte {
 	getEnvelope := &proto.ClientToServer{
-		DownloadEnvelope: *messageHash,
+		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
 	writeProtobuf(conn, outBuf, getEnvelope, t)
 
 	response := receiveProtobuf(conn, inBuf, t)
-	return &response.Envelope
+	return response.Envelope
 }
 
 //Test downloading envelopes
@@ -232,8 +240,8 @@ func TestEnvelopeDownload(t *testing.T) {
 	envelope2 := []byte("Envelope2")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
@@ -241,19 +249,16 @@ func TestEnvelopeDownload(t *testing.T) {
 	for _, message := range messageList {
 		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &message)
 
-		var message32 [32]byte
-		copy(message32[:], message[0:32])
-
-		if !(message32 == sha256.Sum256(*envelope)) {
+		if !(message == sha256.Sum256(envelope)) {
 			t.Error("Wrong envelope associated with message")
 		}
 	}
 	server.StopServer()
 }
 
-func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList *[][]byte) {
+func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList *[][32]byte) {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: *messageList,
+		DeleteMessages: *toProtoByte32List(messageList),
 	}
 	writeProtobuf(conn, outBuf, deleteMessages, t)
 
@@ -276,8 +281,8 @@ func TestMessageDeletion(t *testing.T) {
 	envelope2 := []byte("Envelope2")
 
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
+	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
 	messageList := *listUserMessages(conn, inBuf, outBuf, t)
 
@@ -292,23 +297,81 @@ func TestMessageDeletion(t *testing.T) {
 	server.StopServer()
 }
 
-func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList *[][]byte) {
+func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList *[][32]byte) {
 	uploadKeys := &proto.ClientToServer{
-		UploadKeys: *keyList,
+		UploadKeys: *toProtoByte32List(keyList),
 	}
 	writeProtobuf(conn, outBuf, uploadKeys, t)
 
 	receiveProtobuf(conn, inBuf, t)
 }
 
-func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[]byte {
+func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[32]byte {
 	getKey := &proto.ClientToServer{
 		GetKey: (*proto.Byte32)(pk),
 	}
 	writeProtobuf(conn, outBuf, getKey, t)
 
 	response := receiveProtobuf(conn, inBuf, t)
-	return &response.Key
+	return (*[32]byte)(response.Key)
+}
+
+func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) int64 {
+	getNumKeys := &proto.ClientToServer{
+		GetNumKeys: (*proto.Byte32)(pk),
+	}
+	writeProtobuf(conn, outBuf, getNumKeys, t)
+
+	response := receiveProtobuf(conn, inBuf, t)
+	return *response.NumKeys
+}
+
+func TestGetNumberOfKeys(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
+
+	defer db.Close()
+
+	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+
+	createAccount(conn, inBuf, outBuf, t)
+
+	pk1, _, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	pk2, _, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	keyList := make([][32]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, *pk1)
+	keyList = append(keyList, *pk2)
+
+	uploadKeys(conn, inBuf, outBuf, t, &keyList)
+	newKey1 := *getKey(conn, inBuf, outBuf, t, pkp)
+
+	if newKey1 == [32]byte{} {
+		t.Error("No keys in server")
+	}
+	if !(contains32Byte(keyList, newKey1)) {
+		t.Error("Non-uploaded key returned")
+	}
+
+	newKey2 := *getKey(conn, inBuf, outBuf, t, pkp)
+	if newKey2 == [32]byte{} {
+		t.Error("No keys in server")
+	}
+	if !(contains32Byte(keyList, newKey2)) {
+		t.Error("Non-uploaded key returned")
+	}
+	if newKey1 == newKey2 {
+		t.Error("Key not deleted from server")
+	}
+
+	server.StopServer()
 }
 
 func TestKeyUploadDownload(t *testing.T) {
@@ -323,12 +386,7 @@ func TestKeyUploadDownload(t *testing.T) {
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
 
-	envelope1 := []byte("Envelope1")
-	envelope2 := []byte("Envelope2")
-
 	createAccount(conn, inBuf, outBuf, t)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope1)
-	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, &envelope2)
 
 	pk1, _, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
@@ -336,31 +394,16 @@ func TestKeyUploadDownload(t *testing.T) {
 	pk2, _, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	keyList := make([][]byte, 0, 64) //TODO: Make this a reasonable size
-	keyList = append(keyList, pk1[:])
-	keyList = append(keyList, pk2[:])
+	keyList := make([][32]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, *pk1)
+	keyList = append(keyList, *pk2)
 
 	uploadKeys(conn, inBuf, outBuf, t, &keyList)
-	newKey1 := *getKey(conn, inBuf, outBuf, t, pkp)
+	numKeys := getNumKeys(conn, inBuf, outBuf, t, pkp)
 
-	if newKey1 == nil {
-		t.Error("No keys in server")
+	if numKeys != 2 {
+		t.Error(fmt.Sprintf("Returned %d keys instead of 2.", numKeys))
 	}
-	if !(containsByteSlice(keyList, newKey1)) {
-		t.Error("Non-uploaded key returned")
-	}
-
-	newKey2 := *getKey(conn, inBuf, outBuf, t, pkp)
-	if newKey2 == nil {
-		t.Error("No keys in server")
-	}
-	if !(containsByteSlice(keyList, newKey2)) {
-		t.Error("Non-uploaded key returned")
-	}
-	if bytes.Equal(newKey1, newKey2) {
-		t.Error("Key not deleted from server")
-	}
-
 	server.StopServer()
 }
 
@@ -386,7 +429,7 @@ func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	uploadMessageToUser(conn, inBuf, outBuf, t, uid, &message)
+	uploadMessageToUser(conn, inBuf, outBuf, t, uid, message)
 }
 
 func TestPushNotifications(t *testing.T) {
