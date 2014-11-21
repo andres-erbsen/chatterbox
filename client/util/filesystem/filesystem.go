@@ -13,11 +13,6 @@ import (
 	"syscall"
 )
 
-func GetRootDir() string {
-	const temporaryConstantRootDirectory = "/tmp/foo/bar"
-	return temporaryConstantRootDirectory
-}
-
 func GetConversationDir(rootDir string) string {
 	return rootDir + "/conversations"
 }
@@ -136,7 +131,7 @@ func InitFs(rootDir string) error {
 	return nil
 }
 
-func WatchFs(rootDir string) {
+func WatchFs(rootDir string, initFn filepath.WalkFunc, updateFn filepath.WalkFunc) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
@@ -144,15 +139,27 @@ func WatchFs(rootDir string) {
 
 	// watch initial directory structure
 	registerDirectory := getRegisterDirectoryFunction(watcher)
-	err = filepath.Walk(rootDir, registerDirectory)
+	doInit := func(path string, f os.FileInfo, err error) error {
+		err = registerDirectory(path, f, err)
+		err = initFn(path, f, err)
+		return err
+	}
+
+	doUpdate := func(path string, f os.FileInfo, err error) error {
+		err = registerDirectory(path, f, err)
+		err = updateFn(path, f, err)
+		return err
+	}
+
+	err = filepath.Walk(rootDir, doInit)
 
 	for {
 		select {
 		case ev := <-watcher.Event:
 			// event in the directory structure; watch any new directories
 			log.Println("event:", ev)
-			if !ev.IsDelete() {
-				err = filepath.Walk(ev.Name, registerDirectory)
+			if !(ev.IsDelete() || ev.IsRename()) {
+				err = filepath.Walk(ev.Name, doUpdate)
 			}
 		case err := <-watcher.Error:
 			log.Println("error:", err)
