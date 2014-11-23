@@ -18,6 +18,7 @@ root_dir
 |   |-- <user>
 |   |-- (other users)
 |-- tmp
+|-- journal
 |-- keys
 |-- daemon.conf
 |-- ui_info
@@ -33,7 +34,8 @@ Details:
    |-- TODO: we might end up using an official protobuf metadata file augmented by a secondary metadata file that will be easier for external scripts to parse
 -- <messageName> is "date-number-sender", optionally followed by an extension ".<EXT>". The contents are the message body.
    |-- see details under conversationName
--- tmp is a folder for temporary files. It is primarily used for making file system writes atomic (i.e. write a message file in tmp then atomically move it elsewhere). TODO: possibly contains a "currentAction" file that specifies what the daemon is currently doing --> if it dies the action can be restarted.
+-- tmp is a folder for temporary files. It is used for making file system writes atomic (i.e. write a message file in tmp then atomically move it elsewhere).
+-- journal contains temporary file(s) that specifies what the daemon is currently doing --> if it dies the action can be restarted without messing up the current action.
 -- keys contains ratchet keys for contacts
    |-- TODO: details on structure within this folder
 -- <user> is "username-number" (a dename username with a reduced character set followed by the minimum non-negative integer to ensure uniqueness). The file contains the user's dename record and optionally a local alias. TODO: format?

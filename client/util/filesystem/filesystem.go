@@ -25,6 +25,10 @@ func getTmpDir(rootDir string) string {
 	return rootDir + "/tmp"
 }
 
+func getJournalDir(rootDir string) string {
+	return rootDir + "/journal"
+}
+
 func GetKeysDir(rootDir string) string {
 	return rootDir + "/keys"
 }
@@ -70,6 +74,7 @@ func InitFs(rootDir string) error {
 		GetConversationDir(rootDir),
 		GetOutboxDir(rootDir),
 		getTmpDir(rootDir),
+		getJournalDir(rootDir),
 		GetKeysDir(rootDir),
 		GetUiInfoDir(rootDir),
 	}
