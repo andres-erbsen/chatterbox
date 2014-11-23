@@ -1,0 +1,59 @@
+Sending a message from the client to server, with no previous account:
+
+1. UI creates a folder with the conversation ID, which contains:
+	- Message Contents (some number of files)
+	- Metadata:
+		Bob's Dename username
+		List of all recipients Dename usernames
+2. UI moves the conversation folder to Outbox
+3. Client daemon notices conversation folder in Outbox
+	a. Iterates over recipients
+	b. Do look up in keys folder for each recipient
+		i. No keys?
+			* Look up Dename record for 'Chatterbox'
+				In storage:
+					- Keys by Dename username
+					- Dename records by Dename username
+					- Cache, check if Dename records exist here
+						If so, check if within a certain time (based on config file)
+			* Find their server
+			* Talk to that server
+			* Ask for assigned key
+			* Verify the signature of the key using signing key in Dename Chatterbox record
+			* Initialize our ratchet, atomically write (write to temp, then move) to keys directory
+				ASSUMPTION: No two users try to contact each other at the same time (TODO: Account for this)
+			* Call encypt on the ratchet if we haven't done this yet
+		i. Now we have the ratchet state form the user:
+			* Take ratchet, encrypt message
+			* Produce (new ratchet, encrypted message + metadata)
+			* Write (new ratchet, encrypted message + metadata) to journal (not necessarily atomically: ignore bad journal messages)		
+			* Copy keys to the keys directory
+			* Send encrypted message to server
+			* After reply, delete from outbox
+			* Remove from journal      
+
+Temp:
+	- Things safe to delete after boot
+
+Journal:
+	- Things we must check after boot
+
+Keys directory:
+	- Stores keys in current ratchet state
+
+Getting a message from the server:
+
+1. Get message from server.
+2. Write "We got a message" to journal
+3. Tell server to delete message
+2a. Iterate through all contents, try to decrypt with each ratchet.
+2b. Iterate through all secret keys you've uploaded to the server and haven't used yet
+	TODO: Optimize searching for keys, sort them.
+	TODO: Pass in leveldb flag (writeoptions: sync) in server
+	* Pass in function to check Dename record and check authentication in the middle of decryption
+	* Write (updated ratchet, decrypted message) to journal 
+	* Then update the ratchet in keys folder
+	* Then write to inbox
+	* Delete journal entry
+2c. If all fail, reject the message.
+	* Delete journal entry that said we recieved the message
