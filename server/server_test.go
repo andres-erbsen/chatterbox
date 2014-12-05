@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"code.google.com/p/go.crypto/nacl/box"
-	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
+	protobuf "github.com/gogo/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"net"

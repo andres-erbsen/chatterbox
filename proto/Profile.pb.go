@@ -7,11 +7,15 @@ package proto
 import proto1 "code.google.com/p/gogoprotobuf/proto"
 import math "math"
 
-// discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
+// discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
 import io2 "io"
 import fmt2 "fmt"
+<<<<<<< HEAD
 import code_google_com_p_gogoprotobuf_proto2 "code.google.com/p/gogoprotobuf/proto"
+=======
+import github_com_gogo_protobuf_proto2 "github.com/gogo/protobuf/proto"
+>>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
 
 import bytes2 "bytes"
 
@@ -182,7 +186,11 @@ func (m *Profile) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
+<<<<<<< HEAD
 			skippy, err := code_google_com_p_gogoprotobuf_proto2.Skip(data[index:])
+=======
+			skippy, err := github_com_gogo_protobuf_proto2.Skip(data[index:])
+>>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
 			if err != nil {
 				return err
 			}

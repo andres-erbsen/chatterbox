@@ -3,9 +3,9 @@ package ratchet
 import (
 	"time"
 
-	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"github.com/andres-erbsen/chatterbox/proto"
 	. "github.com/andres-erbsen/chatterbox/ratchet/proto"
+	protobuf "github.com/gogo/protobuf/proto"
 )
 
 func (r *Ratchet) Proto() protobuf.Message              { return NewRatchetStateFromFace(r) }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"code.google.com/p/gogoprotobuf/io"
 	"crypto/sha256"
 	"errors"
 	"github.com/andres-erbsen/chatterbox/proto"
