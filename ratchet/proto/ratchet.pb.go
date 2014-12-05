@@ -13,18 +13,18 @@
 */
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
-// discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
+// discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
 import github_com_andres_erbsen_chatterbox_proto "github.com/andres-erbsen/chatterbox/proto"
 
 import io "io"
 import fmt "fmt"
-import code_google_com_p_gogoprotobuf_proto "code.google.com/p/gogoprotobuf/proto"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
-import code_google_com_p_gogoprotobuf_proto1 "code.google.com/p/gogoprotobuf/proto"
+import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
 
 import bytes "bytes"
 
@@ -509,7 +509,7 @@ func (m *RatchetState) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
@@ -624,7 +624,7 @@ func (m *RatchetState_SavedKeys) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
@@ -721,7 +721,7 @@ func (m *RatchetState_SavedKeys_MessageKey) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
@@ -1274,7 +1274,7 @@ func encodeVarintRatchet(data []byte, offset int, v uint64) int {
 }
 
 type RatchetStateFace interface {
-	Proto() code_google_com_p_gogoprotobuf_proto1.Message
+	Proto() github_com_gogo_protobuf_proto1.Message
 	GetRootKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetOurRatchetPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetTheirRatchetPublic() *github_com_andres_erbsen_chatterbox_proto.Byte32
@@ -1294,11 +1294,11 @@ type RatchetStateFace interface {
 	GetSavedKeys() []RatchetState_SavedKeys
 }
 
-func (this *RatchetState) Proto() code_google_com_p_gogoprotobuf_proto1.Message {
+func (this *RatchetState) Proto() github_com_gogo_protobuf_proto1.Message {
 	return this
 }
 
-func (this *RatchetState) TestProto() code_google_com_p_gogoprotobuf_proto1.Message {
+func (this *RatchetState) TestProto() github_com_gogo_protobuf_proto1.Message {
 	return NewRatchetStateFromFace(this)
 }
 
@@ -1393,17 +1393,17 @@ func NewRatchetStateFromFace(that RatchetStateFace) *RatchetState {
 }
 
 type RatchetState_SavedKeysFace interface {
-	Proto() code_google_com_p_gogoprotobuf_proto1.Message
+	Proto() github_com_gogo_protobuf_proto1.Message
 	GetHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetAuthPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetMessageKeys() []RatchetState_SavedKeys_MessageKey
 }
 
-func (this *RatchetState_SavedKeys) Proto() code_google_com_p_gogoprotobuf_proto1.Message {
+func (this *RatchetState_SavedKeys) Proto() github_com_gogo_protobuf_proto1.Message {
 	return this
 }
 
-func (this *RatchetState_SavedKeys) TestProto() code_google_com_p_gogoprotobuf_proto1.Message {
+func (this *RatchetState_SavedKeys) TestProto() github_com_gogo_protobuf_proto1.Message {
 	return NewRatchetState_SavedKeysFromFace(this)
 }
 
@@ -1428,17 +1428,17 @@ func NewRatchetState_SavedKeysFromFace(that RatchetState_SavedKeysFace) *Ratchet
 }
 
 type RatchetState_SavedKeys_MessageKeyFace interface {
-	Proto() code_google_com_p_gogoprotobuf_proto1.Message
+	Proto() github_com_gogo_protobuf_proto1.Message
 	GetNum() uint32
 	GetKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetCreationTime() int64
 }
 
-func (this *RatchetState_SavedKeys_MessageKey) Proto() code_google_com_p_gogoprotobuf_proto1.Message {
+func (this *RatchetState_SavedKeys_MessageKey) Proto() github_com_gogo_protobuf_proto1.Message {
 	return this
 }
 
-func (this *RatchetState_SavedKeys_MessageKey) TestProto() code_google_com_p_gogoprotobuf_proto1.Message {
+func (this *RatchetState_SavedKeys_MessageKey) TestProto() github_com_gogo_protobuf_proto1.Message {
 	return NewRatchetState_SavedKeys_MessageKeyFromFace(this)
 }
 
