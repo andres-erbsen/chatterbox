@@ -16,5 +16,4 @@ option (gogoproto.equal_all) = true;
 message ConversationMetadata {
 	repeated string participants = 1 [(gogoproto.nullable) = false];
 	required string subject = 2 [(gogoproto.nullable) = false];
-	required bytes sender_dename_profile = 3 [(gogoproto.customtype) = "github.com/andres-erbsen/dename/protocol.Profile", (gogoproto.nullable) = false];
 }

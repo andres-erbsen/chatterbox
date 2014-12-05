@@ -37,7 +37,10 @@ func GetUiInfoDir(rootDir string) string {
 	return rootDir + "/ui_info"
 }
 
-func GetUniqueTmpDir(rootDir string) (string, error) {
+// Creates a unique temp directory under a folder specified by "identifier"
+// the "identifier" parameter exists so different processes can have their own
+// temp space even though they use the same utilities to create temp directories
+func GetUniqueTmpDir(rootDir string, identifier string) (string, error) {
 	return ioutil.TempDir(getTmpDir(rootDir), "")
 }
 
@@ -92,7 +95,7 @@ func InitFs(rootDir string) error {
 				log.Printf("Found conversation %s\n", cPath)
 
 				// create the outbox directory in tmp, then (atomically) move it to outbox
-				tmpDir, err := GetUniqueTmpDir(rootDir)
+				tmpDir, err := GetUniqueTmpDir(rootDir, "daemon") // TODO don't hard code this
 				if err != nil {
 					return err
 				}

@@ -20,8 +20,6 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import github_com_andres_erbsen_dename_protocol "github.com/andres-erbsen/dename/protocol"
-
 import io "io"
 import fmt "fmt"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
@@ -33,10 +31,9 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type ConversationMetadata struct {
-	Participants        []string                                         `protobuf:"bytes,1,rep,name=participants" json:"participants"`
-	Subject             string                                           `protobuf:"bytes,2,req,name=subject" json:"subject"`
-	SenderDenameProfile github_com_andres_erbsen_dename_protocol.Profile `protobuf:"bytes,3,req,name=sender_dename_profile,customtype=github.com/andres-erbsen/dename/protocol.Profile" json:"sender_dename_profile"`
-	XXX_unrecognized    []byte                                           `json:"-"`
+	Participants     []string `protobuf:"bytes,1,rep,name=participants" json:"participants"`
+	Subject          string   `protobuf:"bytes,2,req,name=subject" json:"subject"`
+	XXX_unrecognized []byte   `json:"-"`
 }
 
 func (m *ConversationMetadata) Reset()         { *m = ConversationMetadata{} }
@@ -108,30 +105,6 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			m.Subject = string(data[index:postIndex])
 			index = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SenderDenameProfile", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				byteLen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			postIndex := index + byteLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.SenderDenameProfile.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
-			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -165,8 +138,6 @@ func (m *ConversationMetadata) Size() (n int) {
 		}
 	}
 	l = len(m.Subject)
-	n += 1 + l + sovConversationMetadata(uint64(l))
-	l = m.SenderDenameProfile.Size()
 	n += 1 + l + sovConversationMetadata(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -221,14 +192,6 @@ func (m *ConversationMetadata) MarshalTo(data []byte) (n int, err error) {
 	i++
 	i = encodeVarintConversationMetadata(data, i, uint64(len(m.Subject)))
 	i += copy(data[i:], m.Subject)
-	data[i] = 0x1a
-	i++
-	i = encodeVarintConversationMetadata(data, i, uint64(m.SenderDenameProfile.Size()))
-	n1, err := m.SenderDenameProfile.MarshalTo(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -290,9 +253,6 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 		}
 	}
 	if this.Subject != that1.Subject {
-		return false
-	}
-	if !this.SenderDenameProfile.Equal(that1.SenderDenameProfile) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
