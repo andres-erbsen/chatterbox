@@ -2,20 +2,9 @@
 // source: ConversationMetadata.proto
 // DO NOT EDIT!
 
-/*
-Package proto is a generated protocol buffer package.
-
-It is generated from these files:
-	ConversationMetadata.proto
-	Messages.proto
-	Profile.proto
-
-It has these top-level messages:
-	ConversationMetadata
-*/
 package proto
 
-import proto1 "github.com/gogo/protobuf/proto"
+import proto1 "code.google.com/p/gogoprotobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
