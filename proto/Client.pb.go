@@ -16,14 +16,16 @@
 */
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
-// discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
+// discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
+
+import github_com_andres_erbsen_dename_protocol "github.com/andres-erbsen/dename/protocol"
 
 import io "io"
 import fmt "fmt"
-import code_google_com_p_gogoprotobuf_proto "code.google.com/p/gogoprotobuf/proto"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
 import bytes "bytes"
 
@@ -32,11 +34,11 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type Message struct {
-	Contents         []byte   `protobuf:"bytes,1,req,name=contents" json:"contents"`
-	Subject          []byte   `protobuf:"bytes,2,req,name=subject" json:"subject"`
-	Participants     [][]byte `protobuf:"bytes,3,rep,name=participants" json:"participants"`
-	DenameProfile    *Byte32  `protobuf:"bytes,4,req,name=dename_profile,customtype=Byte32" json:"dename_profile,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	Contents         []byte                                           `protobuf:"bytes,1,req,name=contents" json:"contents"`
+	Subject          []byte                                           `protobuf:"bytes,2,req,name=subject" json:"subject"`
+	Participants     [][]byte                                         `protobuf:"bytes,3,rep,name=participants" json:"participants"`
+	DenameProfile    github_com_andres_erbsen_dename_protocol.Profile `protobuf:"bytes,4,req,name=dename_profile,customtype=github.com/andres-erbsen/dename/protocol.Profile" json:"dename_profile"`
+	XXX_unrecognized []byte                                           `json:"-"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
@@ -151,7 +153,6 @@ func (m *Message) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.DenameProfile = &Byte32{}
 			if err := m.DenameProfile.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
@@ -166,7 +167,7 @@ func (m *Message) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
@@ -192,10 +193,8 @@ func (m *Message) Size() (n int) {
 			n += 1 + l + sovClient(uint64(l))
 		}
 	}
-	if m.DenameProfile != nil {
-		l = m.DenameProfile.Size()
-		n += 1 + l + sovClient(uint64(l))
-	}
+	l = m.DenameProfile.Size()
+	n += 1 + l + sovClient(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -214,106 +213,6 @@ func sovClient(x uint64) (n int) {
 }
 func sozClient(x uint64) (n int) {
 	return sovClient(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func NewPopulatedMessage(r randyClient, easy bool) *Message {
-	this := &Message{}
-	v1 := r.Intn(100)
-	this.Contents = make([]byte, v1)
-	for i := 0; i < v1; i++ {
-		this.Contents[i] = byte(r.Intn(256))
-	}
-	v2 := r.Intn(100)
-	this.Subject = make([]byte, v2)
-	for i := 0; i < v2; i++ {
-		this.Subject[i] = byte(r.Intn(256))
-	}
-	if r.Intn(10) != 0 {
-		v3 := r.Intn(100)
-		this.Participants = make([][]byte, v3)
-		for i := 0; i < v3; i++ {
-			v4 := r.Intn(100)
-			this.Participants[i] = make([]byte, v4)
-			for j := 0; j < v4; j++ {
-				this.Participants[i][j] = byte(r.Intn(256))
-			}
-		}
-	}
-	this.DenameProfile = NewPopulatedByte32(r)
-	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedClient(r, 5)
-	}
-	return this
-}
-
-type randyClient interface {
-	Float32() float32
-	Float64() float64
-	Int63() int64
-	Int31() int32
-	Uint32() uint32
-	Intn(n int) int
-}
-
-func randUTF8RuneClient(r randyClient) rune {
-	res := rune(r.Uint32() % 1112064)
-	if 55296 <= res {
-		res += 2047
-	}
-	return res
-}
-func randStringClient(r randyClient) string {
-	v5 := r.Intn(100)
-	tmps := make([]rune, v5)
-	for i := 0; i < v5; i++ {
-		tmps[i] = randUTF8RuneClient(r)
-	}
-	return string(tmps)
-}
-func randUnrecognizedClient(r randyClient, maxFieldNumber int) (data []byte) {
-	l := r.Intn(5)
-	for i := 0; i < l; i++ {
-		wire := r.Intn(4)
-		if wire == 3 {
-			wire = 5
-		}
-		fieldNumber := maxFieldNumber + r.Intn(100)
-		data = randFieldClient(data, r, fieldNumber, wire)
-	}
-	return data
-}
-func randFieldClient(data []byte, r randyClient, fieldNumber int, wire int) []byte {
-	key := uint32(fieldNumber)<<3 | uint32(wire)
-	switch wire {
-	case 0:
-		data = encodeVarintPopulateClient(data, uint64(key))
-		v6 := r.Int63()
-		if r.Intn(2) == 0 {
-			v6 *= -1
-		}
-		data = encodeVarintPopulateClient(data, uint64(v6))
-	case 1:
-		data = encodeVarintPopulateClient(data, uint64(key))
-		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
-	case 2:
-		data = encodeVarintPopulateClient(data, uint64(key))
-		ll := r.Intn(100)
-		data = encodeVarintPopulateClient(data, uint64(ll))
-		for j := 0; j < ll; j++ {
-			data = append(data, byte(r.Intn(256)))
-		}
-	default:
-		data = encodeVarintPopulateClient(data, uint64(key))
-		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
-	}
-	return data
-}
-func encodeVarintPopulateClient(data []byte, v uint64) []byte {
-	for v >= 1<<7 {
-		data = append(data, uint8(uint64(v)&0x7f|0x80))
-		v >>= 7
-	}
-	data = append(data, uint8(v))
-	return data
 }
 func (m *Message) Marshal() (data []byte, err error) {
 	size := m.Size()
@@ -346,16 +245,14 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 			i += copy(data[i:], b)
 		}
 	}
-	if m.DenameProfile != nil {
-		data[i] = 0x22
-		i++
-		i = encodeVarintClient(data, i, uint64(m.DenameProfile.Size()))
-		n1, err := m.DenameProfile.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
+	data[i] = 0x22
+	i++
+	i = encodeVarintClient(data, i, uint64(m.DenameProfile.Size()))
+	n1, err := m.DenameProfile.MarshalTo(data[i:])
+	if err != nil {
+		return 0, err
 	}
+	i += n1
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -422,11 +319,7 @@ func (this *Message) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if that1.DenameProfile == nil {
-		if this.DenameProfile != nil {
-			return false
-		}
-	} else if !this.DenameProfile.Equal(*that1.DenameProfile) {
+	if !this.DenameProfile.Equal(that1.DenameProfile) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

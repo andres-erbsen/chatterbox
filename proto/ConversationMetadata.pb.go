@@ -2,34 +2,20 @@
 // source: ConversationMetadata.proto
 // DO NOT EDIT!
 
-<<<<<<< HEAD
-=======
-/*
-	Package proto is a generated protocol buffer package.
-
-	It is generated from these files:
-		ConversationMetadata.proto
-		Messages.proto
-		Profile.proto
-
-	It has these top-level messages:
-		ConversationMetadata
-*/
->>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
 import github_com_andres_erbsen_dename_protocol "github.com/andres-erbsen/dename/protocol"
 
-import io "io"
-import fmt "fmt"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+import io1 "io"
+import fmt1 "fmt"
+import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
 
-import bytes "bytes"
+import bytes1 "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -55,7 +41,7 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io.ErrUnexpectedEOF
+				return io1.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -69,12 +55,12 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Participants", wireType)
+				return fmt1.Errorf("proto: wrong wireType = %d for field Participants", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io1.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -85,18 +71,18 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io1.ErrUnexpectedEOF
 			}
 			m.Participants = append(m.Participants, string(data[index:postIndex]))
 			index = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Subject", wireType)
+				return fmt1.Errorf("proto: wrong wireType = %d for field Subject", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io1.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -107,18 +93,18 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io1.ErrUnexpectedEOF
 			}
 			m.Subject = string(data[index:postIndex])
 			index = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SenderDenameProfile", wireType)
+				return fmt1.Errorf("proto: wrong wireType = %d for field SenderDenameProfile", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io1.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -129,7 +115,7 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io1.ErrUnexpectedEOF
 			}
 			if err := m.SenderDenameProfile.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -145,12 +131,12 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto1.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io.ErrUnexpectedEOF
+				return io1.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -298,7 +284,7 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 	if !this.SenderDenameProfile.Equal(that1.SenderDenameProfile) {
 		return false
 	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true

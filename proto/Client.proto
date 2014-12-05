@@ -1,6 +1,6 @@
 package proto;
 
-import "code.google.com/p/gogoprotobuf/gogoproto/gogo.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
@@ -9,13 +9,13 @@ option (gogoproto.goproto_getters_all) = false;
 option (gogoproto.stringer_all) = false;
 
 option (gogoproto.equal_all) = true;
-option (gogoproto.populate_all) = true;
-option (gogoproto.testgen_all) = true;
-option (gogoproto.benchgen_all) = true;
+//option (gogoproto.populate_all) = true;
+//option (gogoproto.testgen_all) = true;
+//option (gogoproto.benchgen_all) = true;
 
 message Message {
     required bytes contents = 1 [(gogoproto.nullable) = false];
     required bytes subject = 2 [(gogoproto.nullable) = false];
     repeated bytes participants = 3 [(gogoproto.nullable) = false];
-    required bytes dename_profile = 4 [(gogoproto.customtype) = "Byte32"]; 
+    required bytes dename_profile = 4 [(gogoproto.customtype) = "github.com/andres-erbsen/dename/protocol.Profile", (gogoproto.nullable) = false]; 
 } 

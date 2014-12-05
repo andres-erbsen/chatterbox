@@ -4,20 +4,16 @@
 
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import io1 "io"
-import fmt1 "fmt"
-<<<<<<< HEAD
-import code_google_com_p_gogoprotobuf_proto1 "code.google.com/p/gogoprotobuf/proto"
-=======
-import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
->>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
+import io2 "io"
+import fmt2 "fmt"
+import github_com_gogo_protobuf_proto2 "github.com/gogo/protobuf/proto"
 
-import bytes1 "bytes"
+import bytes2 "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -107,7 +103,7 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -121,12 +117,12 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field Status", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field Status", wireType)
 			}
 			var v ServerToClient_StatusCode
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -138,12 +134,12 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			m.Status = &v
 		case 3:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field MessageList", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field MessageList", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -154,19 +150,19 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.MessageList = append(m.MessageList, Byte32{})
 			m.MessageList[len(m.MessageList)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field Envelope", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field Envelope", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -177,18 +173,18 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.Envelope = append(m.Envelope, data[index:postIndex]...)
 			index = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field Key", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field Key", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -199,7 +195,7 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.Key = &Byte32{}
 			if err := m.Key.Unmarshal(data[index:postIndex]); err != nil {
@@ -208,12 +204,12 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			index = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field Notification", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field Notification", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -224,18 +220,18 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.Notification = append(m.Notification, data[index:postIndex]...)
 			index = postIndex
 		case 7:
 			if wireType != 0 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field NumKeys", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field NumKeys", wireType)
 			}
 			var v int64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -255,16 +251,12 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-<<<<<<< HEAD
-			skippy, err := code_google_com_p_gogoprotobuf_proto1.Skip(data[index:])
-=======
-			skippy, err := github_com_gogo_protobuf_proto1.Skip(data[index:])
->>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
+			skippy, err := github_com_gogo_protobuf_proto2.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -279,7 +271,7 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -293,12 +285,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field CreateAccount", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field CreateAccount", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -311,12 +303,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			m.CreateAccount = &b
 		case 2:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field DeliverEnvelope", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field DeliverEnvelope", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -327,7 +319,7 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			postIndex := index + msglen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			if m.DeliverEnvelope == nil {
 				m.DeliverEnvelope = &ClientToServer_DeliverEnvelope{}
@@ -338,12 +330,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			index = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field DownloadEnvelope", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field DownloadEnvelope", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -354,7 +346,7 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.DownloadEnvelope = &Byte32{}
 			if err := m.DownloadEnvelope.Unmarshal(data[index:postIndex]); err != nil {
@@ -363,12 +355,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			index = postIndex
 		case 5:
 			if wireType != 0 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field ListMessages", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field ListMessages", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -381,12 +373,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			m.ListMessages = &b
 		case 7:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field DeleteMessages", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field DeleteMessages", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -397,19 +389,19 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.DeleteMessages = append(m.DeleteMessages, Byte32{})
 			m.DeleteMessages[len(m.DeleteMessages)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
 		case 8:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field UploadKeys", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field UploadKeys", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -420,19 +412,19 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.UploadKeys = append(m.UploadKeys, Byte32{})
 			m.UploadKeys[len(m.UploadKeys)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
 		case 9:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field GetKey", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field GetKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -443,7 +435,7 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.GetKey = &Byte32{}
 			if err := m.GetKey.Unmarshal(data[index:postIndex]); err != nil {
@@ -452,12 +444,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			index = postIndex
 		case 10:
 			if wireType != 0 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field ReceiveEnvelopes", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field ReceiveEnvelopes", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -470,12 +462,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			m.ReceiveEnvelopes = &b
 		case 11:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field GetNumKeys", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field GetNumKeys", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -486,7 +478,7 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.GetNumKeys = &Byte32{}
 			if err := m.GetNumKeys.Unmarshal(data[index:postIndex]); err != nil {
@@ -503,16 +495,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-<<<<<<< HEAD
-			skippy, err := code_google_com_p_gogoprotobuf_proto1.Skip(data[index:])
-=======
-			skippy, err := github_com_gogo_protobuf_proto1.Skip(data[index:])
->>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
+			skippy, err := github_com_gogo_protobuf_proto2.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -527,7 +515,7 @@ func (m *ClientToServer_DeliverEnvelope) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -541,12 +529,12 @@ func (m *ClientToServer_DeliverEnvelope) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 3:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field User", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field User", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -557,7 +545,7 @@ func (m *ClientToServer_DeliverEnvelope) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.User = &Byte32{}
 			if err := m.User.Unmarshal(data[index:postIndex]); err != nil {
@@ -566,12 +554,12 @@ func (m *ClientToServer_DeliverEnvelope) Unmarshal(data []byte) error {
 			index = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field Envelope", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field Envelope", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io1.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -582,7 +570,7 @@ func (m *ClientToServer_DeliverEnvelope) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.Envelope = append(m.Envelope, data[index:postIndex]...)
 			index = postIndex
@@ -596,16 +584,12 @@ func (m *ClientToServer_DeliverEnvelope) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-<<<<<<< HEAD
-			skippy, err := code_google_com_p_gogoprotobuf_proto1.Skip(data[index:])
-=======
-			skippy, err := github_com_gogo_protobuf_proto1.Skip(data[index:])
->>>>>>> 908d7c43f6c28d73575ac2362fcdb3b697cf9f01
+			skippy, err := github_com_gogo_protobuf_proto2.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io1.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -1172,7 +1156,7 @@ func (this *ServerToClient) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if !bytes1.Equal(this.Envelope, that1.Envelope) {
+	if !bytes2.Equal(this.Envelope, that1.Envelope) {
 		return false
 	}
 	if that1.Key == nil {
@@ -1182,7 +1166,7 @@ func (this *ServerToClient) Equal(that interface{}) bool {
 	} else if !this.Key.Equal(*that1.Key) {
 		return false
 	}
-	if !bytes1.Equal(this.Notification, that1.Notification) {
+	if !bytes2.Equal(this.Notification, that1.Notification) {
 		return false
 	}
 	if this.NumKeys != nil && that1.NumKeys != nil {
@@ -1194,7 +1178,7 @@ func (this *ServerToClient) Equal(that interface{}) bool {
 	} else if that1.NumKeys != nil {
 		return false
 	}
-	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes2.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true
@@ -1286,7 +1270,7 @@ func (this *ClientToServer) Equal(that interface{}) bool {
 	} else if !this.GetNumKeys.Equal(*that1.GetNumKeys) {
 		return false
 	}
-	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes2.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true
@@ -1318,10 +1302,10 @@ func (this *ClientToServer_DeliverEnvelope) Equal(that interface{}) bool {
 	} else if !this.User.Equal(*that1.User) {
 		return false
 	}
-	if !bytes1.Equal(this.Envelope, that1.Envelope) {
+	if !bytes2.Equal(this.Envelope, that1.Envelope) {
 		return false
 	}
-	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes2.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true

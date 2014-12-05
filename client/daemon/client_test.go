@@ -1,19 +1,23 @@
 package main
 
 import (
+	"code.google.com/p/go.crypto/curve25519"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	//"github.com/agl/ed25519"
 	"github.com/andres-erbsen/dename/client"
 	//"github.com/andres-erbsen/dename/protocol"
+	"bytes"
 	"code.google.com/p/go.crypto/nacl/box"
 	protobuf "code.google.com/p/gogoprotobuf/proto"
+	"crypto/subtle"
+	"errors"
 	"github.com/andres-erbsen/chatterbox/proto"
-	//"github.com/andres-erbsen/chatterbox/ratchet"
+	"github.com/andres-erbsen/chatterbox/ratchet"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"github.com/andres-erbsen/dename/testutil"
 	"reflect"
-	//"bytes"
-	//"errors"
 	//"io"
 	"testing"
 	"time"
@@ -55,32 +59,37 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	config, f := testutil.SingleServer(t)
 	defer f()
 
-	ska = createNewUser([]byte("Alice"), t, config)
-	skb = createNewUser([]byte("Bob"), t, config)
+	ska := createNewUser([]byte("Alice"), t, config)
+	skb := createNewUser([]byte("Bob"), t, config)
 
 	ratchA := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(ska),
-		CheckAuth: CheckAuth(),
+		CheckAuth: CheckAuth,
 		Rand:      nil,
 		Now:       nil,
 	}
 	ratchB := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skb),
-		CheckAuth: CheckAuth(),
+		CheckAuth: CheckAuth,
 		Rand:      nil,
 		Now:       nil,
 	}
 
-	pka0, ska0, err := box.GenerateKey(rand.Reader)
-	handleError(err, t)
+	//pka0, ska0, err := box.GenerateKey(rand.Reader)
+	//handleError(err, t)
 	pkb0, skb0, err := box.GenerateKey(rand.Reader)
-	handleError(err, t)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	msg := []byte("Message")
 	out := append([]byte{}, (*pkb0)[:]...)
 
-	out = ratchA.EncryptFirst(outA, msg, pkb0)
-	msg2 := ratchB.DecryptFirst(out, skb0)
+	out = ratchA.EncryptFirst(out, msg, pkb0)
+	msg2, err := ratchB.DecryptFirst(out[32:], skb0)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !bytes.Equal(msg, msg2) {
 		t.Error("Original and decrypted message not the same.")
@@ -132,11 +141,11 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) *[32]byte {
 	return skAuth
 }
 
-func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, [32]byte) {
+func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 	return func(tag, data []byte, theirAuthPublic *[32]byte) {
 		var sharedAuthKey [32]byte
 		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
-		h := hmac.New(sha256.New, sharedKey[:])
+		h := hmac.New(sha256.New, sharedAuthKey[:])
 		h.Write(data)
 		h.Sum(nil)
 		copy(tag, h.Sum(nil))
@@ -149,12 +158,23 @@ func CheckAuth(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
 	if err := message.Unmarshal(msg); err != nil {
 		return err
 	}
-	profile := message.DenameProfile
-	//TODO: Parse this
-	curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
-	h := hmac.New(sha256.New, sharedKey[:])
+	//TODO (for Andres): Change this function to take a name, use lookup to look it up and authenticate
+	profile := &(message.DenameProfile)
+	protoAuth := new(proto.Profile)
+	authField, err := client.GetProfileField(profile, authField)
+	if err != nil {
+		return err
+	}
+	if err := protoAuth.Unmarshal(authField); err != nil {
+		return err
+	}
+
+	theirAuthPublic := ([32]byte)(protoAuth.MessageAuthKey)
+
+	curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, &theirAuthPublic)
+	h := hmac.New(sha256.New, sharedAuthKey[:])
 	h.Write(data)
-	if subtle.ConstantTimeEq(tag, h.Sum(nil)) == 0 {
+	if subtle.ConstantTimeCompare(tag, h.Sum(nil)) == 0 {
 		return errors.New("Authentication failed.")
 	}
 	return nil
