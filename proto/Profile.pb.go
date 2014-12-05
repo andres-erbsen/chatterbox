@@ -4,14 +4,14 @@
 
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "code.google.com/p/gogoprotobuf/gogoproto/gogo.pb"
 
 import io1 "io"
 import fmt1 "fmt"
-import code_google_com_p_gogoprotobuf_proto1 "code.google.com/p/gogoprotobuf/proto"
+import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
 
 import bytes1 "bytes"
 
@@ -182,7 +182,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto1.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto1.Skip(data[index:])
 			if err != nil {
 				return err
 			}
