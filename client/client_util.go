@@ -4,6 +4,7 @@ import (
 	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"errors"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"time"
 )
@@ -190,4 +191,87 @@ func receiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 		return nil, errors.New("Server threw a parse error.")
 	}
 	return response, nil
+}
+
+func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client) {
+	newClient, err := client.NewClient(config, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//TODO: All these names are horrible, please change them
+	pkAuth, skAuth, err := box.GenerateKey(rand.Reader)
+
+	chatProfile := &proto.Profile{
+		ServerAddressTCP:  "",
+		ServerTransportPK: (proto.Byte32)([32]byte{}),
+		UserIDAtServer:    (proto.Byte32)([32]byte{}),
+		KeySigningKey:     (proto.Byte32)([32]byte{}),
+		MessageAuthKey:    (proto.Byte32)(*pkAuth),
+	}
+
+	chatProfileBytes, err := protobuf.Marshal(chatProfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	profile, sk, err := client.NewProfile(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client.SetProfileField(profile, PROFILE_FIELD_ID, chatProfileBytes)
+
+	err = newClient.Register(sk, name, profile, testutil2.MakeToken())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return skAuth, newClient
+}
+
+func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
+	return func(tag, data []byte, theirAuthPublic *[32]byte) {
+		var sharedAuthKey [32]byte
+		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
+		h := hmac.New(sha256.New, sharedAuthKey[:])
+		h.Write(data)
+		h.Sum(nil)
+		copy(tag, h.Sum(nil))
+	}
+}
+
+func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
+	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
+		var sharedAuthKey [32]byte
+		message := new(proto.Message)
+		if err := message.Unmarshal(msg); err != nil {
+			return err
+		}
+		profile, err := dnmc.Lookup(message.Dename)
+		if err != nil {
+			return err
+		}
+
+		chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+		if err != nil {
+			return err
+		}
+
+		chatProfile := new(proto.Profile)
+		if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+			return err
+		}
+
+		theirAuthPublic := (*[32]byte)(&chatProfile.MessageAuthKey)
+
+		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
+		h := hmac.New(sha256.New, sharedAuthKey[:])
+		h.Write(data)
+		if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
+
+			return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
+		}
+		return nil
+	}
 }
