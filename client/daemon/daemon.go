@@ -4,9 +4,11 @@
 package main
 
 import (
+	"github.com/andres-erbsen/chatterbox/client/util/config"
 	"github.com/andres-erbsen/chatterbox/client/util/filesystem"
 	"log"
 	"os"
+	"time"
 )
 
 func GetRootDir() string {
@@ -15,8 +17,12 @@ func GetRootDir() string {
 }
 
 func main() {
-	rootDir := GetRootDir()
-	filesystem.InitFs(rootDir)
+	conf := config.Config{
+		RootDir:    GetRootDir(),
+		Time:       time.Now,
+		TempPrefix: "daemon",
+	}
+	filesystem.InitFs(conf)
 
 	initFn := func(path string, f os.FileInfo, err error) error {
 		log.Printf("init path: %s\n", path)
@@ -28,5 +34,5 @@ func main() {
 		return err
 	}
 
-	filesystem.WatchFs(rootDir, initFn, updateFn)
+	filesystem.WatchFs(conf, initFn, updateFn)
 }

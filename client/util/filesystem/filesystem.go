@@ -4,6 +4,7 @@ package filesystem
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
+	"github.com/andres-erbsen/chatterbox/client/util/config"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,35 +14,32 @@ import (
 	"syscall"
 )
 
-func GetConversationDir(rootDir string) string {
-	return rootDir + "/conversations"
+func GetConversationDir(conf config.Config) string {
+	return filepath.Join(conf.RootDir, "conversations")
 }
 
-func GetOutboxDir(rootDir string) string {
-	return rootDir + "/outbox"
+func GetOutboxDir(conf config.Config) string {
+	return filepath.Join(conf.RootDir, "outbox")
 }
 
-func getTmpDir(rootDir string) string {
-	return rootDir + "/tmp"
+func GetTmpDir(conf config.Config) string {
+	return filepath.Join(conf.RootDir, "tmp")
 }
 
-func getJournalDir(rootDir string) string {
-	return rootDir + "/journal"
+func getJournalDir(conf config.Config) string {
+	return filepath.Join(conf.RootDir, "journal")
 }
 
-func GetKeysDir(rootDir string) string {
-	return rootDir + "/keys"
+func GetKeysDir(conf config.Config) string {
+	return filepath.Join(conf.RootDir, "keys")
 }
 
-func GetUiInfoDir(rootDir string) string {
-	return rootDir + "/ui_info"
+func GetUiInfoDir(conf config.Config) string {
+	return filepath.Join(conf.RootDir, "ui_info")
 }
 
-// Creates a unique temp directory under a folder specified by "identifier"
-// the "identifier" parameter exists so different processes can have their own
-// temp space even though they use the same utilities to create temp directories
-func GetUniqueTmpDir(rootDir string, identifier string) (string, error) {
-	return ioutil.TempDir(getTmpDir(rootDir), "")
+func GetUniqueTmpDir(conf config.Config) (string, error) {
+	return ioutil.TempDir(GetTmpDir(conf), conf.TempPrefix)
 }
 
 const (
@@ -70,16 +68,16 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	}
 	return cerr
 }
-func InitFs(rootDir string) error {
+func InitFs(conf config.Config) error {
 	// create root directory and immediate sub directories
-	os.MkdirAll(rootDir, 0700)
+	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{
-		GetConversationDir(rootDir),
-		GetOutboxDir(rootDir),
-		getTmpDir(rootDir),
-		getJournalDir(rootDir),
-		GetKeysDir(rootDir),
-		GetUiInfoDir(rootDir),
+		GetConversationDir(conf),
+		GetOutboxDir(conf),
+		GetTmpDir(conf),
+		getJournalDir(conf),
+		GetKeysDir(conf),
+		GetUiInfoDir(conf),
 	}
 	for _, dir := range subdirs {
 		os.Mkdir(dir, 0700)
@@ -90,12 +88,12 @@ func InitFs(rootDir string) error {
 		if err != nil {
 			log.Printf("Error reading conversation directories %s: %v", cPath, err)
 		}
-		if cPath != GetConversationDir(rootDir) {
+		if cPath != GetConversationDir(conf) {
 			if f.IsDir() {
 				log.Printf("Found conversation %s\n", cPath)
 
 				// create the outbox directory in tmp, then (atomically) move it to outbox
-				tmpDir, err := GetUniqueTmpDir(rootDir, "daemon") // TODO don't hard code this
+				tmpDir, err := GetUniqueTmpDir(conf)
 				if err != nil {
 					return err
 				}
@@ -107,7 +105,7 @@ func InitFs(rootDir string) error {
 					return nil
 				}
 				var c_perm = conversationInfo.Mode()
-				metadataFile := cPath + "/" + MetadataFileName
+				metadataFile := filepath.Join(cPath, MetadataFileName)
 				metadataInfo, err := os.Stat(metadataFile)
 				if err != nil {
 					// skip this conversation; it probably doesn't have a metadata file
@@ -117,13 +115,13 @@ func InitFs(rootDir string) error {
 				var m_perm = metadataInfo.Mode()
 				oldUmask := syscall.Umask(0000)
 				defer syscall.Umask(oldUmask)
-				os.Mkdir(tmpDir+"/"+path.Base(cPath), c_perm)
-				err = Copy(metadataFile, tmpDir+"/"+path.Base(cPath)+"/"+MetadataFileName, m_perm)
+				os.Mkdir(filepath.Join(tmpDir, path.Base(cPath)), c_perm)
+				err = Copy(metadataFile, filepath.Join(tmpDir, path.Base(cPath), MetadataFileName), m_perm)
 				if err != nil {
 					log.Printf("Error, can't copy metadata file to temp: %s", metadataFile)
 					return err
 				}
-				err = os.Rename(tmpDir+"/"+path.Base(cPath), GetOutboxDir(rootDir)+"/"+path.Base(cPath))
+				err = os.Rename(filepath.Join(tmpDir, path.Base(cPath)), filepath.Join(GetOutboxDir(conf), path.Base(cPath)))
 				if err != nil {
 					// skip this conversation; this probably means it already exists in the outbox
 					return nil
@@ -132,14 +130,14 @@ func InitFs(rootDir string) error {
 		}
 		return nil
 	}
-	err := filepath.Walk(GetConversationDir(rootDir), copyToOutbox)
+	err := filepath.Walk(GetConversationDir(conf), copyToOutbox)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func WatchFs(rootDir string, initFn filepath.WalkFunc, updateFn filepath.WalkFunc) {
+func WatchFs(conf config.Config, initFn filepath.WalkFunc, updateFn filepath.WalkFunc) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
@@ -159,7 +157,7 @@ func WatchFs(rootDir string, initFn filepath.WalkFunc, updateFn filepath.WalkFun
 		return err
 	}
 
-	err = filepath.Walk(rootDir, doInit)
+	err = filepath.Walk(conf.RootDir, doInit)
 
 	for {
 		select {

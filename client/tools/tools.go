@@ -2,11 +2,13 @@ package tools
 
 import (
 	"fmt"
+	"github.com/andres-erbsen/chatterbox/client/util/config"
 	"github.com/andres-erbsen/chatterbox/client/util/filesystem"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -14,22 +16,24 @@ import (
 
 // Spawns a new conversation in a user's outbox
 //
-// rootDir = the user's root directory
+// conf = configuration structure
 // subject = subject of the new conversation
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
-func SpawnConversationInOutbox(rootDir string, subject string, recipients []string, messages [][]byte) error {
+func SpawnConversationInOutbox(conf config.Config, subject string, recipients []string, messages [][]byte) error {
 	// create temp directory or error
-	tmpDir, err := filesystem.GetUniqueTmpDir(rootDir, "some_ui")
+	tmpDir, err := filesystem.GetUniqueTmpDir(conf)
+	defer os.RemoveAll(tmpDir)
 	if err != nil {
 		return err
 	}
 
 	// create folder for conversation with the conversation name (or error?)
 	//dirName := "date-number-sender-recipient-recipient-..."
-	dateStr := time.Now().Format(time.RFC3339)
+	dateStr := conf.Time().Format(time.RFC3339)
+	sort.Strings(recipients)
 	recipientsStr := strings.Join(recipients, "-")
-	dirName := fmt.Sprintf("%s-%d-%s-%s", dateStr, 0, "username", recipientsStr) // FIXME don't hard code username or number
+	dirName := fmt.Sprintf("%s-%d-%s-%s", dateStr, 0, "user_dename", recipientsStr) // FIXME don't hard code username or number
 	os.MkdirAll(filepath.Join(tmpDir, dirName), 0700)
 
 	// create metadata file or error
@@ -50,7 +54,7 @@ func SpawnConversationInOutbox(rootDir string, subject string, recipients []stri
 	}
 
 	// move folder to the outbox (or error)
-	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(filesystem.GetOutboxDir(rootDir), dirName))
+	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(filesystem.GetOutboxDir(conf), dirName))
 	if err != nil {
 		return err
 	}
