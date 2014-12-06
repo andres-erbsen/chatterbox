@@ -21,8 +21,6 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import github_com_andres_erbsen_dename_protocol "github.com/andres-erbsen/dename/protocol"
-
 import io "io"
 import fmt "fmt"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
@@ -34,11 +32,11 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type Message struct {
-	Contents         []byte                                           `protobuf:"bytes,1,req,name=contents" json:"contents"`
-	Subject          []byte                                           `protobuf:"bytes,2,req,name=subject" json:"subject"`
-	Participants     [][]byte                                         `protobuf:"bytes,3,rep,name=participants" json:"participants"`
-	DenameProfile    github_com_andres_erbsen_dename_protocol.Profile `protobuf:"bytes,4,req,name=dename_profile,customtype=github.com/andres-erbsen/dename/protocol.Profile" json:"dename_profile"`
-	XXX_unrecognized []byte                                           `json:"-"`
+	Contents         []byte   `protobuf:"bytes,1,req,name=contents" json:"contents"`
+	Subject          []byte   `protobuf:"bytes,2,req,name=subject" json:"subject"`
+	Participants     [][]byte `protobuf:"bytes,3,rep,name=participants" json:"participants"`
+	Dename           []byte   `protobuf:"bytes,4,req,name=dename" json:"dename"`
+	XXX_unrecognized []byte   `json:"-"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
@@ -135,7 +133,7 @@ func (m *Message) Unmarshal(data []byte) error {
 			index = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DenameProfile", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Dename", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -153,9 +151,7 @@ func (m *Message) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.DenameProfile.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
+			m.Dename = append(m.Dename, data[index:postIndex]...)
 			index = postIndex
 		default:
 			var sizeOfWire int
@@ -193,7 +189,7 @@ func (m *Message) Size() (n int) {
 			n += 1 + l + sovClient(uint64(l))
 		}
 	}
-	l = m.DenameProfile.Size()
+	l = len(m.Dename)
 	n += 1 + l + sovClient(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -247,12 +243,8 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	}
 	data[i] = 0x22
 	i++
-	i = encodeVarintClient(data, i, uint64(m.DenameProfile.Size()))
-	n1, err := m.DenameProfile.MarshalTo(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
+	i = encodeVarintClient(data, i, uint64(len(m.Dename)))
+	i += copy(data[i:], m.Dename)
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -319,7 +311,7 @@ func (this *Message) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if !this.DenameProfile.Equal(that1.DenameProfile) {
+	if !bytes.Equal(this.Dename, that1.Dename) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

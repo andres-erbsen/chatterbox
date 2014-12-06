@@ -9,17 +9,9 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-<<<<<<< HEAD
-import github_com_andres_erbsen_dename_protocol "github.com/andres-erbsen/dename/protocol"
-
 import io1 "io"
 import fmt1 "fmt"
 import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
-=======
-import io "io"
-import fmt "fmt"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
->>>>>>> 7680a8945777df8d80ff05f05442031cb214304d
 
 import bytes1 "bytes"
 
@@ -102,33 +94,6 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			m.Subject = string(data[index:postIndex])
 			index = postIndex
-<<<<<<< HEAD
-		case 3:
-			if wireType != 2 {
-				return fmt1.Errorf("proto: wrong wireType = %d for field SenderDenameProfile", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io1.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				byteLen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			postIndex := index + byteLen
-			if postIndex > l {
-				return io1.ErrUnexpectedEOF
-			}
-			if err := m.SenderDenameProfile.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
-			index = postIndex
-=======
->>>>>>> 7680a8945777df8d80ff05f05442031cb214304d
 		default:
 			var sizeOfWire int
 			for {
@@ -279,14 +244,7 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 	if this.Subject != that1.Subject {
 		return false
 	}
-<<<<<<< HEAD
-	if !this.SenderDenameProfile.Equal(that1.SenderDenameProfile) {
-		return false
-	}
 	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
-=======
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
->>>>>>> 7680a8945777df8d80ff05f05442031cb214304d
 		return false
 	}
 	return true

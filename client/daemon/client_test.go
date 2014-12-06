@@ -17,13 +17,13 @@ import (
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"github.com/andres-erbsen/dename/testutil"
-	"reflect"
 	//"io"
+	"fmt"
 	"testing"
 	"time"
 )
 
-const authField = 1984
+const PROFILE_FIELD_ID = 1984
 
 //func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []byte, []byte, *[32]byte) {
 //shutdown := make(chan struct{})
@@ -58,19 +58,20 @@ func handleError(err error, t *testing.T) {
 func TestMessageEncryptionAuthentication(t *testing.T) {
 	config, f := testutil.SingleServer(t)
 	defer f()
+	time.Sleep(100)
 
-	ska := createNewUser([]byte("Alice"), t, config)
-	skb := createNewUser([]byte("Bob"), t, config)
+	ska, dnmca := createNewUser([]byte("Alice"), t, config)
+	skb, dnmcb := createNewUser([]byte("Bob"), t, config)
 
 	ratchA := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(ska),
-		CheckAuth: CheckAuth,
+		CheckAuth: CheckAuthWith(dnmca),
 		Rand:      nil,
 		Now:       nil,
 	}
 	ratchB := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skb),
-		CheckAuth: CheckAuth,
+		CheckAuth: CheckAuthWith(dnmcb),
 		Rand:      nil,
 		Now:       nil,
 	}
@@ -82,7 +83,14 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	msg := []byte("Message")
+	msg, err := protobuf.Marshal(&proto.Message{
+		Subject:  nil,
+		Contents: []byte("Message"),
+		Dename:   []byte("Alice"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	out := append([]byte{}, (*pkb0)[:]...)
 
 	out = ratchA.EncryptFirst(out, msg, pkb0)
@@ -96,8 +104,24 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	}
 }
 
-func createNewUser(name []byte, t *testing.T, config *client.Config) *[32]byte {
+func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte, *client.Client) {
 	newClient, err := client.NewClient(config, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//TODO: All these names are horrible, please change them
+	pkAuth, skAuth, err := box.GenerateKey(rand.Reader)
+
+	chatProfile := &proto.Profile{
+		ServerAddressTCP:  "",
+		ServerTransportPK: (proto.Byte32)([32]byte{}),
+		UserIDAtServer:    (proto.Byte32)([32]byte{}),
+		KeySigningKey:     (proto.Byte32)([32]byte{}),
+		MessageAuthKey:    (proto.Byte32)(*pkAuth),
+	}
+
+	chatProfileBytes, err := protobuf.Marshal(chatProfile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,9 +131,7 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) *[32]byte {
 		t.Fatal(err)
 	}
 
-	client.SetProfileField(profile, 2, sk[:])
-
-	time.Sleep(1)
+	client.SetProfileField(profile, PROFILE_FIELD_ID, chatProfileBytes)
 
 	err = newClient.Register(sk, name, profile, testutil2.MakeToken())
 	if err != nil {
@@ -118,27 +140,13 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) *[32]byte {
 
 	//Remove this outside of the test
 	profile2, err := newClient.Lookup(name)
-	if !reflect.DeepEqual(profile, profile2) {
+	if !profile.Equal(profile2) {
 		t.Error("Correct profile not added to server.")
-	}
-	//TODO: All these names are horrible, please change them
-	pkAuth, skAuth, err := box.GenerateKey(rand.Reader)
-
-	protoAuth := &proto.Profile{
-		ServerAddressTCP:  "",
-		ServerTransportPK: (proto.Byte32)([32]byte{}),
-		UserIDAtServer:    (proto.Byte32)([32]byte{}),
-		KeySigningKey:     (proto.Byte32)([32]byte{}),
-		MessageAuthKey:    (proto.Byte32)(*pkAuth),
+		fmt.Printf("profile: %v\n", profile)
+		fmt.Printf("profile2: %v\n", profile2)
 	}
 
-	auth, err := protobuf.Marshal(protoAuth)
-	if err != nil {
-		t.Fatal(err)
-	}
-	client.SetProfileField(profile, authField, auth)
-
-	return skAuth
+	return skAuth, newClient
 }
 
 func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
@@ -152,30 +160,37 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 	}
 }
 
-func CheckAuth(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
-	var sharedAuthKey [32]byte
-	message := new(proto.Message)
-	if err := message.Unmarshal(msg); err != nil {
-		return err
-	}
-	//TODO (for Andres): Change this function to take a name, use lookup to look it up and authenticate
-	profile := &(message.DenameProfile)
-	protoAuth := new(proto.Profile)
-	authField, err := client.GetProfileField(profile, authField)
-	if err != nil {
-		return err
-	}
-	if err := protoAuth.Unmarshal(authField); err != nil {
-		return err
-	}
+func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
+	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
+		var sharedAuthKey [32]byte
+		message := new(proto.Message)
+		if err := message.Unmarshal(msg); err != nil {
+			return err
+		}
+		profile, err := dnmc.Lookup(message.Dename)
+		if err != nil {
+			return err
+		}
 
-	theirAuthPublic := ([32]byte)(protoAuth.MessageAuthKey)
+		chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+		if err != nil {
+			return err
+		}
 
-	curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, &theirAuthPublic)
-	h := hmac.New(sha256.New, sharedAuthKey[:])
-	h.Write(data)
-	if subtle.ConstantTimeCompare(tag, h.Sum(nil)) == 0 {
-		return errors.New("Authentication failed.")
+		chatProfile := new(proto.Profile)
+		if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+			return err
+		}
+
+		theirAuthPublic := (*[32]byte)(&chatProfile.MessageAuthKey)
+
+		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
+		h := hmac.New(sha256.New, sharedAuthKey[:])
+		h.Write(data)
+		if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
+
+			return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
+		}
+		return nil
 	}
-	return nil
 }

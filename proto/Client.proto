@@ -17,5 +17,5 @@ message Message {
     required bytes contents = 1 [(gogoproto.nullable) = false];
     required bytes subject = 2 [(gogoproto.nullable) = false];
     repeated bytes participants = 3 [(gogoproto.nullable) = false];
-    required bytes dename_profile = 4 [(gogoproto.customtype) = "github.com/andres-erbsen/dename/protocol.Profile", (gogoproto.nullable) = false]; 
+    required bytes dename = 4 [(gogoproto.nullable) = false]; 
 } 
