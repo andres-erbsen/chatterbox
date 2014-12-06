@@ -18,7 +18,6 @@ import (
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"github.com/andres-erbsen/dename/testutil"
 	//"io"
-	"fmt"
 	"testing"
 	"time"
 )
@@ -141,9 +140,7 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte,
 	//Remove this outside of the test
 	profile2, err := newClient.Lookup(name)
 	if !profile.Equal(profile2) {
-		t.Error("Correct profile not added to server.")
-		fmt.Printf("profile: %v\n", profile)
-		fmt.Printf("profile2: %v\n", profile2)
+		t.Errorf("Correct profile not added to server:\nprofile: %v\nprofile2 %v\n", profile, profile2)
 	}
 
 	return skAuth, newClient
