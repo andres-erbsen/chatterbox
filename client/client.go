@@ -47,7 +47,7 @@ func StartClient(dename []byte, addr string, skAuth *[32]byte, skp *[32]byte, pk
 	return newClient, nil
 }
 
-func (client *Client) createAccount() error {
+func (client *Client) CreateAccount() error {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
@@ -57,7 +57,7 @@ func (client *Client) createAccount() error {
 	return nil
 }
 
-func (client *Client) listMessages() (*[][32]byte, error) {
+func (client *Client) ListMessages() (*[][32]byte, error) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
@@ -68,7 +68,7 @@ func (client *Client) listMessages() (*[][32]byte, error) {
 	return messageList, nil
 }
 
-func (client *Client) downloadMessage(messageHash *[32]byte) ([]byte, error) {
+func (client *Client) DownloadMessage(messageHash *[32]byte) ([]byte, error) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
@@ -79,7 +79,7 @@ func (client *Client) downloadMessage(messageHash *[32]byte) ([]byte, error) {
 	return message, nil
 }
 
-func (client *Client) uploadKeys(keys *[][32]byte, sk *[64]byte) error {
+func (client *Client) UploadKeys(keys *[][32]byte, sk *[64]byte) error {
 	pkList := make([][]byte, 0)
 	for _, key := range *keys {
 		signedKey := ed25519.Sign(sk, key[:])
@@ -96,7 +96,7 @@ func (client *Client) uploadKeys(keys *[][32]byte, sk *[64]byte) error {
 	return nil
 }
 
-func encryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, error) {
+func EncryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, error) {
 
 	denameClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
@@ -180,7 +180,7 @@ func encryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *clien
 	return ratch, nil
 }
 
-func (client *Client) decryptAuthFirst(in []byte, skList [][32]byte) (*ratchet.Ratchet, []byte, int, error) {
+func (client *Client) DecryptAuthFirst(in []byte, skList [][32]byte) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(client.skAuth),
 		CheckAuth: CheckAuthWith(client.denameClient),
