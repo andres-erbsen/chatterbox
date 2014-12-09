@@ -179,12 +179,10 @@ func (server *Server) handleClient(connection net.Conn) error {
 			} else if cmd.DeleteMessages != nil {
 				messageList := cmd.DeleteMessages
 				err = server.deleteMessages(uid, to32ByteList(&messageList))
-			} else if cmd.UploadKeys != nil {
-				err = server.newKeys(uid, to32ByteList(&cmd.UploadKeys))
-			} else if cmd.GetKey != nil {
-				var key *[32]byte
-				key, err = server.getKey((*[32]byte)(cmd.GetKey))
-				response.Key = (*proto.Byte32)(key)
+			} else if cmd.UploadSignedKeys != nil {
+				err = server.newKeys(uid, cmd.UploadSignedKeys)
+			} else if cmd.GetSignedKey != nil {
+				response.SignedKey, err = server.getKey((*[32]byte)(cmd.GetSignedKey))
 			} else if cmd.GetNumKeys != nil {
 				response.NumKeys, err = server.getNumKeys((*[32]byte)(cmd.GetNumKeys))
 			} else if cmd.ReceiveEnvelopes != nil {
@@ -248,13 +246,13 @@ func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch
 	return &numRecords, iter.Error()
 }
 
-func (server *Server) deleteKey(uid *[32]byte, key *[32]byte) error {
-	keyHash := sha256.Sum256((*key)[:])
+func (server *Server) deleteKey(uid *[32]byte, key []byte) error {
+	keyHash := sha256.Sum256((key))
 	dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
 	return server.database.Delete(dbKey, nil)
 }
 
-func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch read of some kind?
+func (server *Server) getKey(user *[32]byte) ([]byte, error) {
 	prefix := append([]byte{'k'}, (*user)[:]...)
 	server.keyMutex.Lock()
 	defer server.keyMutex.Unlock()
@@ -270,18 +268,16 @@ func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch 
 		return nil, errors.New("No keys left in database")
 	}
 	err = iter.Error()
-	var key [32]byte
-	copy(key[:], iter.Value()[:])
-	server.deleteKey(user, &key)
-	return &key, err
+	server.deleteKey(user, iter.Value())
+	return append([]byte{}, iter.Value()...), err
 }
 
-func (server *Server) newKeys(uid *[32]byte, keyList *[][32]byte) error {
+func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 	batch := new(leveldb.Batch)
-	for _, key := range *keyList {
-		keyHash := sha256.Sum256(key[:])
+	for _, key := range keyList {
+		keyHash := sha256.Sum256(key)
 		dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
-		batch.Put(dbKey, key[:])
+		batch.Put(dbKey, key)
 	}
 	return server.database.Write(batch, nil)
 }

@@ -297,23 +297,23 @@ func TestMessageDeletion(t *testing.T) {
 	server.StopServer()
 }
 
-func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList *[][32]byte) {
+func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, keyList [][]byte) {
 	uploadKeys := &proto.ClientToServer{
-		UploadKeys: *toProtoByte32List(keyList),
+		UploadSignedKeys: keyList,
 	}
 	writeProtobuf(conn, outBuf, uploadKeys, t)
 
 	receiveProtobuf(conn, inBuf, t)
 }
 
-func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) *[32]byte {
+func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) []byte {
 	getKey := &proto.ClientToServer{
-		GetKey: (*proto.Byte32)(pk),
+		GetSignedKey: (*proto.Byte32)(pk),
 	}
 	writeProtobuf(conn, outBuf, getKey, t)
 
 	response := receiveProtobuf(conn, inBuf, t)
-	return (*[32]byte)(response.Key)
+	return response.SignedKey
 }
 
 func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) int64 {
@@ -346,28 +346,29 @@ func TestGetNumberOfKeys(t *testing.T) {
 	pk2, _, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	keyList := make([][32]byte, 0, 64) //TODO: Make this a reasonable size
-	keyList = append(keyList, *pk1)
-	keyList = append(keyList, *pk2)
+	// NOTE: the keys are note signed here, but they will be in real use
+	keyList := make([][]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, pk1[:])
+	keyList = append(keyList, pk2[:])
 
-	uploadKeys(conn, inBuf, outBuf, t, &keyList)
-	newKey1 := *getKey(conn, inBuf, outBuf, t, pkp)
+	uploadKeys(conn, inBuf, outBuf, t, keyList)
+	newKey1 := getKey(conn, inBuf, outBuf, t, pkp)
 
-	if newKey1 == [32]byte{} {
+	if newKey1 == nil {
 		t.Error("No keys in server")
 	}
-	if !(contains32Byte(keyList, newKey1)) {
+	if !(containsByteSlice(keyList, newKey1)) {
 		t.Error("Non-uploaded key returned")
 	}
 
-	newKey2 := *getKey(conn, inBuf, outBuf, t, pkp)
-	if newKey2 == [32]byte{} {
-		t.Error("No keys in server")
+	newKey2 := getKey(conn, inBuf, outBuf, t, pkp)
+	if newKey2 == nil {
+		t.Fatal("No keys in server")
 	}
-	if !(contains32Byte(keyList, newKey2)) {
+	if !(containsByteSlice(keyList, newKey2)) {
 		t.Error("Non-uploaded key returned")
 	}
-	if newKey1 == newKey2 {
+	if bytes.Equal(newKey1, newKey2) {
 		t.Error("Key not deleted from server")
 	}
 
@@ -394,11 +395,11 @@ func TestKeyUploadDownload(t *testing.T) {
 	pk2, _, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	keyList := make([][32]byte, 0, 64) //TODO: Make this a reasonable size
-	keyList = append(keyList, *pk1)
-	keyList = append(keyList, *pk2)
+	keyList := make([][]byte, 0, 64) //TODO: Make this a reasonable size
+	keyList = append(keyList, pk1[:])
+	keyList = append(keyList, pk2[:])
 
-	uploadKeys(conn, inBuf, outBuf, t, &keyList)
+	uploadKeys(conn, inBuf, outBuf, t, keyList)
 	numKeys := getNumKeys(conn, inBuf, outBuf, t, pkp)
 
 	if numKeys != 2 {

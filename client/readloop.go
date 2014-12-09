@@ -1,12 +1,12 @@
 package main
 
+/*
 import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"sync"
 )
 
-/*
 type connectionToServer struct {
 	buf          []byte
 	conn         *transport.Conn

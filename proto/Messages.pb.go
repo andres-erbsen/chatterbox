@@ -56,7 +56,7 @@ type ServerToClient struct {
 	Status           *ServerToClient_StatusCode `protobuf:"varint,1,req,name=status,enum=proto.ServerToClient_StatusCode" json:"status,omitempty"`
 	MessageList      []Byte32                   `protobuf:"bytes,3,rep,name=message_list,customtype=Byte32" json:"message_list,omitempty"`
 	Envelope         []byte                     `protobuf:"bytes,4,opt,name=envelope" json:"envelope,omitempty"`
-	Key              *Byte32                    `protobuf:"bytes,5,opt,name=key,customtype=Byte32" json:"key,omitempty"`
+	SignedKey        []byte                     `protobuf:"bytes,5,opt,name=signed_key" json:"signed_key,omitempty"`
 	Notification     []byte                     `protobuf:"bytes,6,opt,name=notification" json:"notification,omitempty"`
 	NumKeys          *int64                     `protobuf:"varint,7,opt,name=num_keys" json:"num_keys,omitempty"`
 	XXX_unrecognized []byte                     `json:"-"`
@@ -72,8 +72,8 @@ type ClientToServer struct {
 	DownloadEnvelope *Byte32                         `protobuf:"bytes,6,opt,name=download_envelope,customtype=Byte32" json:"download_envelope,omitempty"`
 	ListMessages     *bool                           `protobuf:"varint,5,opt,name=list_messages" json:"list_messages,omitempty"`
 	DeleteMessages   []Byte32                        `protobuf:"bytes,7,rep,name=delete_messages,customtype=Byte32" json:"delete_messages,omitempty"`
-	UploadKeys       []Byte32                        `protobuf:"bytes,8,rep,name=upload_keys,customtype=Byte32" json:"upload_keys,omitempty"`
-	GetKey           *Byte32                         `protobuf:"bytes,9,opt,name=get_key,customtype=Byte32" json:"get_key,omitempty"`
+	UploadSignedKeys [][]byte                        `protobuf:"bytes,8,rep,name=upload_signed_keys" json:"upload_signed_keys,omitempty"`
+	GetSignedKey     *Byte32                         `protobuf:"bytes,9,opt,name=get_signed_key,customtype=Byte32" json:"get_signed_key,omitempty"`
 	ReceiveEnvelopes *bool                           `protobuf:"varint,10,opt,name=receive_envelopes" json:"receive_envelopes,omitempty"`
 	GetNumKeys       *Byte32                         `protobuf:"bytes,11,opt,name=get_num_keys,customtype=Byte32" json:"get_num_keys,omitempty"`
 	XXX_unrecognized []byte                          `json:"-"`
@@ -179,7 +179,7 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			index = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt2.Errorf("proto: wrong wireType = %d for field Key", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field SignedKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -197,10 +197,7 @@ func (m *ServerToClient) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io2.ErrUnexpectedEOF
 			}
-			m.Key = &Byte32{}
-			if err := m.Key.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
+			m.SignedKey = append(m.SignedKey, data[index:postIndex]...)
 			index = postIndex
 		case 6:
 			if wireType != 2 {
@@ -396,7 +393,7 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			index = postIndex
 		case 8:
 			if wireType != 2 {
-				return fmt2.Errorf("proto: wrong wireType = %d for field UploadKeys", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field UploadSignedKeys", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -414,12 +411,12 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io2.ErrUnexpectedEOF
 			}
-			m.UploadKeys = append(m.UploadKeys, Byte32{})
-			m.UploadKeys[len(m.UploadKeys)-1].Unmarshal(data[index:postIndex])
+			m.UploadSignedKeys = append(m.UploadSignedKeys, make([]byte, postIndex-index))
+			copy(m.UploadSignedKeys[len(m.UploadSignedKeys)-1], data[index:postIndex])
 			index = postIndex
 		case 9:
 			if wireType != 2 {
-				return fmt2.Errorf("proto: wrong wireType = %d for field GetKey", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field GetSignedKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -437,8 +434,8 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io2.ErrUnexpectedEOF
 			}
-			m.GetKey = &Byte32{}
-			if err := m.GetKey.Unmarshal(data[index:postIndex]); err != nil {
+			m.GetSignedKey = &Byte32{}
+			if err := m.GetSignedKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
 			}
 			index = postIndex
@@ -613,8 +610,8 @@ func (m *ServerToClient) Size() (n int) {
 		l = len(m.Envelope)
 		n += 1 + l + sovMessages(uint64(l))
 	}
-	if m.Key != nil {
-		l = m.Key.Size()
+	if m.SignedKey != nil {
+		l = len(m.SignedKey)
 		n += 1 + l + sovMessages(uint64(l))
 	}
 	if m.Notification != nil {
@@ -652,14 +649,14 @@ func (m *ClientToServer) Size() (n int) {
 			n += 1 + l + sovMessages(uint64(l))
 		}
 	}
-	if len(m.UploadKeys) > 0 {
-		for _, e := range m.UploadKeys {
-			l = e.Size()
+	if len(m.UploadSignedKeys) > 0 {
+		for _, b := range m.UploadSignedKeys {
+			l = len(b)
 			n += 1 + l + sovMessages(uint64(l))
 		}
 	}
-	if m.GetKey != nil {
-		l = m.GetKey.Size()
+	if m.GetSignedKey != nil {
+		l = m.GetSignedKey.Size()
 		n += 1 + l + sovMessages(uint64(l))
 	}
 	if m.ReceiveEnvelopes != nil {
@@ -724,21 +721,25 @@ func NewPopulatedServerToClient(r randyMessages, easy bool) *ServerToClient {
 		}
 	}
 	if r.Intn(10) != 0 {
-		this.Key = NewPopulatedByte32(r)
+		v5 := r.Intn(100)
+		this.SignedKey = make([]byte, v5)
+		for i := 0; i < v5; i++ {
+			this.SignedKey[i] = byte(r.Intn(256))
+		}
 	}
 	if r.Intn(10) != 0 {
-		v5 := r.Intn(100)
-		this.Notification = make([]byte, v5)
-		for i := 0; i < v5; i++ {
+		v6 := r.Intn(100)
+		this.Notification = make([]byte, v6)
+		for i := 0; i < v6; i++ {
 			this.Notification[i] = byte(r.Intn(256))
 		}
 	}
 	if r.Intn(10) != 0 {
-		v6 := r.Int63()
+		v7 := r.Int63()
 		if r.Intn(2) == 0 {
-			v6 *= -1
+			v7 *= -1
 		}
-		this.NumKeys = &v6
+		this.NumKeys = &v7
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedMessages(r, 8)
@@ -749,8 +750,8 @@ func NewPopulatedServerToClient(r randyMessages, easy bool) *ServerToClient {
 func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 	this := &ClientToServer{}
 	if r.Intn(10) != 0 {
-		v7 := bool(r.Intn(2) == 0)
-		this.CreateAccount = &v7
+		v8 := bool(r.Intn(2) == 0)
+		this.CreateAccount = &v8
 	}
 	if r.Intn(10) != 0 {
 		this.DeliverEnvelope = NewPopulatedClientToServer_DeliverEnvelope(r, easy)
@@ -759,31 +760,34 @@ func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 		this.DownloadEnvelope = NewPopulatedByte32(r)
 	}
 	if r.Intn(10) != 0 {
-		v8 := bool(r.Intn(2) == 0)
-		this.ListMessages = &v8
+		v9 := bool(r.Intn(2) == 0)
+		this.ListMessages = &v9
 	}
 	if r.Intn(10) != 0 {
-		v9 := r.Intn(10)
-		this.DeleteMessages = make([]Byte32, v9)
-		for i := 0; i < v9; i++ {
-			v10 := NewPopulatedByte32(r)
-			this.DeleteMessages[i] = *v10
+		v10 := r.Intn(10)
+		this.DeleteMessages = make([]Byte32, v10)
+		for i := 0; i < v10; i++ {
+			v11 := NewPopulatedByte32(r)
+			this.DeleteMessages[i] = *v11
 		}
 	}
 	if r.Intn(10) != 0 {
-		v11 := r.Intn(10)
-		this.UploadKeys = make([]Byte32, v11)
-		for i := 0; i < v11; i++ {
-			v12 := NewPopulatedByte32(r)
-			this.UploadKeys[i] = *v12
+		v12 := r.Intn(100)
+		this.UploadSignedKeys = make([][]byte, v12)
+		for i := 0; i < v12; i++ {
+			v13 := r.Intn(100)
+			this.UploadSignedKeys[i] = make([]byte, v13)
+			for j := 0; j < v13; j++ {
+				this.UploadSignedKeys[i][j] = byte(r.Intn(256))
+			}
 		}
 	}
 	if r.Intn(10) != 0 {
-		this.GetKey = NewPopulatedByte32(r)
+		this.GetSignedKey = NewPopulatedByte32(r)
 	}
 	if r.Intn(10) != 0 {
-		v13 := bool(r.Intn(2) == 0)
-		this.ReceiveEnvelopes = &v13
+		v14 := bool(r.Intn(2) == 0)
+		this.ReceiveEnvelopes = &v14
 	}
 	if r.Intn(10) != 0 {
 		this.GetNumKeys = NewPopulatedByte32(r)
@@ -797,9 +801,9 @@ func NewPopulatedClientToServer(r randyMessages, easy bool) *ClientToServer {
 func NewPopulatedClientToServer_DeliverEnvelope(r randyMessages, easy bool) *ClientToServer_DeliverEnvelope {
 	this := &ClientToServer_DeliverEnvelope{}
 	this.User = NewPopulatedByte32(r)
-	v14 := r.Intn(100)
-	this.Envelope = make([]byte, v14)
-	for i := 0; i < v14; i++ {
+	v15 := r.Intn(100)
+	this.Envelope = make([]byte, v15)
+	for i := 0; i < v15; i++ {
 		this.Envelope[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -825,9 +829,9 @@ func randUTF8RuneMessages(r randyMessages) rune {
 	return res
 }
 func randStringMessages(r randyMessages) string {
-	v15 := r.Intn(100)
-	tmps := make([]rune, v15)
-	for i := 0; i < v15; i++ {
+	v16 := r.Intn(100)
+	tmps := make([]rune, v16)
+	for i := 0; i < v16; i++ {
 		tmps[i] = randUTF8RuneMessages(r)
 	}
 	return string(tmps)
@@ -849,11 +853,11 @@ func randFieldMessages(data []byte, r randyMessages, fieldNumber int, wire int) 
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateMessages(data, uint64(key))
-		v16 := r.Int63()
+		v17 := r.Int63()
 		if r.Intn(2) == 0 {
-			v16 *= -1
+			v17 *= -1
 		}
-		data = encodeVarintPopulateMessages(data, uint64(v16))
+		data = encodeVarintPopulateMessages(data, uint64(v17))
 	case 1:
 		data = encodeVarintPopulateMessages(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -916,15 +920,11 @@ func (m *ServerToClient) MarshalTo(data []byte) (n int, err error) {
 		i = encodeVarintMessages(data, i, uint64(len(m.Envelope)))
 		i += copy(data[i:], m.Envelope)
 	}
-	if m.Key != nil {
+	if m.SignedKey != nil {
 		data[i] = 0x2a
 		i++
-		i = encodeVarintMessages(data, i, uint64(m.Key.Size()))
-		n1, err := m.Key.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
+		i = encodeVarintMessages(data, i, uint64(len(m.SignedKey)))
+		i += copy(data[i:], m.SignedKey)
 	}
 	if m.Notification != nil {
 		data[i] = 0x32
@@ -971,21 +971,21 @@ func (m *ClientToServer) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0x12
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.DeliverEnvelope.Size()))
-		n2, err := m.DeliverEnvelope.MarshalTo(data[i:])
+		n1, err := m.DeliverEnvelope.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n2
+		i += n1
 	}
 	if m.DownloadEnvelope != nil {
 		data[i] = 0x32
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.DownloadEnvelope.Size()))
-		n3, err := m.DownloadEnvelope.MarshalTo(data[i:])
+		n2, err := m.DownloadEnvelope.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n3
+		i += n2
 	}
 	if m.ListMessages != nil {
 		data[i] = 0x28
@@ -1009,27 +1009,23 @@ func (m *ClientToServer) MarshalTo(data []byte) (n int, err error) {
 			i += n
 		}
 	}
-	if len(m.UploadKeys) > 0 {
-		for _, msg := range m.UploadKeys {
+	if len(m.UploadSignedKeys) > 0 {
+		for _, b := range m.UploadSignedKeys {
 			data[i] = 0x42
 			i++
-			i = encodeVarintMessages(data, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(data[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+			i = encodeVarintMessages(data, i, uint64(len(b)))
+			i += copy(data[i:], b)
 		}
 	}
-	if m.GetKey != nil {
+	if m.GetSignedKey != nil {
 		data[i] = 0x4a
 		i++
-		i = encodeVarintMessages(data, i, uint64(m.GetKey.Size()))
-		n4, err := m.GetKey.MarshalTo(data[i:])
+		i = encodeVarintMessages(data, i, uint64(m.GetSignedKey.Size()))
+		n3, err := m.GetSignedKey.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n4
+		i += n3
 	}
 	if m.ReceiveEnvelopes != nil {
 		data[i] = 0x50
@@ -1045,11 +1041,11 @@ func (m *ClientToServer) MarshalTo(data []byte) (n int, err error) {
 		data[i] = 0x5a
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.GetNumKeys.Size()))
-		n5, err := m.GetNumKeys.MarshalTo(data[i:])
+		n4, err := m.GetNumKeys.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n5
+		i += n4
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -1075,11 +1071,11 @@ func (m *ClientToServer_DeliverEnvelope) MarshalTo(data []byte) (n int, err erro
 		data[i] = 0x1a
 		i++
 		i = encodeVarintMessages(data, i, uint64(m.User.Size()))
-		n6, err := m.User.MarshalTo(data[i:])
+		n5, err := m.User.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n6
+		i += n5
 	}
 	if m.Envelope != nil {
 		data[i] = 0x22
@@ -1159,11 +1155,7 @@ func (this *ServerToClient) Equal(that interface{}) bool {
 	if !bytes2.Equal(this.Envelope, that1.Envelope) {
 		return false
 	}
-	if that1.Key == nil {
-		if this.Key != nil {
-			return false
-		}
-	} else if !this.Key.Equal(*that1.Key) {
+	if !bytes2.Equal(this.SignedKey, that1.SignedKey) {
 		return false
 	}
 	if !bytes2.Equal(this.Notification, that1.Notification) {
@@ -1239,19 +1231,19 @@ func (this *ClientToServer) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if len(this.UploadKeys) != len(that1.UploadKeys) {
+	if len(this.UploadSignedKeys) != len(that1.UploadSignedKeys) {
 		return false
 	}
-	for i := range this.UploadKeys {
-		if !this.UploadKeys[i].Equal(that1.UploadKeys[i]) {
+	for i := range this.UploadSignedKeys {
+		if !bytes2.Equal(this.UploadSignedKeys[i], that1.UploadSignedKeys[i]) {
 			return false
 		}
 	}
-	if that1.GetKey == nil {
-		if this.GetKey != nil {
+	if that1.GetSignedKey == nil {
+		if this.GetSignedKey != nil {
 			return false
 		}
-	} else if !this.GetKey.Equal(*that1.GetKey) {
+	} else if !this.GetSignedKey.Equal(*that1.GetSignedKey) {
 		return false
 	}
 	if this.ReceiveEnvelopes != nil && that1.ReceiveEnvelopes != nil {
