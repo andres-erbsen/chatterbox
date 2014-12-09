@@ -6,12 +6,15 @@ import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"net"
 	"sync"
 )
 
 const MAX_MESSAGE_SIZE = 16 * 1024
+
+var WO_sync = &opt.WriteOptions{Sync: true}
 
 type Server struct {
 	database *leveldb.DB
@@ -251,7 +254,7 @@ func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch
 func (server *Server) deleteKey(uid *[32]byte, key *[32]byte) error {
 	keyHash := sha256.Sum256((*key)[:])
 	dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
-	return server.database.Delete(dbKey, nil)
+	return server.database.Delete(dbKey, WO_sync)
 }
 
 func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch read of some kind?
@@ -283,7 +286,7 @@ func (server *Server) newKeys(uid *[32]byte, keyList *[][32]byte) error {
 		dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
 		batch.Put(dbKey, key[:])
 	}
-	return server.database.Write(batch, nil)
+	return server.database.Write(batch, WO_sync)
 }
 func (server *Server) deleteMessages(uid *[32]byte, messageList *[][32]byte) error {
 	batch := new(leveldb.Batch)
@@ -291,7 +294,7 @@ func (server *Server) deleteMessages(uid *[32]byte, messageList *[][32]byte) err
 		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 		batch.Delete(key)
 	}
-	return server.database.Write(batch, nil)
+	return server.database.Write(batch, WO_sync)
 }
 
 func (server *Server) getEnvelope(uid *[32]byte, messageHash *[32]byte) ([]byte, error) {
@@ -333,7 +336,7 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	// TODO: check that user exists
 	messageHash := sha256.Sum256(envelope)
 	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
-	err := server.database.Put(key, (envelope)[:], nil)
+	err := server.database.Put(key, (envelope)[:], WO_sync)
 	if err != nil {
 		return err
 	}
@@ -342,5 +345,5 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 }
 
 func (server *Server) newUser(uid *[32]byte) error {
-	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), nil)
+	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), WO_sync)
 }

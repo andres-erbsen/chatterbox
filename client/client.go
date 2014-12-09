@@ -1,10 +1,10 @@
 package main
 
-/*
 import (
 	"code.google.com/p/go.crypto/nacl/box"
 	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"crypto/rand"
+	"errors"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/dename/client"
@@ -19,10 +19,9 @@ type Client struct {
 	conn         *transport.Conn
 	skAuth       *[32]byte
 	denameClient *client.Client
-	firstKeys [][32]byte
 }
 
-func StartClient(dename []byte, addr string, skAuth *[32]byte, config *client.Config, firstKeys [][32]byte) error {
+func StartClient(dename []byte, addr string, skAuth *[32]byte, config *client.Config) (error {
 	oldConn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return err
@@ -40,13 +39,7 @@ func StartClient(dename []byte, addr string, skAuth *[32]byte, config *client.Co
 		conn:         conn,
 		skAuth:       skAuth,
 		denameClient: denameClient,
-		firstKeys: firstKeys,
 	}
-	//go client.RunClient()
-}
-
-func (client *Client) RunClient() error {
-	//TODO: Start daemon?
 }
 
 func (client *Client) createAccount() error {
@@ -59,35 +52,24 @@ func (client *Client) createAccount() error {
 	return nil
 }
 
-func (client *Client) generateUploadKeys() ([][32]byte, error) {
-	skList := make([][32]byte, 0, 64)
-	pkList := make([][32]byte, 0, 64)
-	for _, _ := range KEYS_TO_GENERATE {
-		pk, sk, err := box.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, err
-		}
-		skList = append(skList, *sk)
-		pkList = append(pkList, *pk)
-	}
-
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
-
+func (client *Client) generateUploadKeys(pkList [][32]byte) error {
 	err := uploadKeys(client.conn, inBuf, outBuf, &pkList)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func encryptAuthFirst(user *[32]byte, msg []byte, dename []byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, error) {
+
+	denameClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	for _, sk := range skList {
-		append(client.firstKeys, sk)
-	}
-	return skList, nil
-}
 
-func (client *Client) encryptAuthFirst(user *[32]byte, msg []byte) (*ratchet.Ratchet, error) {
 	ratch := &ratchet.Ratchet{
-		FillAuth:  FillAuthWith(client.skAuth),
-		CheckAuth: CheckAuthWith(client.denameClient),
+		FillAuth:  FillAuthWith(skAuth),
+		CheckAuth: CheckAuthWith(denameClient),
 		Rand:      nil,
 		Now:       nil,
 	}
@@ -95,7 +77,7 @@ func (client *Client) encryptAuthFirst(user *[32]byte, msg []byte) (*ratchet.Rat
 	msg, err := protobuf.Marshal(&proto.Message{
 		Subject:  nil,
 		Contents: msg,
-		Dename:   client.dename,
+		Dename:   dename,
 	})
 	if err != nil {
 		return nil, err
@@ -122,7 +104,7 @@ func (client *Client) encryptAuthFirst(user *[32]byte, msg []byte) (*ratchet.Rat
 	return ratch, nil
 }
 
-func (client *Client) decryptAuthFirst(in []byte) (msg []byte, error) {
+func (client *Client) decryptAuthFirst(in []byte, skList [][32]byte) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(client.skAuth),
 		CheckAuth: CheckAuthWith(client.denameClient),
@@ -130,34 +112,38 @@ func (client *Client) decryptAuthFirst(in []byte) (msg []byte, error) {
 		Now:       nil,
 	}
 
-	//TODO:, ugh, how do we check for reasonableness
-	//msg, err:= ratch.DecryptFirst(in[32:],)
+	for i, key := range skList {
+		msg, err := ratch.DecryptFirst(in[32:], key)
+		if err == nil {
+			return msg, i, nil
+		}
+	}
+	return nil, nil, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
 }
 
-func (client *Client) encryptAuth(user *[32]byte, msg []byte, ratch *ratchet.Ratchet) error {
+//func (client *Client) encryptAuth(user *[32]byte, msg []byte, ratch *ratchet.Ratchet) error {
 
-	msg, err := protobuf.Marshal(&proto.Message{
-		Subject:  nil,
-		Contents: msg,
-		Dename:   client.dename,
-	})
-	if err != nil {
-		return nil, err
-	}
+//msg, err := protobuf.Marshal(&proto.Message{
+//Subject:  nil,
+//Contents: msg,
+//Dename:   client.dename,
+//})
+//if err != nil {
+//return nil, err
+//}
 
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+//inBuf := make([]byte, MAX_MESSAGE_SIZE)
+//outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	theirAuthPublic := (*[32]byte)(ratch.GetTheirAuthPublic)
-	out := append([]byte{}, theirAuthPublic()[:]...)
-	out = ratch.EncryptFirst(out, msg)
+//theirAuthPublic := (*[32]byte)(ratch.GetTheirAuthPublic)
+//out := append([]byte{}, theirAuthPublic()[:]...)
+//out = ratch.EncryptFirst(out, msg)
 
-	inBuf = make([]byte, MAX_MESSAGE_SIZE)
-	outBuf = make([]byte, MAX_MESSAGE_SIZE)
+//inBuf = make([]byte, MAX_MESSAGE_SIZE)
+//outBuf = make([]byte, MAX_MESSAGE_SIZE)
 
-	if err := uploadMessageToUser(client.conn, inBuf, outBuf, user, out); err != nil {
-		return nil, err
-	}
-	return ratch, nil
-}
-*/
+//if err := uploadMessageToUser(client.conn, inBuf, outBuf, user, out); err != nil {
+//return nil, err
+//}
+//return ratch, nil
+//}
