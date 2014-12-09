@@ -15,18 +15,19 @@ const MAX_MESSAGE_SIZE = 16 * 1024
 const KEYS_TO_GENERATE = 100
 
 type Client struct {
-	dename       []byte
-	conn         *transport.Conn
-	skAuth       *[32]byte
-	denameClient *client.Client
+	dename                []byte
+	conn                  *transport.Conn
+	skAuth                *[32]byte
+	serverTransportPubkey *[32]byte
+	denameClient          *client.Client
 }
 
-func StartClient(dename []byte, addr string, skAuth *[32]byte, config *client.Config) (error {
+func StartClient(dename []byte, addr string, skAuth *[32]byte, config *client.Config) error {
 	oldConn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return err
 	}
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, serverTransportPubkey, MAX_MESSAGE_SIZE)
 	if err != nil {
 		return err
 	}
