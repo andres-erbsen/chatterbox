@@ -1,12 +1,10 @@
 // client daemon
 //   watches the file system for new messages --> sends them
 //   communicates with the server --> receive new messages
-package main
+package daemon
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
-	"github.com/andres-erbsen/chatterbox/client/daemon/config"
-	"github.com/andres-erbsen/chatterbox/client/daemon/filesystem"
 	"log"
 	"os"
 	"time"
@@ -17,22 +15,14 @@ func GetRootDir() string {
 	return temporaryConstantRootDirectory
 }
 
-func main() {
-	err := mainReturnErr()
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-}
-
-func mainReturnErr() error {
-	conf := config.Config{
+func Run() error {
+	conf := Config{
 		RootDir:    GetRootDir(),
 		Time:       time.Now,
 		TempPrefix: "daemon",
 	}
 
-	err := filesystem.InitFs(conf)
+	err := InitFs(conf)
 	if err != nil {
 		return err
 	}
@@ -47,7 +37,7 @@ func mainReturnErr() error {
 		return err
 	}
 
-	err = filesystem.WatchDir(watcher, filesystem.GetOutboxDir(conf), initFn)
+	err = WatchDir(watcher, GetOutboxDir(conf), initFn)
 	if err != nil {
 		return err
 	}
@@ -57,7 +47,7 @@ func mainReturnErr() error {
 		case ev := <-watcher.Event:
 			// event in the directory structure; watch any new directories
 			if !(ev.IsDelete() || ev.IsRename()) {
-				err = filesystem.WatchDir(watcher, ev.Name, initFn)
+				err = WatchDir(watcher, ev.Name, initFn)
 				if err != nil {
 					return err
 				}

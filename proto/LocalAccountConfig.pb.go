@@ -24,7 +24,7 @@ type LocalAccountConfig struct {
 	ServerPortTCP               int32  `protobuf:"varint,2,opt" json:"ServerPortTCP"`
 	ServerTransportPK           Byte32 `protobuf:"bytes,3,req,customtype=Byte32" json:"ServerTransportPK"`
 	TransportSecretKeyForServer Byte32 `protobuf:"bytes,4,req,customtype=Byte32" json:"TransportSecretKeyForServer"`
-	KeySigningSecretKey         Byte32 `protobuf:"bytes,5,req,customtype=Byte32" json:"KeySigningSecretKey"`
+	KeySigningSecretKey         []byte `protobuf:"bytes,5,req" json:"KeySigningSecretKey"`
 	MessageAuthSecretKey        Byte32 `protobuf:"bytes,6,req,customtype=Byte32" json:"MessageAuthSecretKey"`
 	XXX_unrecognized            []byte `json:"-"`
 }
@@ -159,9 +159,7 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io3.ErrUnexpectedEOF
 			}
-			if err := m.KeySigningSecretKey.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
+			m.KeySigningSecretKey = append(m.KeySigningSecretKey, data[index:postIndex]...)
 			index = postIndex
 		case 6:
 			if wireType != 2 {
@@ -220,7 +218,7 @@ func (m *LocalAccountConfig) Size() (n int) {
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
 	l = m.TransportSecretKeyForServer.Size()
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
-	l = m.KeySigningSecretKey.Size()
+	l = len(m.KeySigningSecretKey)
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
 	l = m.MessageAuthSecretKey.Size()
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
@@ -254,8 +252,11 @@ func NewPopulatedLocalAccountConfig(r randyLocalAccountConfig, easy bool) *Local
 	this.ServerTransportPK = *v1
 	v2 := NewPopulatedByte32(r)
 	this.TransportSecretKeyForServer = *v2
-	v3 := NewPopulatedByte32(r)
-	this.KeySigningSecretKey = *v3
+	v3 := r.Intn(100)
+	this.KeySigningSecretKey = make([]byte, v3)
+	for i := 0; i < v3; i++ {
+		this.KeySigningSecretKey[i] = byte(r.Intn(256))
+	}
 	v4 := NewPopulatedByte32(r)
 	this.MessageAuthSecretKey = *v4
 	if !easy && r.Intn(10) != 0 {
@@ -374,20 +375,16 @@ func (m *LocalAccountConfig) MarshalTo(data []byte) (n int, err error) {
 	i += n2
 	data[i] = 0x2a
 	i++
-	i = encodeVarintLocalAccountConfig(data, i, uint64(m.KeySigningSecretKey.Size()))
-	n3, err := m.KeySigningSecretKey.MarshalTo(data[i:])
+	i = encodeVarintLocalAccountConfig(data, i, uint64(len(m.KeySigningSecretKey)))
+	i += copy(data[i:], m.KeySigningSecretKey)
+	data[i] = 0x32
+	i++
+	i = encodeVarintLocalAccountConfig(data, i, uint64(m.MessageAuthSecretKey.Size()))
+	n3, err := m.MessageAuthSecretKey.MarshalTo(data[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n3
-	data[i] = 0x32
-	i++
-	i = encodeVarintLocalAccountConfig(data, i, uint64(m.MessageAuthSecretKey.Size()))
-	n4, err := m.MessageAuthSecretKey.MarshalTo(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n4
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -452,7 +449,7 @@ func (this *LocalAccountConfig) Equal(that interface{}) bool {
 	if !this.TransportSecretKeyForServer.Equal(that1.TransportSecretKeyForServer) {
 		return false
 	}
-	if !this.KeySigningSecretKey.Equal(that1.KeySigningSecretKey) {
+	if !bytes3.Equal(this.KeySigningSecretKey, that1.KeySigningSecretKey) {
 		return false
 	}
 	if !this.MessageAuthSecretKey.Equal(that1.MessageAuthSecretKey) {

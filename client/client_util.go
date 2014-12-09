@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"code.google.com/p/go.crypto/curve25519"

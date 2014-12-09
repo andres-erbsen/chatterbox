@@ -4,7 +4,6 @@ package daemon
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
-	"github.com/andres-erbsen/chatterbox/client/daemon/config"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,31 +12,31 @@ import (
 	"syscall"
 )
 
-func GetConversationDir(conf config.Config) string {
+func GetConversationDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "conversations")
 }
 
-func GetOutboxDir(conf config.Config) string {
+func GetOutboxDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "outbox")
 }
 
-func GetTmpDir(conf config.Config) string {
+func GetTmpDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "tmp")
 }
 
-func getJournalDir(conf config.Config) string {
+func getJournalDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "journal")
 }
 
-func GetKeysDir(conf config.Config) string {
+func GetKeysDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "keys")
 }
 
-func GetUiInfoDir(conf config.Config) string {
+func GetUiInfoDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "ui_info")
 }
 
-func GetUniqueTmpDir(conf config.Config) (string, error) {
+func GetUniqueTmpDir(conf Config) (string, error) {
 	return ioutil.TempDir(GetTmpDir(conf), conf.TempPrefix)
 }
 
@@ -68,7 +67,7 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	return cerr
 }
 
-func InitFs(conf config.Config) error {
+func InitFs(conf Config) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{
