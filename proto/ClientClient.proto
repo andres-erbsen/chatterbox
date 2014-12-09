@@ -9,9 +9,9 @@ option (gogoproto.goproto_getters_all) = false;
 option (gogoproto.stringer_all) = false;
 
 option (gogoproto.equal_all) = true;
-//option (gogoproto.populate_all) = true;
-//option (gogoproto.testgen_all) = true;
-//option (gogoproto.benchgen_all) = true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
 
 message Message {
     required bytes contents = 1 [(gogoproto.nullable) = false];
