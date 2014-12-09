@@ -6,12 +6,15 @@ import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"net"
 	"sync"
 )
 
 const MAX_MESSAGE_SIZE = 16 * 1024
+
+var WO_sync = &opt.WriteOptions{Sync: true}
 
 type Server struct {
 	database *leveldb.DB
@@ -179,12 +182,10 @@ func (server *Server) handleClient(connection net.Conn) error {
 			} else if cmd.DeleteMessages != nil {
 				messageList := cmd.DeleteMessages
 				err = server.deleteMessages(uid, to32ByteList(&messageList))
-			} else if cmd.UploadKeys != nil {
-				err = server.newKeys(uid, to32ByteList(&cmd.UploadKeys))
-			} else if cmd.GetKey != nil {
-				var key *[32]byte
-				key, err = server.getKey((*[32]byte)(cmd.GetKey))
-				response.Key = (*proto.Byte32)(key)
+			} else if cmd.UploadSignedKeys != nil {
+				err = server.newKeys(uid, cmd.UploadSignedKeys)
+			} else if cmd.GetSignedKey != nil {
+				response.SignedKey, err = server.getKey((*[32]byte)(cmd.GetSignedKey))
 			} else if cmd.GetNumKeys != nil {
 				response.NumKeys, err = server.getNumKeys((*[32]byte)(cmd.GetNumKeys))
 			} else if cmd.ReceiveEnvelopes != nil {
@@ -248,13 +249,13 @@ func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch
 	return &numRecords, iter.Error()
 }
 
-func (server *Server) deleteKey(uid *[32]byte, key *[32]byte) error {
-	keyHash := sha256.Sum256((*key)[:])
+func (server *Server) deleteKey(uid *[32]byte, key []byte) error {
+	keyHash := sha256.Sum256((key))
 	dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
-	return server.database.Delete(dbKey, nil)
+	return server.database.Delete(dbKey, WO_sync)
 }
 
-func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch read of some kind?
+func (server *Server) getKey(user *[32]byte) ([]byte, error) {
 	prefix := append([]byte{'k'}, (*user)[:]...)
 	server.keyMutex.Lock()
 	defer server.keyMutex.Unlock()
@@ -270,20 +271,18 @@ func (server *Server) getKey(user *[32]byte) (*[32]byte, error) { //TODO: Batch 
 		return nil, errors.New("No keys left in database")
 	}
 	err = iter.Error()
-	var key [32]byte
-	copy(key[:], iter.Value()[:])
-	server.deleteKey(user, &key)
-	return &key, err
+	server.deleteKey(user, iter.Value())
+	return append([]byte{}, iter.Value()...), err
 }
 
-func (server *Server) newKeys(uid *[32]byte, keyList *[][32]byte) error {
+func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 	batch := new(leveldb.Batch)
-	for _, key := range *keyList {
-		keyHash := sha256.Sum256(key[:])
+	for _, key := range keyList {
+		keyHash := sha256.Sum256(key)
 		dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
-		batch.Put(dbKey, key[:])
+		batch.Put(dbKey, key)
 	}
-	return server.database.Write(batch, nil)
+	return server.database.Write(batch, WO_sync)
 }
 func (server *Server) deleteMessages(uid *[32]byte, messageList *[][32]byte) error {
 	batch := new(leveldb.Batch)
@@ -291,7 +290,7 @@ func (server *Server) deleteMessages(uid *[32]byte, messageList *[][32]byte) err
 		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 		batch.Delete(key)
 	}
-	return server.database.Write(batch, nil)
+	return server.database.Write(batch, WO_sync)
 }
 
 func (server *Server) getEnvelope(uid *[32]byte, messageHash *[32]byte) ([]byte, error) {
@@ -333,7 +332,7 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	// TODO: check that user exists
 	messageHash := sha256.Sum256(envelope)
 	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
-	err := server.database.Put(key, (envelope)[:], nil)
+	err := server.database.Put(key, (envelope)[:], WO_sync)
 	if err != nil {
 		return err
 	}
@@ -342,5 +341,5 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 }
 
 func (server *Server) newUser(uid *[32]byte) error {
-	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), nil)
+	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), WO_sync)
 }

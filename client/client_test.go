@@ -24,29 +24,58 @@ import (
 
 const PROFILE_FIELD_ID = 1984
 
-//func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []byte, []byte, *[32]byte) {
-//shutdown := make(chan struct{})
+func TestAliceTalksToBob(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testdb")
+	handleError(err, t)
 
-//pks, sks, err := box.GenerateKey(rand.Reader)
-//handleError(err, t)
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	handleError(err, t)
 
-//server, err := StartServer(db, shutdown, pks, sks)
-//handleError(err, t)
+	defer db.Close()
 
-//oldConn, err := net.Dial("tcp", server.listener.Addr().String())
-//handleError(err, t)
+	server := setUpServerTest(db, t)
 
-//pkp, skp, err := box.GenerateKey(rand.Reader)
-//handleError(err, t)
+	connA, inBufA, outBufA, pkpA := setUpClientTest(server, t)
+	connB, inBufB, outBufB, pkpB := setUpClientTest(server, t)
 
-//conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
-//handleError(err, t)
+	config, f := testutil.SingleServer(t)
+	defer f()
+	time.Sleep(100)
 
-//inBuf := make([]byte, MAX_MESSAGE_SIZE)
-//outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	ska, dnmca := createNewUser([]byte("Alice"), t, config)
+	skb, dnmcb := createNewUser([]byte("Bob"), t, config)
 
-//return server, conn, inBuf, outBuf, pkp
-//}
+	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+}
+
+func setUpClientTest(server *Server, t *testing.T) (*transport.Conn, []byte, []byte, *[32]byte) {
+	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
+	handleError(err, t)
+
+	pkp, skp, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
+	handleError(err, t)
+
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+
+	return conn, inBuf, outBuf, pkp
+}
+
+func setUpServerTest(db *leveldb.DB, t *testing.T) *Server {
+	shutdown := make(chan struct{})
+
+	pks, sks, err := box.GenerateKey(rand.Reader)
+	handleError(err, t)
+
+	server, err := StartServer(db, shutdown, pks, sks)
+	handleError(err, t)
+
+	return server
+}
 
 func handleError(err error, t *testing.T) {
 	if err != nil {
