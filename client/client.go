@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"code.google.com/p/go.crypto/nacl/box"
 	protobuf "code.google.com/p/gogoprotobuf/proto"
@@ -103,6 +104,7 @@ func (client *Client) encryptAuthFirst(user *[32]byte, msg []byte) (*ratchet.Rat
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
+	//dename lookup, see what server is
 	userKey, err := getKey(client.conn, inBuf, outBuf, user)
 	if err != nil {
 		return nil, err
@@ -158,3 +160,4 @@ func (client *Client) encryptAuth(user *[32]byte, msg []byte, ratch *ratchet.Rat
 	}
 	return ratch, nil
 }
+*/

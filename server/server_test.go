@@ -120,7 +120,7 @@ func TestAccountCreation(t *testing.T) {
 	}
 }
 
-func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, envelope []byte) {
+func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte, envelope []byte) {
 	message := &proto.ClientToServer_DeliverEnvelope{
 		User:     (*proto.Byte32)(pk),
 		Envelope: envelope,

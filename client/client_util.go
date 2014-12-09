@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"errors"
@@ -274,4 +275,4 @@ func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) 
 		}
 		return nil
 	}
-}
+}*/
