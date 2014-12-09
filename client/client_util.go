@@ -1,11 +1,18 @@
 package main
 
 import (
+	"code.google.com/p/go.crypto/curve25519"
+	"code.google.com/p/go.crypto/nacl/box"
 	protobuf "code.google.com/p/gogoprotobuf/proto"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"github.com/andres-erbsen/chatterbox/proto"
-	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
+	"github.com/andres-erbsen/dename/client"
+	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"time"
 )
 
@@ -86,9 +93,9 @@ func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageLi
 	return nil
 }
 
-func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][32]byte) error {
+func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]byte) error {
 	uploadKeys := &proto.ClientToServer{
-		UploadKeys: *toProtoByte32List(keyList),
+		UploadSignedKeys: *keyList,
 	}
 	if err := writeProtobuf(conn, outBuf, uploadKeys); err != nil {
 		return nil
@@ -101,9 +108,9 @@ func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][3
 	return nil
 }
 
-func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) (*[32]byte, error) {
+func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]byte, error) {
 	getKey := &proto.ClientToServer{
-		GetKey: (*proto.Byte32)(pk),
+		GetSignedKey: (*proto.Byte32)(pk),
 	}
 	if err := writeProtobuf(conn, outBuf, getKey); err != nil {
 		return nil, err
@@ -113,7 +120,7 @@ func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) (*[
 	if err != nil {
 		return nil, err
 	}
-	return (*[32]byte)(response.Key), nil
+	return response.SignedKey, nil
 }
 
 func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) (int64, error) {
@@ -193,10 +200,10 @@ func receiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	return response, nil
 }
 
-func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client) {
+func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
 	newClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 
 	//TODO: All these names are horrible, please change them
@@ -212,22 +219,22 @@ func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client
 
 	chatProfileBytes, err := protobuf.Marshal(chatProfile)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 
 	profile, sk, err := client.NewProfile(nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 
 	client.SetProfileField(profile, PROFILE_FIELD_ID, chatProfileBytes)
 
 	err = newClient.Register(sk, name, profile, testutil2.MakeToken())
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 
-	return skAuth, newClient
+	return skAuth, newClient, nil
 }
 
 func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
