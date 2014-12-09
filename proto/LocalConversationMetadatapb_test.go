@@ -4,32 +4,32 @@
 
 package proto
 
-import testing12 "testing"
-import math_rand12 "math/rand"
-import time12 "time"
-import github_com_gogo_protobuf_proto9 "github.com/gogo/protobuf/proto"
-import testing13 "testing"
-import math_rand13 "math/rand"
-import time13 "time"
-import encoding_json3 "encoding/json"
-import testing14 "testing"
-import math_rand14 "math/rand"
-import time14 "time"
-import github_com_gogo_protobuf_proto10 "github.com/gogo/protobuf/proto"
-import math_rand15 "math/rand"
-import time15 "time"
-import testing15 "testing"
-import github_com_gogo_protobuf_proto11 "github.com/gogo/protobuf/proto"
+import testing16 "testing"
+import math_rand16 "math/rand"
+import time16 "time"
+import github_com_gogo_protobuf_proto12 "github.com/gogo/protobuf/proto"
+import testing17 "testing"
+import math_rand17 "math/rand"
+import time17 "time"
+import encoding_json4 "encoding/json"
+import testing18 "testing"
+import math_rand18 "math/rand"
+import time18 "time"
+import github_com_gogo_protobuf_proto13 "github.com/gogo/protobuf/proto"
+import math_rand19 "math/rand"
+import time19 "time"
+import testing19 "testing"
+import github_com_gogo_protobuf_proto14 "github.com/gogo/protobuf/proto"
 
-func TestConversationMetadataProto(t *testing12.T) {
-	popr := math_rand12.New(math_rand12.NewSource(time12.Now().UnixNano()))
+func TestConversationMetadataProto(t *testing16.T) {
+	popr := math_rand16.New(math_rand16.NewSource(time16.Now().UnixNano()))
 	p := NewPopulatedConversationMetadata(popr, false)
-	data, err := github_com_gogo_protobuf_proto9.Marshal(p)
+	data, err := github_com_gogo_protobuf_proto12.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 	msg := &ConversationMetadata{}
-	if err := github_com_gogo_protobuf_proto9.Unmarshal(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto12.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
 	for i := range data {
@@ -40,8 +40,8 @@ func TestConversationMetadataProto(t *testing12.T) {
 	}
 }
 
-func TestConversationMetadataMarshalTo(t *testing12.T) {
-	popr := math_rand12.New(math_rand12.NewSource(time12.Now().UnixNano()))
+func TestConversationMetadataMarshalTo(t *testing16.T) {
+	popr := math_rand16.New(math_rand16.NewSource(time16.Now().UnixNano()))
 	p := NewPopulatedConversationMetadata(popr, false)
 	size := p.Size()
 	data := make([]byte, size)
@@ -53,7 +53,7 @@ func TestConversationMetadataMarshalTo(t *testing12.T) {
 		panic(err)
 	}
 	msg := &ConversationMetadata{}
-	if err := github_com_gogo_protobuf_proto9.Unmarshal(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto12.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
 	for i := range data {
@@ -64,8 +64,8 @@ func TestConversationMetadataMarshalTo(t *testing12.T) {
 	}
 }
 
-func BenchmarkConversationMetadataProtoMarshal(b *testing12.B) {
-	popr := math_rand12.New(math_rand12.NewSource(616))
+func BenchmarkConversationMetadataProtoMarshal(b *testing16.B) {
+	popr := math_rand16.New(math_rand16.NewSource(616))
 	total := 0
 	pops := make([]*ConversationMetadata, 10000)
 	for i := 0; i < 10000; i++ {
@@ -73,7 +73,7 @@ func BenchmarkConversationMetadataProtoMarshal(b *testing12.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data, err := github_com_gogo_protobuf_proto9.Marshal(pops[i%10000])
+		data, err := github_com_gogo_protobuf_proto12.Marshal(pops[i%10000])
 		if err != nil {
 			panic(err)
 		}
@@ -82,12 +82,12 @@ func BenchmarkConversationMetadataProtoMarshal(b *testing12.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkConversationMetadataProtoUnmarshal(b *testing12.B) {
-	popr := math_rand12.New(math_rand12.NewSource(616))
+func BenchmarkConversationMetadataProtoUnmarshal(b *testing16.B) {
+	popr := math_rand16.New(math_rand16.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		data, err := github_com_gogo_protobuf_proto9.Marshal(NewPopulatedConversationMetadata(popr, false))
+		data, err := github_com_gogo_protobuf_proto12.Marshal(NewPopulatedConversationMetadata(popr, false))
 		if err != nil {
 			panic(err)
 		}
@@ -97,22 +97,22 @@ func BenchmarkConversationMetadataProtoUnmarshal(b *testing12.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
-		if err := github_com_gogo_protobuf_proto9.Unmarshal(datas[i%10000], msg); err != nil {
+		if err := github_com_gogo_protobuf_proto12.Unmarshal(datas[i%10000], msg); err != nil {
 			panic(err)
 		}
 	}
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestConversationMetadataJSON(t *testing13.T) {
-	popr := math_rand13.New(math_rand13.NewSource(time13.Now().UnixNano()))
+func TestConversationMetadataJSON(t *testing17.T) {
+	popr := math_rand17.New(math_rand17.NewSource(time17.Now().UnixNano()))
 	p := NewPopulatedConversationMetadata(popr, true)
-	jsondata, err := encoding_json3.Marshal(p)
+	jsondata, err := encoding_json4.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 	msg := &ConversationMetadata{}
-	err = encoding_json3.Unmarshal(jsondata, msg)
+	err = encoding_json4.Unmarshal(jsondata, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -120,12 +120,12 @@ func TestConversationMetadataJSON(t *testing13.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestConversationMetadataProtoText(t *testing14.T) {
-	popr := math_rand14.New(math_rand14.NewSource(time14.Now().UnixNano()))
+func TestConversationMetadataProtoText(t *testing18.T) {
+	popr := math_rand18.New(math_rand18.NewSource(time18.Now().UnixNano()))
 	p := NewPopulatedConversationMetadata(popr, true)
-	data := github_com_gogo_protobuf_proto10.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto13.MarshalTextString(p)
 	msg := &ConversationMetadata{}
-	if err := github_com_gogo_protobuf_proto10.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto13.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -133,12 +133,12 @@ func TestConversationMetadataProtoText(t *testing14.T) {
 	}
 }
 
-func TestConversationMetadataProtoCompactText(t *testing14.T) {
-	popr := math_rand14.New(math_rand14.NewSource(time14.Now().UnixNano()))
+func TestConversationMetadataProtoCompactText(t *testing18.T) {
+	popr := math_rand18.New(math_rand18.NewSource(time18.Now().UnixNano()))
 	p := NewPopulatedConversationMetadata(popr, true)
-	data := github_com_gogo_protobuf_proto10.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto13.CompactTextString(p)
 	msg := &ConversationMetadata{}
-	if err := github_com_gogo_protobuf_proto10.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto13.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -146,11 +146,11 @@ func TestConversationMetadataProtoCompactText(t *testing14.T) {
 	}
 }
 
-func TestConversationMetadataSize(t *testing15.T) {
-	popr := math_rand15.New(math_rand15.NewSource(time15.Now().UnixNano()))
+func TestConversationMetadataSize(t *testing19.T) {
+	popr := math_rand19.New(math_rand19.NewSource(time19.Now().UnixNano()))
 	p := NewPopulatedConversationMetadata(popr, true)
-	size2 := github_com_gogo_protobuf_proto11.Size(p)
-	data, err := github_com_gogo_protobuf_proto11.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto14.Size(p)
+	data, err := github_com_gogo_protobuf_proto14.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -161,14 +161,14 @@ func TestConversationMetadataSize(t *testing15.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto11.Size(p)
+	size3 := github_com_gogo_protobuf_proto14.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkConversationMetadataSize(b *testing15.B) {
-	popr := math_rand15.New(math_rand15.NewSource(616))
+func BenchmarkConversationMetadataSize(b *testing19.B) {
+	popr := math_rand19.New(math_rand19.NewSource(616))
 	total := 0
 	pops := make([]*ConversationMetadata, 1000)
 	for i := 0; i < 1000; i++ {

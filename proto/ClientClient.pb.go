@@ -9,6 +9,7 @@
 		ClientClient.proto
 		ClientServer.proto
 		DenameChatProfile.proto
+		LocalAccountConfig.proto
 		LocalConversationMetadata.proto
 
 	It has these top-level messages:

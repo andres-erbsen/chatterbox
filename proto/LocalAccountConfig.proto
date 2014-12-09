@@ -1,0 +1,23 @@
+package proto;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.stringer_all) = false;
+
+option (gogoproto.equal_all) = true;
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+
+message LocalAccountConfig {
+	required string ServerAddressTCP = 1 [(gogoproto.nullable) = false];
+	optional int32 ServerPortTCP = 2 [(gogoproto.nullable) = false];
+	required bytes ServerTransportPK = 3 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes TransportSecretKeyForServer = 4 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes KeySigningSecretKey = 5 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes MessageAuthSecretKey = 6 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+}
