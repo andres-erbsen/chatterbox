@@ -2,17 +2,6 @@
 // source: ConversationMetadata.proto
 // DO NOT EDIT!
 
-/*
-Package proto is a generated protocol buffer package.
-
-It is generated from these files:
-	ConversationMetadata.proto
-	Messages.proto
-	Profile.proto
-
-It has these top-level messages:
-	ConversationMetadata
-*/
 package proto
 
 import testing "testing"

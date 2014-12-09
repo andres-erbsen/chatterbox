@@ -147,6 +147,92 @@ func sovConversationMetadata(x uint64) (n int) {
 func sozConversationMetadata(x uint64) (n int) {
 	return sovConversationMetadata(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
+func NewPopulatedConversationMetadata(r randyConversationMetadata, easy bool) *ConversationMetadata {
+	this := &ConversationMetadata{}
+	if r.Intn(10) != 0 {
+		v1 := r.Intn(10)
+		this.Participants = make([]string, v1)
+		for i := 0; i < v1; i++ {
+			this.Participants[i] = randStringConversationMetadata(r)
+		}
+	}
+	this.Subject = randStringConversationMetadata(r)
+	if !easy && r.Intn(10) != 0 {
+		this.XXX_unrecognized = randUnrecognizedConversationMetadata(r, 3)
+	}
+	return this
+}
+
+type randyConversationMetadata interface {
+	Float32() float32
+	Float64() float64
+	Int63() int64
+	Int31() int32
+	Uint32() uint32
+	Intn(n int) int
+}
+
+func randUTF8RuneConversationMetadata(r randyConversationMetadata) rune {
+	res := rune(r.Uint32() % 1112064)
+	if 55296 <= res {
+		res += 2047
+	}
+	return res
+}
+func randStringConversationMetadata(r randyConversationMetadata) string {
+	v2 := r.Intn(100)
+	tmps := make([]rune, v2)
+	for i := 0; i < v2; i++ {
+		tmps[i] = randUTF8RuneConversationMetadata(r)
+	}
+	return string(tmps)
+}
+func randUnrecognizedConversationMetadata(r randyConversationMetadata, maxFieldNumber int) (data []byte) {
+	l := r.Intn(5)
+	for i := 0; i < l; i++ {
+		wire := r.Intn(4)
+		if wire == 3 {
+			wire = 5
+		}
+		fieldNumber := maxFieldNumber + r.Intn(100)
+		data = randFieldConversationMetadata(data, r, fieldNumber, wire)
+	}
+	return data
+}
+func randFieldConversationMetadata(data []byte, r randyConversationMetadata, fieldNumber int, wire int) []byte {
+	key := uint32(fieldNumber)<<3 | uint32(wire)
+	switch wire {
+	case 0:
+		data = encodeVarintPopulateConversationMetadata(data, uint64(key))
+		v3 := r.Int63()
+		if r.Intn(2) == 0 {
+			v3 *= -1
+		}
+		data = encodeVarintPopulateConversationMetadata(data, uint64(v3))
+	case 1:
+		data = encodeVarintPopulateConversationMetadata(data, uint64(key))
+		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
+	case 2:
+		data = encodeVarintPopulateConversationMetadata(data, uint64(key))
+		ll := r.Intn(100)
+		data = encodeVarintPopulateConversationMetadata(data, uint64(ll))
+		for j := 0; j < ll; j++ {
+			data = append(data, byte(r.Intn(256)))
+		}
+	default:
+		data = encodeVarintPopulateConversationMetadata(data, uint64(key))
+		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
+	}
+	return data
+}
+func encodeVarintPopulateConversationMetadata(data []byte, v uint64) []byte {
+	for v >= 1<<7 {
+		data = append(data, uint8(uint64(v)&0x7f|0x80))
+		v >>= 7
+	}
+	data = append(data, uint8(v))
+	return data
+}
 func (m *ConversationMetadata) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
