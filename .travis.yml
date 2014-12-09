@@ -1,0 +1,6 @@
+language: go
+notificaitons:
+  email:
+    recipients: andres@krutt.org
+    on_success: change
+    on_failure: always
