@@ -46,7 +46,6 @@ func TestAliceTalksToBob(t *testing.T) {
 	ska, dnmca := createNewUser([]byte("Alice"), t, config)
 	skb, dnmcb := createNewUser([]byte("Bob"), t, config)
 
-	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
 }
 
 func setUpClientTest(server *Server, t *testing.T) (*transport.Conn, []byte, []byte, *[32]byte) {
@@ -175,48 +174,48 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte,
 	return skAuth, newClient
 }
 
-func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
-	return func(tag, data []byte, theirAuthPublic *[32]byte) {
-		var sharedAuthKey [32]byte
-		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
-		h := hmac.New(sha256.New, sharedAuthKey[:])
-		h.Write(data)
-		h.Sum(nil)
-		copy(tag, h.Sum(nil))
-	}
-}
+//func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
+//return func(tag, data []byte, theirAuthPublic *[32]byte) {
+//var sharedAuthKey [32]byte
+//curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
+//h := hmac.New(sha256.New, sharedAuthKey[:])
+//h.Write(data)
+//h.Sum(nil)
+//copy(tag, h.Sum(nil))
+//}
+//}
 
-func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
-	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
-		var sharedAuthKey [32]byte
-		message := new(proto.Message)
-		if err := message.Unmarshal(msg); err != nil {
-			return err
-		}
-		profile, err := dnmc.Lookup(message.Dename)
-		if err != nil {
-			return err
-		}
+//func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
+//return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
+//var sharedAuthKey [32]byte
+//message := new(proto.Message)
+//if err := message.Unmarshal(msg); err != nil {
+//return err
+//}
+//profile, err := dnmc.Lookup(message.Dename)
+//if err != nil {
+//return err
+//}
 
-		chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
-		if err != nil {
-			return err
-		}
+//chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+//if err != nil {
+//return err
+//}
 
-		chatProfile := new(proto.Profile)
-		if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-			return err
-		}
+//chatProfile := new(proto.Profile)
+//if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+//return err
+//}
 
-		theirAuthPublic := (*[32]byte)(&chatProfile.MessageAuthKey)
+//theirAuthPublic := (*[32]byte)(&chatProfile.MessageAuthKey)
 
-		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
-		h := hmac.New(sha256.New, sharedAuthKey[:])
-		h.Write(data)
-		if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
+//curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
+//h := hmac.New(sha256.New, sharedAuthKey[:])
+//h.Write(data)
+//if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
 
-			return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
-		}
-		return nil
-	}
-}
+//return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
+//}
+//return nil
+//}
+//}
