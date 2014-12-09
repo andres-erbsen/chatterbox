@@ -18,6 +18,6 @@ message LocalAccountConfig {
 	optional int32 ServerPortTCP = 2 [(gogoproto.nullable) = false];
 	required bytes ServerTransportPK = 3 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
 	required bytes TransportSecretKeyForServer = 4 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
-	required bytes KeySigningSecretKey = 5 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	required bytes KeySigningSecretKey = 5 [(gogoproto.nullable) = false];
 	required bytes MessageAuthSecretKey = 6 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
 }
