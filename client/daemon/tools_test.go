@@ -1,9 +1,7 @@
-package tools
+package main
 
 import (
 	"fmt"
-	"github.com/andres-erbsen/chatterbox/client/util/config"
-	"github.com/andres-erbsen/chatterbox/client/util/filesystem"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"io/ioutil"
 	"os"
@@ -24,13 +22,13 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	defer os.RemoveAll(rootDir)
 	handleError(err, t)
 
-	conf := config.Config{
+	conf := Config{
 		RootDir:    rootDir,
 		Time:       func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
 		TempPrefix: "some_ui",
 	}
 
-	err = filesystem.InitFs(conf)
+	err = InitFs(conf)
 	handleError(err, t)
 
 	subject := "test subject"
@@ -40,13 +38,13 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	handleError(err, t)
 
 	// check that a conversation exists in the outbox with the correct name
-	outboxDir := filesystem.GetOutboxDir(conf)
+	outboxDir := GetOutboxDir(conf)
 	expectedName := "2009-11-10T23:00:00Z-0-user_dename-recipient_dename_a-recipient_dename_b"
 	_, err = os.Stat(filepath.Join(outboxDir, expectedName))
 	handleError(err, t)
 
 	// check that it has a valid metadata file
-	metadataBytes, err := ioutil.ReadFile(filepath.Join(outboxDir, expectedName, filesystem.MetadataFileName))
+	metadataBytes, err := ioutil.ReadFile(filepath.Join(outboxDir, expectedName, MetadataFileName))
 	handleError(err, t)
 	metadataProto := new(proto.ConversationMetadata)
 	err = metadataProto.Unmarshal(metadataBytes)
@@ -60,7 +58,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	}
 
 	// check that the temp directory has been cleaned up
-	files, err = ioutil.ReadDir(filesystem.GetTmpDir(conf))
+	files, err = ioutil.ReadDir(GetTmpDir(conf))
 	handleError(err, t)
 	if len(files) > 0 {
 		t.Error("tmp directory not cleaned up")

@@ -1,9 +1,7 @@
-package tools
+package main
 
 import (
 	"fmt"
-	"github.com/andres-erbsen/chatterbox/client/util/config"
-	"github.com/andres-erbsen/chatterbox/client/util/filesystem"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"io/ioutil"
 	"os"
@@ -20,9 +18,9 @@ import (
 // subject = subject of the new conversation
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
-func SpawnConversationInOutbox(conf config.Config, subject string, recipients []string, messages [][]byte) error {
+func SpawnConversationInOutbox(conf Config, subject string, recipients []string, messages [][]byte) error {
 	// create temp directory or error
-	tmpDir, err := filesystem.GetUniqueTmpDir(conf)
+	tmpDir, err := GetUniqueTmpDir(conf)
 	defer os.RemoveAll(tmpDir)
 	if err != nil {
 		return err
@@ -41,7 +39,7 @@ func SpawnConversationInOutbox(conf config.Config, subject string, recipients []
 		Participants: recipients,
 		Subject:      subject,
 	}
-	metadataFile := filepath.Join(tmpDir, dirName, filesystem.MetadataFileName)
+	metadataFile := filepath.Join(tmpDir, dirName, MetadataFileName)
 	metadataBytes, err := metadata.Marshal()
 	if err != nil {
 		return err
@@ -54,7 +52,7 @@ func SpawnConversationInOutbox(conf config.Config, subject string, recipients []
 	}
 
 	// move folder to the outbox (or error)
-	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(filesystem.GetOutboxDir(conf), dirName))
+	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(GetOutboxDir(conf), dirName))
 	if err != nil {
 		return err
 	}
