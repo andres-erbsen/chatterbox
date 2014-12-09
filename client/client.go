@@ -18,16 +18,17 @@ type Client struct {
 	dename       []byte
 	conn         *transport.Conn
 	skAuth       *[32]byte
+	serverTransportPubkey       *[32]byte
 	denameClient *client.Client
 	firstKeys [][32]byte
 }
 
-func StartClient(dename []byte, addr string, skAuth *[32]byte, config *client.Config, firstKeys [][32]byte) error {
+func StartClient(dename []byte, addr string, serverTransportPubkey, skAuth *[32]byte, config *client.Config, firstKeys [][32]byte) error {
 	oldConn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return err
 	}
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, serverTransportPubkey, MAX_MESSAGE_SIZE)
 	if err != nil {
 		return err
 	}
