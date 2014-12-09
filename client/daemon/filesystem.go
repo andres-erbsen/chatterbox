@@ -1,6 +1,6 @@
 // file system utility
 
-package main
+package daemon
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
