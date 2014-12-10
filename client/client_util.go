@@ -11,12 +11,17 @@ import (
 	"errors"
 	"github.com/agl/ed25519"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"io"
+	"net"
 	"time"
 )
+
+const MAX_MESSAGE_SIZE = 16 * 1024
+const PROFILE_FIELD_ID = 1984
 
 func ToProtoByte32List(list *[][32]byte) *[]proto.Byte32 {
 	newList := make([]proto.Byte32, 0)
@@ -80,6 +85,127 @@ func DownloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, message
 	return response.Envelope, nil
 }
 
+func SignKeys(keys *[][32]byte, sk *[64]byte) [][]byte {
+	pkList := make([][]byte, 0)
+	for _, key := range *keys {
+		signedKey := ed25519.Sign(sk, key[:])
+		pkList = append(pkList, append(append([]byte{}, key[:]...), signedKey[:]...))
+	}
+	return pkList
+}
+
+func CreateServerConn(dename []byte, config *client.Config) (*transport.Conn, error) {
+	denameClient, err := client.NewClient(config, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	profile, err := denameClient.Lookup(dename)
+	if err != nil {
+		return nil, err
+	}
+
+	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+	if err != nil {
+		return nil, err
+	}
+
+	chatProfile := new(proto.Profile)
+	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+		return nil, err
+	}
+
+	addr := chatProfile.ServerAddressTCP
+	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
+
+	oldConn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	pkp, skp, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey [32]byte, config *client.Config) ([]byte, *ratchet.Ratchet, error) {
+	denameClient, err := client.NewClient(config, nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ratch := &ratchet.Ratchet{
+		FillAuth:  FillAuthWith(skAuth),
+		CheckAuth: CheckAuthWith(denameClient),
+	}
+
+	message, err := protobuf.Marshal(&proto.Message{
+		Subject:  nil,
+		Contents: msg,
+		Dename:   dename,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := append([]byte{}, userKey[:]...)
+	out = ratch.EncryptFirst(out, message, &userKey)
+
+	return out, ratch, nil
+}
+
+func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
+	message, err := protobuf.Marshal(&proto.Message{
+		Subject:  nil,
+		Contents: msg,
+		Dename:   dename,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := []byte{}
+	out = ratch.Encrypt(out, message)
+
+	return out, ratch, nil
+}
+
+func DecryptAuthFirst(in []byte, skList [][32]byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, []byte, int, error) {
+	denameClient, err := client.NewClient(config, nil, nil)
+	if err != nil {
+		return nil, nil, -1, err
+	}
+
+	ratch := &ratchet.Ratchet{
+		FillAuth:  FillAuthWith(skAuth),
+		CheckAuth: CheckAuthWith(denameClient),
+	}
+
+	for i, key := range skList {
+		msg, err := ratch.DecryptFirst(in[32:], &key)
+		if err == nil {
+			return ratch, msg, i, nil
+		}
+	}
+	return nil, nil, -1, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
+}
+
+func DecryptAuth(in []byte, skList [][32]byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, error) {
+	msg, err := ratch.Decrypt(in[32:])
+	if err != nil {
+		return nil, nil, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
+	}
+	return ratch, msg, nil
+}
+
 func DeleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageList *[][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
 		DeleteMessages: *ToProtoByte32List(messageList),
@@ -110,7 +236,7 @@ func UploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]
 	return nil
 }
 
-func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]byte, error) {
+func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, pkSig *[32]byte) (*[32]byte, error) {
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
@@ -122,7 +248,18 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]
 	if err != nil {
 		return nil, err
 	}
-	return response.SignedKey, nil
+
+	var userKey [32]byte
+	copy(userKey[:], response.SignedKey[:32])
+
+	var sig [64]byte
+	copy(userKey[:], response.SignedKey[32:(32+64)])
+
+	if !ed25519.Verify(pkSig, userKey[:], &sig) {
+		return nil, errors.New("Improperly signed key returned")
+	}
+
+	return &userKey, nil
 }
 
 func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte) (int64, error) {
