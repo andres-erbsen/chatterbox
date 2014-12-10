@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/andres-erbsen/chatterbox/proto"
 	//	"github.com/andres-erbsen/client/clientutil"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,13 +14,16 @@ import (
 type hex32Byte [32]byte
 
 func (h *hex32Byte) String() string {
-	return fmt.Sprintf("%x", h)
+	return hex.EncodeToString(h[:])
 }
 func (h *hex32Byte) Set(value string) error {
 	if len(value) != 2*32 {
 		return fmt.Errorf("Server pubkey must be 64 hex digits long, got %d", len(value))
 	}
-	_, err := fmt.Sscanf("%x", value, h)
+	_, err := hex.Decode(h[:], []byte(value))
+	if err != nil {
+		return err
+	}
 	return err
 }
 
@@ -68,12 +72,12 @@ func main() {
 	}
 	configFilePath := filepath.Join(*dir, "config.pb")
 	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "file already exists: %s", configFilePath)
+		fmt.Fprintf(os.Stderr, "file already exists: %s\n", configFilePath)
 		os.Exit(2)
 	}
 	if err := ioutil.WriteFile(configFilePath, secretConfigBytes, 0600); err != nil {
 		// TODO: "WriteFileSync" -- issue fsync after write
-		fmt.Fprintf(os.Stderr, "error writing file", err)
+		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", err)
 		os.Exit(2)
 	}
 
@@ -81,5 +85,5 @@ func main() {
 
 	fmt.Printf("Local account initialization done.\n")
 	fmt.Printf("You may use the following command to link this account with your dename profile:.\n"+
-		"echo -n %x | xxd -r -p | dnmgr set '%s' 1984 -", publicProfileBytes, *dename)
+		"echo -n %x | xxd -r -p | dnmgr set '%s' 1984 -\n", publicProfileBytes, *dename)
 }
