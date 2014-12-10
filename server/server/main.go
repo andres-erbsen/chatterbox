@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	pkBytes, err := ioutil.ReadFile(os.Args[1])
+	pkBytes, err := ioutil.ReadFile(os.Args[2])
 	if err != nil {
 		log.Fatal(err)
 	}

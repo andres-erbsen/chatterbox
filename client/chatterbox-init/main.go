@@ -94,6 +94,11 @@ func main() {
 	// TODO: use TOR
 	fmt.Printf("Registering with the server...\n")
 	plainConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *serverAddress, *serverPort))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
+			*serverAddress, *serverPort, err)
+		os.Exit(1)
+	}
 	conn, _, err := transport.Handshake(plainConn,
 		(*[32]byte)(&publicProfile.UserIDAtServer),
 		(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
@@ -105,7 +110,7 @@ func main() {
 	}
 	if err := client.CreateAccount(conn, make([]byte, client.MAX_MESSAGE_SIZE),
 		make([]byte, client.MAX_MESSAGE_SIZE)); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to serverat %s%s: %s\n",
+		fmt.Fprintf(os.Stderr, "failed to connect to serverat %s:%d: %s\n",
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}
