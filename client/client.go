@@ -61,7 +61,7 @@ func (client *Client) ListMessages() (*[][32]byte, error) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	messageList, err := listUserMessages(client.conn, inBuf, outBuf)
+	messageList, err := ListUserMessages(client.conn, inBuf, outBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (client *Client) DownloadMessage(messageHash *[32]byte) ([]byte, error) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	message, err := downloadEnvelope(client.conn, inBuf, outBuf, messageHash)
+	message, err := DownloadEnvelope(client.conn, inBuf, outBuf, messageHash)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (client *Client) UploadKeys(keys *[][32]byte, sk *[64]byte) error {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	err := uploadKeys(client.conn, inBuf, outBuf, &pkList)
+	err := UploadKeys(client.conn, inBuf, outBuf, &pkList)
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func EncryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *clien
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 	//dename lookup, see what server is
-	keySig, err := getKey(conn, inBuf, outBuf, &user)
+	keySig, err := GetKey(conn, inBuf, outBuf, &user)
 
 	var userKey [32]byte
 	copy(userKey[:], keySig[:32])
@@ -174,7 +174,7 @@ func EncryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *clien
 	inBuf = make([]byte, MAX_MESSAGE_SIZE)
 	outBuf = make([]byte, MAX_MESSAGE_SIZE)
 
-	if err := uploadMessageToUser(conn, inBuf, outBuf, &user, out); err != nil {
+	if err := UploadMessageToUser(conn, inBuf, outBuf, &user, out); err != nil {
 		return nil, err
 	}
 	return ratch, nil
