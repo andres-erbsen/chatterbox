@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
+	"github.com/andres-erbsen/chatterbox/proto"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,7 +21,7 @@ func GetOutboxDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "outbox")
 }
 
-func GetTmpDir(conf Config) string {
+func getTmpDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "tmp")
 }
 
@@ -28,8 +29,12 @@ func getJournalDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "journal")
 }
 
-func GetKeysDir(conf Config) string {
+func getKeysDir(conf Config) string {
 	return filepath.Join(conf.RootDir, "keys")
+}
+
+func getRatchetKeysDir(conf Config) string {
+	return filepath.Join(conf.RootDir, "keys", "ratchet")
 }
 
 func GetUiInfoDir(conf Config) string {
@@ -37,11 +42,12 @@ func GetUiInfoDir(conf Config) string {
 }
 
 func GetUniqueTmpDir(conf Config) (string, error) {
-	return ioutil.TempDir(GetTmpDir(conf), conf.TempPrefix)
+	return ioutil.TempDir(getTmpDir(conf), conf.TempPrefix)
 }
 
 const (
-	MetadataFileName = "METADATA"
+	MetadataFileName = "metadata.pb"
+	PrekeysFileName  = "prekeys.pb"
 )
 
 func Copy(source string, dest string, perm os.FileMode) error {
@@ -67,15 +73,62 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	return cerr
 }
 
+func LoadPrekeys(conf Config) (*proto.Prekeys, error) {
+	prekeysBytes, err := ioutil.ReadFile(filepath.Join(getKeysDir(conf), PrekeysFileName))
+	if err != nil {
+		return nil, err
+	}
+
+	prekeysProto := new(proto.Prekeys)
+	err = prekeysProto.Unmarshal(prekeysBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return prekeysProto, nil
+}
+
+func StorePrekeys(conf Config, prekeys *proto.Prekeys) error {
+	prekeysBytes, err := prekeys.Marshal()
+	if err != nil {
+		return err
+	}
+
+	tmpDir, err := GetUniqueTmpDir(conf)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, PrekeysFileName)
+	err = ioutil.WriteFile(tmpFile, prekeysBytes, 0600)
+	if err != nil {
+		return err
+	}
+
+	prekeysFile := filepath.Join(getKeysDir(conf), PrekeysFileName)
+	err = os.Rename(prekeysFile, tmpFile+".old")
+	if err != nil {
+		return err
+	}
+	err = os.Rename(tmpFile, prekeysFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func InitFs(conf Config) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{
 		GetConversationDir(conf),
 		GetOutboxDir(conf),
-		GetTmpDir(conf),
+		getTmpDir(conf),
 		getJournalDir(conf),
-		GetKeysDir(conf),
+		getKeysDir(conf),
+		getRatchetKeysDir(conf),
 		GetUiInfoDir(conf),
 	}
 	for _, dir := range subdirs {
