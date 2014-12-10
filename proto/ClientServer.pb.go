@@ -75,7 +75,7 @@ type ClientToServer struct {
 	UploadSignedKeys [][]byte                        `protobuf:"bytes,8,rep,name=upload_signed_keys" json:"upload_signed_keys,omitempty"`
 	GetSignedKey     *Byte32                         `protobuf:"bytes,9,opt,name=get_signed_key,customtype=Byte32" json:"get_signed_key,omitempty"`
 	ReceiveEnvelopes *bool                           `protobuf:"varint,10,opt,name=receive_envelopes" json:"receive_envelopes,omitempty"`
-	GetNumKeys       *Byte32                         `protobuf:"bytes,11,opt,name=get_num_keys,customtype=Byte32" json:"get_num_keys,omitempty"`
+	GetNumKeys       *bool                           `protobuf:"varint,11,opt,name=get_num_keys" json:"get_num_keys,omitempty"`
 	XXX_unrecognized []byte                          `json:"-"`
 }
 
@@ -458,30 +458,23 @@ func (m *ClientToServer) Unmarshal(data []byte) error {
 			b := bool(v != 0)
 			m.ReceiveEnvelopes = &b
 		case 11:
-			if wireType != 2 {
+			if wireType != 0 {
 				return fmt1.Errorf("proto: wrong wireType = %d for field GetNumKeys", wireType)
 			}
-			var byteLen int
+			var v int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io1.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				byteLen |= (int(b) & 0x7F) << shift
+				v |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
-			if postIndex > l {
-				return io1.ErrUnexpectedEOF
-			}
-			m.GetNumKeys = &Byte32{}
-			if err := m.GetNumKeys.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
-			index = postIndex
+			b := bool(v != 0)
+			m.GetNumKeys = &b
 		default:
 			var sizeOfWire int
 			for {
@@ -663,8 +656,7 @@ func (m *ClientToServer) Size() (n int) {
 		n += 2
 	}
 	if m.GetNumKeys != nil {
-		l = m.GetNumKeys.Size()
-		n += 1 + l + sovClientServer(uint64(l))
+		n += 2
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -790,7 +782,8 @@ func NewPopulatedClientToServer(r randyClientServer, easy bool) *ClientToServer 
 		this.ReceiveEnvelopes = &v14
 	}
 	if r.Intn(10) != 0 {
-		this.GetNumKeys = NewPopulatedByte32(r)
+		v15 := bool(r.Intn(2) == 0)
+		this.GetNumKeys = &v15
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedClientServer(r, 12)
@@ -801,9 +794,9 @@ func NewPopulatedClientToServer(r randyClientServer, easy bool) *ClientToServer 
 func NewPopulatedClientToServer_DeliverEnvelope(r randyClientServer, easy bool) *ClientToServer_DeliverEnvelope {
 	this := &ClientToServer_DeliverEnvelope{}
 	this.User = NewPopulatedByte32(r)
-	v15 := r.Intn(100)
-	this.Envelope = make([]byte, v15)
-	for i := 0; i < v15; i++ {
+	v16 := r.Intn(100)
+	this.Envelope = make([]byte, v16)
+	for i := 0; i < v16; i++ {
 		this.Envelope[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -829,9 +822,9 @@ func randUTF8RuneClientServer(r randyClientServer) rune {
 	return res
 }
 func randStringClientServer(r randyClientServer) string {
-	v16 := r.Intn(100)
-	tmps := make([]rune, v16)
-	for i := 0; i < v16; i++ {
+	v17 := r.Intn(100)
+	tmps := make([]rune, v17)
+	for i := 0; i < v17; i++ {
 		tmps[i] = randUTF8RuneClientServer(r)
 	}
 	return string(tmps)
@@ -853,11 +846,11 @@ func randFieldClientServer(data []byte, r randyClientServer, fieldNumber int, wi
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateClientServer(data, uint64(key))
-		v17 := r.Int63()
+		v18 := r.Int63()
 		if r.Intn(2) == 0 {
-			v17 *= -1
+			v18 *= -1
 		}
-		data = encodeVarintPopulateClientServer(data, uint64(v17))
+		data = encodeVarintPopulateClientServer(data, uint64(v18))
 	case 1:
 		data = encodeVarintPopulateClientServer(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -1038,14 +1031,14 @@ func (m *ClientToServer) MarshalTo(data []byte) (n int, err error) {
 		i++
 	}
 	if m.GetNumKeys != nil {
-		data[i] = 0x5a
+		data[i] = 0x58
 		i++
-		i = encodeVarintClientServer(data, i, uint64(m.GetNumKeys.Size()))
-		n4, err := m.GetNumKeys.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
+		if *m.GetNumKeys {
+			data[i] = 1
+		} else {
+			data[i] = 0
 		}
-		i += n4
+		i++
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
@@ -1071,11 +1064,11 @@ func (m *ClientToServer_DeliverEnvelope) MarshalTo(data []byte) (n int, err erro
 		data[i] = 0x1a
 		i++
 		i = encodeVarintClientServer(data, i, uint64(m.User.Size()))
-		n5, err := m.User.MarshalTo(data[i:])
+		n4, err := m.User.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n5
+		i += n4
 	}
 	if m.Envelope != nil {
 		data[i] = 0x22
@@ -1255,11 +1248,13 @@ func (this *ClientToServer) Equal(that interface{}) bool {
 	} else if that1.ReceiveEnvelopes != nil {
 		return false
 	}
-	if that1.GetNumKeys == nil {
-		if this.GetNumKeys != nil {
+	if this.GetNumKeys != nil && that1.GetNumKeys != nil {
+		if *this.GetNumKeys != *that1.GetNumKeys {
 			return false
 		}
-	} else if !this.GetNumKeys.Equal(*that1.GetNumKeys) {
+	} else if this.GetNumKeys != nil {
+		return false
+	} else if that1.GetNumKeys != nil {
 		return false
 	}
 	if !bytes1.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

@@ -318,7 +318,7 @@ func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk 
 
 func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) int64 {
 	getNumKeys := &proto.ClientToServer{
-		GetNumKeys: (*proto.Byte32)(pk),
+		GetNumKeys: protobuf.Bool(true),
 	}
 	writeProtobuf(conn, outBuf, getNumKeys, t)
 

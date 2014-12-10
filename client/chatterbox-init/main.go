@@ -54,11 +54,9 @@ func main() {
 	publicProfile := &proto.Profile{
 		ServerAddressTCP: *serverAddress,
 	}
-	/* TODO: enable
-	if err := clientutil.GenerateLongTermKeys(secretConfig, publicProfile); err != nil {
+	if err := client.GenerateLongTermKeys(secretConfig, publicProfile); err != nil {
 		panic(err)
 	}
-	*/
 	secretConfigBytes, err := secretConfig.Marshal()
 	if err != nil {
 		panic(err)

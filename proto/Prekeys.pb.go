@@ -9,11 +9,11 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import io4 "io"
-import fmt4 "fmt"
-import github_com_gogo_protobuf_proto4 "github.com/gogo/protobuf/proto"
+import io5 "io"
+import fmt5 "fmt"
+import github_com_gogo_protobuf_proto5 "github.com/gogo/protobuf/proto"
 
-import bytes4 "bytes"
+import bytes5 "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -37,7 +37,7 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io4.ErrUnexpectedEOF
+				return io5.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -51,12 +51,12 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt4.Errorf("proto: wrong wireType = %d for field Prekeys", wireType)
+				return fmt5.Errorf("proto: wrong wireType = %d for field Prekeys", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io4.ErrUnexpectedEOF
+					return io5.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -67,7 +67,7 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io4.ErrUnexpectedEOF
+				return io5.ErrUnexpectedEOF
 			}
 			m.Prekeys = append(m.Prekeys, Byte32{})
 			m.Prekeys[len(m.Prekeys)-1].Unmarshal(data[index:postIndex])
@@ -82,12 +82,12 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := github_com_gogo_protobuf_proto4.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto5.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io4.ErrUnexpectedEOF
+				return io5.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -296,7 +296,7 @@ func (this *Prekeys) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if !bytes4.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes5.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true

@@ -125,9 +125,9 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]
 	return response.SignedKey, nil
 }
 
-func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) (int64, error) {
+func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte) (int64, error) {
 	getNumKeys := &proto.ClientToServer{
-		GetNumKeys: (*proto.Byte32)(pk),
+		GetNumKeys: protobuf.Bool(true),
 	}
 	if err := WriteProtobuf(conn, outBuf, getNumKeys); err != nil {
 		return 0, err
