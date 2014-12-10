@@ -5,6 +5,7 @@ package daemon
 import (
 	"code.google.com/p/go.exp/fsnotify"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/ratchet"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,36 +14,36 @@ import (
 	"syscall"
 )
 
-func GetConversationDir(conf Config) string {
+func (conf *Config) ConversationDir() string {
 	return filepath.Join(conf.RootDir, "conversations")
 }
 
-func GetOutboxDir(conf Config) string {
+func (conf *Config) OutboxDir() string {
 	return filepath.Join(conf.RootDir, "outbox")
 }
 
-func getTmpDir(conf Config) string {
+func (conf *Config) TmpDir() string {
 	return filepath.Join(conf.RootDir, "tmp")
 }
 
-func getJournalDir(conf Config) string {
+func (conf *Config) JournalDir() string {
 	return filepath.Join(conf.RootDir, "journal")
 }
 
-func getKeysDir(conf Config) string {
+func (conf *Config) KeysDir() string {
 	return filepath.Join(conf.RootDir, "keys")
 }
 
-func getRatchetKeysDir(conf Config) string {
+func (conf *Config) RatchetKeysDir() string {
 	return filepath.Join(conf.RootDir, "keys", "ratchet")
 }
 
-func GetUiInfoDir(conf Config) string {
+func (conf *Config) UiInfoDir() string {
 	return filepath.Join(conf.RootDir, "ui_info")
 }
 
-func GetUniqueTmpDir(conf Config) (string, error) {
-	return ioutil.TempDir(getTmpDir(conf), conf.TempPrefix)
+func (conf *Config) UniqueTmpDir() (string, error) {
+	return ioutil.TempDir(conf.TmpDir(), conf.TempPrefix)
 }
 
 const (
@@ -73,8 +74,8 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	return cerr
 }
 
-func LoadPrekeys(conf Config) (*proto.Prekeys, error) {
-	prekeysBytes, err := ioutil.ReadFile(filepath.Join(getKeysDir(conf), PrekeysFileName))
+func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
+	prekeysBytes, err := ioutil.ReadFile(filepath.Join(conf.KeysDir(), PrekeysFileName))
 	if err != nil {
 		return nil, err
 	}
@@ -88,13 +89,13 @@ func LoadPrekeys(conf Config) (*proto.Prekeys, error) {
 	return prekeysProto, nil
 }
 
-func StorePrekeys(conf Config, prekeys *proto.Prekeys) error {
+func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 	prekeysBytes, err := prekeys.Marshal()
 	if err != nil {
 		return err
 	}
 
-	tmpDir, err := GetUniqueTmpDir(conf)
+	tmpDir, err := conf.UniqueTmpDir()
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func StorePrekeys(conf Config, prekeys *proto.Prekeys) error {
 		return err
 	}
 
-	prekeysFile := filepath.Join(getKeysDir(conf), PrekeysFileName)
+	prekeysFile := filepath.Join(conf.KeysDir(), PrekeysFileName)
 	err = os.Rename(prekeysFile, tmpFile+".old")
 	if err != nil {
 		return err
@@ -119,17 +120,35 @@ func StorePrekeys(conf Config, prekeys *proto.Prekeys) error {
 	return nil
 }
 
+func LoadRatchet(conf *Config) (*ratchet.Ratchet, error) {
+	/*
+		prekeysBytes, err := ioutil.ReadFile(filepath.Join(conf.KeysDir(), PrekeysFileName))
+		if err != nil {
+			return nil, err
+		}
+
+		prekeysProto := new(proto.Prekeys)
+		err = prekeysProto.Unmarshal(prekeysBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		return prekeysProto, nil
+	*/
+	return nil, nil
+}
+
 func InitFs(conf Config) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{
-		GetConversationDir(conf),
-		GetOutboxDir(conf),
-		getTmpDir(conf),
-		getJournalDir(conf),
-		getKeysDir(conf),
-		getRatchetKeysDir(conf),
-		GetUiInfoDir(conf),
+		conf.ConversationDir(),
+		conf.OutboxDir(),
+		conf.TmpDir(),
+		conf.JournalDir(),
+		conf.KeysDir(),
+		conf.RatchetKeysDir(),
+		conf.UiInfoDir(),
 	}
 	for _, dir := range subdirs {
 		os.Mkdir(dir, 0700)
@@ -140,10 +159,10 @@ func InitFs(conf Config) error {
 		if err != nil {
 			return err
 		}
-		if cPath != GetConversationDir(conf) {
+		if cPath != conf.ConversationDir() {
 			if f.IsDir() {
 				// create the outbox directory in tmp, then (atomically) move it to outbox
-				tmpDir, err := GetUniqueTmpDir(conf)
+				tmpDir, err := conf.UniqueTmpDir()
 				if err != nil {
 					return err
 				}
@@ -166,7 +185,7 @@ func InitFs(conf Config) error {
 				if err != nil {
 					return err
 				}
-				err = os.Rename(filepath.Join(tmpDir, path.Base(cPath)), filepath.Join(GetOutboxDir(conf), path.Base(cPath)))
+				err = os.Rename(filepath.Join(tmpDir, path.Base(cPath)), filepath.Join(conf.OutboxDir(), path.Base(cPath)))
 				if err != nil {
 					// skip this conversation; this probably means it already exists in the outbox
 					return nil
@@ -175,7 +194,7 @@ func InitFs(conf Config) error {
 		}
 		return nil
 	}
-	err := filepath.Walk(GetConversationDir(conf), copyToOutbox)
+	err := filepath.Walk(conf.ConversationDir(), copyToOutbox)
 	if err != nil {
 		return err
 	}

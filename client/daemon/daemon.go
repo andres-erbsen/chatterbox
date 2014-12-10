@@ -36,7 +36,7 @@ func Run(rootDir string, shutdown <-chan struct{}) error {
 	}
 	defer watcher.Close()
 
-	err = WatchDir(watcher, GetOutboxDir(conf), initFn)
+	err = WatchDir(watcher, conf.OutboxDir(), initFn)
 	if err != nil {
 		return err
 	}

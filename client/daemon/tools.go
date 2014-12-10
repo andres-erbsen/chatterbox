@@ -20,7 +20,7 @@ import (
 // messages = list of messages (each is a byte array) to put in the outbox
 func SpawnConversationInOutbox(conf Config, subject string, recipients []string, messages [][]byte) error {
 	// create temp directory or error
-	tmpDir, err := GetUniqueTmpDir(conf)
+	tmpDir, err := conf.UniqueTmpDir()
 	defer os.RemoveAll(tmpDir)
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func SpawnConversationInOutbox(conf Config, subject string, recipients []string,
 	}
 
 	// move folder to the outbox (or error)
-	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(GetOutboxDir(conf), dirName))
+	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(conf.OutboxDir(), dirName))
 	if err != nil {
 		return err
 	}

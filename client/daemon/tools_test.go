@@ -38,7 +38,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	handleError(err, t)
 
 	// check that a conversation exists in the outbox with the correct name
-	outboxDir := GetOutboxDir(conf)
+	outboxDir := conf.OutboxDir()
 	expectedName := "2009-11-10T23:00:00Z-0-user_dename-recipient_dename_a-recipient_dename_b"
 	_, err = os.Stat(filepath.Join(outboxDir, expectedName))
 	handleError(err, t)
@@ -58,7 +58,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	}
 
 	// check that the temp directory has been cleaned up
-	files, err = ioutil.ReadDir(getTmpDir(conf))
+	files, err = ioutil.ReadDir(conf.TmpDir())
 	handleError(err, t)
 	if len(files) > 0 {
 		t.Error("tmp directory not cleaned up")

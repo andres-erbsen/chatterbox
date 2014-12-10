@@ -34,7 +34,7 @@ func (c *connectionToServer) receiveMessages() error {
 			}
 		}
 		if msg.Envelope != nil {
-			//c.ReadEnvelope <- msg.Evelope
+			c.ReadEnvelope <- msg.Envelope
 		} else {
 			c.ReadReply <- msg
 		}
