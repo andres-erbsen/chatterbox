@@ -24,7 +24,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 
 	conf := Config{
 		RootDir:    rootDir,
-		Time:       func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
+		Now:        func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
 		TempPrefix: "some_ui",
 	}
 

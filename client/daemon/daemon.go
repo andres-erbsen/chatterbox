@@ -16,7 +16,7 @@ import (
 func Run(rootDir string, shutdown <-chan struct{}) error {
 	conf := Config{
 		RootDir:    rootDir,
-		Time:       time.Now,
+		Now:        time.Now,
 		TempPrefix: "daemon",
 	}
 

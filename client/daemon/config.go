@@ -9,7 +9,7 @@ type Config struct {
 	RootDir string
 
 	// Gets the current time
-	Time func() time.Time
+	Now func() time.Time
 
 	// Prefix used in the temp folder
 	TempPrefix string
