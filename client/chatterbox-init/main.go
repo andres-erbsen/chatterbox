@@ -82,7 +82,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", configFilePath, err)
 		os.Exit(2)
 	}
-	profileFilePath := filepath.Join(*dir, "config.pb")
+	profileFilePath := filepath.Join(*dir, "profile.pb")
 	if err := ioutil.WriteFile(profileFilePath, publicProfileBytes, 0600); err != nil {
 		// TODO: "WriteFileSync" -- issue fsync after write
 		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", profileFilePath, err)
