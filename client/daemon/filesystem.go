@@ -84,13 +84,10 @@ func UnmarshalFromFile(path string, out interface {
 	return out.Unmarshal(fileContents)
 }
 
-func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
-	prekeysProto := new(proto.Prekeys)
-	return prekeysProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), PrekeysFileName), prekeysProto)
-}
-
-func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
-	prekeysBytes, err := prekeys.Marshal()
+func MarshalToFile(conf *Config, path string, in interface {
+	Marshal() ([]byte, error)
+}) error {
+	inBytes, err := in.Marshal()
 	if err != nil {
 		return err
 	}
@@ -101,18 +98,17 @@ func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tmpFile := filepath.Join(tmpDir, PrekeysFileName)
-	err = ioutil.WriteFile(tmpFile, prekeysBytes, 0600)
+	tmpFile := filepath.Join(tmpDir, filepath.Base(path))
+	err = ioutil.WriteFile(tmpFile, inBytes, 0600)
 	if err != nil {
 		return err
 	}
 
-	prekeysFile := filepath.Join(conf.KeysDir(), PrekeysFileName)
-	err = os.Rename(prekeysFile, tmpFile+".old")
+	err = os.Rename(path, path+".old")
 	if err != nil {
 		return err
 	}
-	err = os.Rename(tmpFile, prekeysFile)
+	err = os.Rename(tmpFile, path)
 	if err != nil {
 		return err
 	}
@@ -120,12 +116,28 @@ func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 	return nil
 }
 
+func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
+	prekeysProto := new(proto.Prekeys)
+	return prekeysProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), PrekeysFileName), prekeysProto)
+}
+
+func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
+	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), prekeys)
+}
+
 func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
 	if err := ValidateName(name); err != nil {
 		return nil, err
 	}
-	ratchet := new(ratchet.Ratchet)
-	return ratchet, UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), name), ratchet)
+	ratch := new(ratchet.Ratchet)
+	return ratch, UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), name), ratch)
+}
+
+func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
+	if err := ValidateName(name); err != nil {
+		return err
+	}
+	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), name), ratch)
 }
 
 func InitFs(conf Config) error {
