@@ -187,7 +187,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 			} else if cmd.GetSignedKey != nil {
 				response.SignedKey, err = server.getKey((*[32]byte)(cmd.GetSignedKey))
 			} else if cmd.GetNumKeys != nil {
-				response.NumKeys, err = server.getNumKeys((*[32]byte)(cmd.GetNumKeys))
+				response.NumKeys, err = server.getNumKeys(uid)
 			} else if cmd.ReceiveEnvelopes != nil {
 				if *cmd.ReceiveEnvelopes && !notifyEnabled {
 					notifyEnabled = true
