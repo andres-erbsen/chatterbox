@@ -69,7 +69,7 @@ func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []
 	pks, sks, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	server, err := StartServer(db, shutdown, pks, sks)
+	server, err := StartServer(db, shutdown, pks, sks, ":0")
 	handleError(err, t)
 
 	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
@@ -318,7 +318,7 @@ func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk 
 
 func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, pk *[32]byte) int64 {
 	getNumKeys := &proto.ClientToServer{
-		GetNumKeys: (*proto.Byte32)(pk),
+		GetNumKeys: protobuf.Bool(true),
 	}
 	writeProtobuf(conn, outBuf, getNumKeys, t)
 

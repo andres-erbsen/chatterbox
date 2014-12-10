@@ -6,6 +6,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	//	"github.com/andres-erbsen/client/clientutil"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -54,11 +55,9 @@ func main() {
 	publicProfile := &proto.Profile{
 		ServerAddressTCP: *serverAddress,
 	}
-	/* TODO: enable
-	if err := clientutil.GenerateLongTermKeys(secretConfig, publicProfile); err != nil {
+	if err := client.GenerateLongTermKeys(secretConfig, publicProfile, rand.Reader); err != nil {
 		panic(err)
 	}
-	*/
 	secretConfigBytes, err := secretConfig.Marshal()
 	if err != nil {
 		panic(err)

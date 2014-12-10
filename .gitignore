@@ -5,7 +5,7 @@
 
 chatterbox
 client/client
-server/server
+server/server/server
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o

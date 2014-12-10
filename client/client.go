@@ -47,7 +47,7 @@ func StartClient(dename []byte, addr string, skAuth *[32]byte, skp *[32]byte, pk
 	return newClient, nil
 }
 
-func (client *Client) createAccount() error {
+func (client *Client) CreateAccount() error {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
@@ -57,29 +57,29 @@ func (client *Client) createAccount() error {
 	return nil
 }
 
-func (client *Client) listMessages() (*[][32]byte, error) {
+func (client *Client) ListMessages() (*[][32]byte, error) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	messageList, err := listUserMessages(client.conn, inBuf, outBuf)
+	messageList, err := ListUserMessages(client.conn, inBuf, outBuf)
 	if err != nil {
 		return nil, err
 	}
 	return messageList, nil
 }
 
-func (client *Client) downloadMessage(messageHash *[32]byte) ([]byte, error) {
+func (client *Client) DownloadMessage(messageHash *[32]byte) ([]byte, error) {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	message, err := downloadEnvelope(client.conn, inBuf, outBuf, messageHash)
+	message, err := DownloadEnvelope(client.conn, inBuf, outBuf, messageHash)
 	if err != nil {
 		return nil, err
 	}
 	return message, nil
 }
 
-func (client *Client) uploadKeys(keys *[][32]byte, sk *[64]byte) error {
+func (client *Client) UploadKeys(keys *[][32]byte, sk *[64]byte) error {
 	pkList := make([][]byte, 0)
 	for _, key := range *keys {
 		signedKey := ed25519.Sign(sk, key[:])
@@ -89,14 +89,14 @@ func (client *Client) uploadKeys(keys *[][32]byte, sk *[64]byte) error {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	err := uploadKeys(client.conn, inBuf, outBuf, &pkList)
+	err := UploadKeys(client.conn, inBuf, outBuf, &pkList)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func encryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, error) {
+func EncryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, error) {
 
 	denameClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
@@ -155,7 +155,7 @@ func encryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *clien
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 	//dename lookup, see what server is
-	keySig, err := getKey(conn, inBuf, outBuf, &user)
+	keySig, err := GetKey(conn, inBuf, outBuf, &user)
 
 	var userKey [32]byte
 	copy(userKey[:], keySig[:32])
@@ -174,13 +174,13 @@ func encryptAuthFirst(msg []byte, dename []byte, skAuth *[32]byte, config *clien
 	inBuf = make([]byte, MAX_MESSAGE_SIZE)
 	outBuf = make([]byte, MAX_MESSAGE_SIZE)
 
-	if err := uploadMessageToUser(conn, inBuf, outBuf, &user, out); err != nil {
+	if err := UploadMessageToUser(conn, inBuf, outBuf, &user, out); err != nil {
 		return nil, err
 	}
 	return ratch, nil
 }
 
-func (client *Client) decryptAuthFirst(in []byte, skList [][32]byte) (*ratchet.Ratchet, []byte, int, error) {
+func (client *Client) DecryptAuthFirst(in []byte, skList [][32]byte) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(client.skAuth),
 		CheckAuth: CheckAuthWith(client.denameClient),

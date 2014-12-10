@@ -9,14 +9,16 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"github.com/agl/ed25519"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
+	"io"
 	"time"
 )
 
-func toProtoByte32List(list *[][32]byte) *[]proto.Byte32 {
+func ToProtoByte32List(list *[][32]byte) *[]proto.Byte32 {
 	newList := make([]proto.Byte32, 0)
 	for _, element := range *list {
 		newList = append(newList, (proto.Byte32)(element))
@@ -24,7 +26,7 @@ func toProtoByte32List(list *[][32]byte) *[]proto.Byte32 {
 	return &newList
 }
 
-func to32ByteList(list *[]proto.Byte32) *[][32]byte {
+func To32ByteList(list *[]proto.Byte32) *[][32]byte {
 	newList := make([][32]byte, 0, 0)
 	for _, element := range *list {
 		newList = append(newList, ([32]byte)(element))
@@ -36,124 +38,124 @@ func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
-	if err := writeProtobuf(conn, outBuf, command); err != nil {
+	if err := WriteProtobuf(conn, outBuf, command); err != nil {
 		return err
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte) (*[][32]byte, error) {
+func ListUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte) (*[][32]byte, error) {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
-	if err := writeProtobuf(conn, outBuf, listMessages); err != nil {
+	if err := WriteProtobuf(conn, outBuf, listMessages); err != nil {
 		return nil, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return nil, err
 	}
 
-	return to32ByteList(&response.MessageList), nil
+	return To32ByteList(&response.MessageList), nil
 }
 
-func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, messageHash *[32]byte) ([]byte, error) {
+func DownloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, messageHash *[32]byte) ([]byte, error) {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
-	if err := writeProtobuf(conn, outBuf, getEnvelope); err != nil {
+	if err := WriteProtobuf(conn, outBuf, getEnvelope); err != nil {
 		return nil, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return nil, err
 	}
 	return response.Envelope, nil
 }
 
-func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageList *[][32]byte) error {
+func DeleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageList *[][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: *toProtoByte32List(messageList),
+		DeleteMessages: *ToProtoByte32List(messageList),
 	}
-	if err := writeProtobuf(conn, outBuf, deleteMessages); err != nil {
+	if err := WriteProtobuf(conn, outBuf, deleteMessages); err != nil {
 		return err
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func uploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]byte) error {
+func UploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]byte) error {
 	uploadKeys := &proto.ClientToServer{
 		UploadSignedKeys: *keyList,
 	}
-	if err := writeProtobuf(conn, outBuf, uploadKeys); err != nil {
+	if err := WriteProtobuf(conn, outBuf, uploadKeys); err != nil {
 		return nil
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func getKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]byte, error) {
+func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]byte, error) {
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
-	if err := writeProtobuf(conn, outBuf, getKey); err != nil {
+	if err := WriteProtobuf(conn, outBuf, getKey); err != nil {
 		return nil, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return nil, err
 	}
 	return response.SignedKey, nil
 }
 
-func getNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) (int64, error) {
+func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte) (int64, error) {
 	getNumKeys := &proto.ClientToServer{
-		GetNumKeys: (*proto.Byte32)(pk),
+		GetNumKeys: protobuf.Bool(true),
 	}
-	if err := writeProtobuf(conn, outBuf, getNumKeys); err != nil {
+	if err := WriteProtobuf(conn, outBuf, getNumKeys); err != nil {
 		return 0, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return 0, err
 	}
 	return *response.NumKeys, nil
 }
 
-func enablePush(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
+func EnablePush(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	true_ := true
 	command := &proto.ClientToServer{
 		ReceiveEnvelopes: &true_,
 	}
-	if err := writeProtobuf(conn, outBuf, command); err != nil {
+	if err := WriteProtobuf(conn, outBuf, command); err != nil {
 		return err
 	}
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, envelope []byte) error {
+func UploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, envelope []byte) error {
 	message := &proto.ClientToServer_DeliverEnvelope{
 		User:     (*proto.Byte32)(pk),
 		Envelope: envelope,
@@ -161,18 +163,18 @@ func uploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *
 	deliverCommand := &proto.ClientToServer{
 		DeliverEnvelope: message,
 	}
-	if err := writeProtobuf(conn, outBuf, deliverCommand); err != nil {
+	if err := WriteProtobuf(conn, outBuf, deliverCommand); err != nil {
 		return err
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer) error {
+func WriteProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer) error {
 	size, err := message.MarshalTo(outBuf)
 	if err != nil {
 		return err
@@ -181,7 +183,7 @@ func writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToS
 	return nil
 }
 
-func receiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient, error) {
+func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient, error) {
 	response := new(proto.ServerToClient)
 	conn.SetDeadline(time.Now().Add(time.Second))
 	num, err := conn.ReadFrame(inBuf)
@@ -200,7 +202,7 @@ func receiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	return response, nil
 }
 
-func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
+func DenameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
 	//TODO: move this to test?
 	newClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
@@ -236,6 +238,29 @@ func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client
 	}
 
 	return skAuth, newClient, nil
+}
+
+func GenerateLongTermKeys(secretConfig *proto.LocalAccountConfig, publicProfile *proto.Profile, rand io.Reader) error {
+	if pk, sk, err := box.GenerateKey(rand); err != nil {
+		return err
+	} else {
+		secretConfig.TransportSecretKeyForServer = (proto.Byte32)(*sk)
+		publicProfile.UserIDAtServer = (proto.Byte32)(*pk)
+	}
+	if pk, sk, err := box.GenerateKey(rand); err != nil {
+		return err
+	} else {
+		secretConfig.MessageAuthSecretKey = (proto.Byte32)(*sk)
+		publicProfile.MessageAuthKey = (proto.Byte32)(*pk)
+	}
+
+	if pk, sk, err := ed25519.GenerateKey(rand); err != nil {
+		return err
+	} else {
+		secretConfig.KeySigningSecretKey = sk[:]
+		publicProfile.KeySigningKey = (proto.Byte32)(*pk)
+	}
+	return nil
 }
 
 func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {

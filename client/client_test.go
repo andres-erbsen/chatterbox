@@ -34,7 +34,7 @@ func TestAliceTalksToBob(t *testing.T) {
 
 	defer db.Close()
 
-	server := setUpServerTest(db, t)
+	server, pks := setUpServerTest(db, t)
 
 	connA, inBufA, outBufA, pkpA := setUpClientTest(server, t)
 	connB, inBufB, outBufB, pkpB := setUpClientTest(server, t)
@@ -43,9 +43,29 @@ func TestAliceTalksToBob(t *testing.T) {
 	defer f()
 	time.Sleep(100)
 
-	ska, dnmca := createNewUser([]byte("Alice"), t, config)
+	//func createNewUser(name []byte, t *testing.T, config *client.Config, serverAddr string, pkTransport *[32]byte, idServer *[32]byte, signingKey *[32]byte, authKey *[32]byte) (*[32]byte, *client.Client) {
+	pkTransportA, skTransportA, err := box.GenerateKey(rand.Reader)
+	handleError(err)
+
+	pkTransportB, skTransportA, err := box.GenerateKey(rand.Reader)
+	handleError(err)
+
+	ska, dnmca := createNewUser([]byte("Alice"), t, config, server.listener.Addr().String(), pkTransportA, pks)
 	skb, dnmcb := createNewUser([]byte("Bob"), t, config)
 
+	profileA
+	profileB
+
+	msg = []byte{"Envelope1"}
+	ratch, err := encryptAuthFirst(msg, []byte("Bob"), ska, config)
+	handleError(err)
+
+	clientA := StartClient([]byte("Alice"))
+	clientB := StartClient([]byte("Bob"), server.listener.Addr().String(), skb, connB, config)
+
+	//clientB.decryptAuthFirst(
+
+	//clientB := StartClient([]byte("Bob),
 }
 
 func setUpClientTest(server *Server, t *testing.T) (*transport.Conn, []byte, []byte, *[32]byte) {
@@ -64,7 +84,7 @@ func setUpClientTest(server *Server, t *testing.T) (*transport.Conn, []byte, []b
 	return conn, inBuf, outBuf, pkp
 }
 
-func setUpServerTest(db *leveldb.DB, t *testing.T) *Server {
+func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *[32]byte) {
 	shutdown := make(chan struct{})
 
 	pks, sks, err := box.GenerateKey(rand.Reader)
@@ -73,7 +93,7 @@ func setUpServerTest(db *leveldb.DB, t *testing.T) *Server {
 	server, err := StartServer(db, shutdown, pks, sks)
 	handleError(err, t)
 
-	return server
+	return server, nil
 }
 
 func handleError(err error, t *testing.T) {
@@ -131,7 +151,7 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	}
 }
 
-func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte, *client.Client) {
+func createNewUser(name []byte, t *testing.T, config *client.Config, serverAddr string, pkTransport *[32]byte, idServer *[32]byte, signingKey *[32]byte, authKey *[32]byte) (*[32]byte, *client.Client) {
 	newClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -141,11 +161,11 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte,
 	pkAuth, skAuth, err := box.GenerateKey(rand.Reader)
 
 	chatProfile := &proto.Profile{
-		ServerAddressTCP:  "",
-		ServerTransportPK: (proto.Byte32)([32]byte{}),
-		UserIDAtServer:    (proto.Byte32)([32]byte{}),
-		KeySigningKey:     (proto.Byte32)([32]byte{}),
-		MessageAuthKey:    (proto.Byte32)(*pkAuth),
+		ServerAddressTCP:  []byte(serverAddr),
+		ServerTransportPK: (proto.Byte32)(pkTransport),
+		UserIDAtServer:    (proto.Byte32)(idServer),
+		KeySigningKey:     (proto.Byte32)(signingKey),
+		MessageAuthKey:    (proto.Byte32)(authKey),
 	}
 
 	chatProfileBytes, err := protobuf.Marshal(chatProfile)

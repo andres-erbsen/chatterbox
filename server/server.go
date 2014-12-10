@@ -27,8 +27,8 @@ type Server struct {
 	keyMutex sync.Mutex
 }
 
-func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]byte) (*Server, error) {
-	listener, err := net.Listen("tcp", ":8888")
+func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]byte, listenAddr string) (*Server, error) {
+	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 			} else if cmd.GetSignedKey != nil {
 				response.SignedKey, err = server.getKey((*[32]byte)(cmd.GetSignedKey))
 			} else if cmd.GetNumKeys != nil {
-				response.NumKeys, err = server.getNumKeys((*[32]byte)(cmd.GetNumKeys))
+				response.NumKeys, err = server.getNumKeys(uid)
 			} else if cmd.ReceiveEnvelopes != nil {
 				if *cmd.ReceiveEnvelopes && !notifyEnabled {
 					notifyEnabled = true

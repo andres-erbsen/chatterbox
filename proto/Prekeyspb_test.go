@@ -4,32 +4,32 @@
 
 package proto
 
-import testing16 "testing"
-import math_rand16 "math/rand"
-import time16 "time"
-import github_com_gogo_protobuf_proto12 "github.com/gogo/protobuf/proto"
-import testing17 "testing"
-import math_rand17 "math/rand"
-import time17 "time"
-import encoding_json4 "encoding/json"
-import testing18 "testing"
-import math_rand18 "math/rand"
-import time18 "time"
-import github_com_gogo_protobuf_proto13 "github.com/gogo/protobuf/proto"
-import math_rand19 "math/rand"
-import time19 "time"
-import testing19 "testing"
-import github_com_gogo_protobuf_proto14 "github.com/gogo/protobuf/proto"
+import testing20 "testing"
+import math_rand20 "math/rand"
+import time20 "time"
+import github_com_gogo_protobuf_proto15 "github.com/gogo/protobuf/proto"
+import testing21 "testing"
+import math_rand21 "math/rand"
+import time21 "time"
+import encoding_json5 "encoding/json"
+import testing22 "testing"
+import math_rand22 "math/rand"
+import time22 "time"
+import github_com_gogo_protobuf_proto16 "github.com/gogo/protobuf/proto"
+import math_rand23 "math/rand"
+import time23 "time"
+import testing23 "testing"
+import github_com_gogo_protobuf_proto17 "github.com/gogo/protobuf/proto"
 
-func TestPrekeysProto(t *testing16.T) {
-	popr := math_rand16.New(math_rand16.NewSource(time16.Now().UnixNano()))
+func TestPrekeysProto(t *testing20.T) {
+	popr := math_rand20.New(math_rand20.NewSource(time20.Now().UnixNano()))
 	p := NewPopulatedPrekeys(popr, false)
-	data, err := github_com_gogo_protobuf_proto12.Marshal(p)
+	data, err := github_com_gogo_protobuf_proto15.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 	msg := &Prekeys{}
-	if err := github_com_gogo_protobuf_proto12.Unmarshal(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto15.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
 	for i := range data {
@@ -40,8 +40,8 @@ func TestPrekeysProto(t *testing16.T) {
 	}
 }
 
-func TestPrekeysMarshalTo(t *testing16.T) {
-	popr := math_rand16.New(math_rand16.NewSource(time16.Now().UnixNano()))
+func TestPrekeysMarshalTo(t *testing20.T) {
+	popr := math_rand20.New(math_rand20.NewSource(time20.Now().UnixNano()))
 	p := NewPopulatedPrekeys(popr, false)
 	size := p.Size()
 	data := make([]byte, size)
@@ -53,7 +53,7 @@ func TestPrekeysMarshalTo(t *testing16.T) {
 		panic(err)
 	}
 	msg := &Prekeys{}
-	if err := github_com_gogo_protobuf_proto12.Unmarshal(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto15.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
 	for i := range data {
@@ -64,8 +64,8 @@ func TestPrekeysMarshalTo(t *testing16.T) {
 	}
 }
 
-func BenchmarkPrekeysProtoMarshal(b *testing16.B) {
-	popr := math_rand16.New(math_rand16.NewSource(616))
+func BenchmarkPrekeysProtoMarshal(b *testing20.B) {
+	popr := math_rand20.New(math_rand20.NewSource(616))
 	total := 0
 	pops := make([]*Prekeys, 10000)
 	for i := 0; i < 10000; i++ {
@@ -73,7 +73,7 @@ func BenchmarkPrekeysProtoMarshal(b *testing16.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data, err := github_com_gogo_protobuf_proto12.Marshal(pops[i%10000])
+		data, err := github_com_gogo_protobuf_proto15.Marshal(pops[i%10000])
 		if err != nil {
 			panic(err)
 		}
@@ -82,12 +82,12 @@ func BenchmarkPrekeysProtoMarshal(b *testing16.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPrekeysProtoUnmarshal(b *testing16.B) {
-	popr := math_rand16.New(math_rand16.NewSource(616))
+func BenchmarkPrekeysProtoUnmarshal(b *testing20.B) {
+	popr := math_rand20.New(math_rand20.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		data, err := github_com_gogo_protobuf_proto12.Marshal(NewPopulatedPrekeys(popr, false))
+		data, err := github_com_gogo_protobuf_proto15.Marshal(NewPopulatedPrekeys(popr, false))
 		if err != nil {
 			panic(err)
 		}
@@ -97,22 +97,22 @@ func BenchmarkPrekeysProtoUnmarshal(b *testing16.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
-		if err := github_com_gogo_protobuf_proto12.Unmarshal(datas[i%10000], msg); err != nil {
+		if err := github_com_gogo_protobuf_proto15.Unmarshal(datas[i%10000], msg); err != nil {
 			panic(err)
 		}
 	}
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestPrekeysJSON(t *testing17.T) {
-	popr := math_rand17.New(math_rand17.NewSource(time17.Now().UnixNano()))
+func TestPrekeysJSON(t *testing21.T) {
+	popr := math_rand21.New(math_rand21.NewSource(time21.Now().UnixNano()))
 	p := NewPopulatedPrekeys(popr, true)
-	jsondata, err := encoding_json4.Marshal(p)
+	jsondata, err := encoding_json5.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 	msg := &Prekeys{}
-	err = encoding_json4.Unmarshal(jsondata, msg)
+	err = encoding_json5.Unmarshal(jsondata, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -120,12 +120,12 @@ func TestPrekeysJSON(t *testing17.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestPrekeysProtoText(t *testing18.T) {
-	popr := math_rand18.New(math_rand18.NewSource(time18.Now().UnixNano()))
+func TestPrekeysProtoText(t *testing22.T) {
+	popr := math_rand22.New(math_rand22.NewSource(time22.Now().UnixNano()))
 	p := NewPopulatedPrekeys(popr, true)
-	data := github_com_gogo_protobuf_proto13.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto16.MarshalTextString(p)
 	msg := &Prekeys{}
-	if err := github_com_gogo_protobuf_proto13.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto16.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -133,12 +133,12 @@ func TestPrekeysProtoText(t *testing18.T) {
 	}
 }
 
-func TestPrekeysProtoCompactText(t *testing18.T) {
-	popr := math_rand18.New(math_rand18.NewSource(time18.Now().UnixNano()))
+func TestPrekeysProtoCompactText(t *testing22.T) {
+	popr := math_rand22.New(math_rand22.NewSource(time22.Now().UnixNano()))
 	p := NewPopulatedPrekeys(popr, true)
-	data := github_com_gogo_protobuf_proto13.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto16.CompactTextString(p)
 	msg := &Prekeys{}
-	if err := github_com_gogo_protobuf_proto13.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto16.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -146,11 +146,11 @@ func TestPrekeysProtoCompactText(t *testing18.T) {
 	}
 }
 
-func TestPrekeysSize(t *testing19.T) {
-	popr := math_rand19.New(math_rand19.NewSource(time19.Now().UnixNano()))
+func TestPrekeysSize(t *testing23.T) {
+	popr := math_rand23.New(math_rand23.NewSource(time23.Now().UnixNano()))
 	p := NewPopulatedPrekeys(popr, true)
-	size2 := github_com_gogo_protobuf_proto14.Size(p)
-	data, err := github_com_gogo_protobuf_proto14.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto17.Size(p)
+	data, err := github_com_gogo_protobuf_proto17.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -161,14 +161,14 @@ func TestPrekeysSize(t *testing19.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto14.Size(p)
+	size3 := github_com_gogo_protobuf_proto17.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkPrekeysSize(b *testing19.B) {
-	popr := math_rand19.New(math_rand19.NewSource(616))
+func BenchmarkPrekeysSize(b *testing23.B) {
+	popr := math_rand23.New(math_rand23.NewSource(616))
 	total := 0
 	pops := make([]*Prekeys, 1000)
 	for i := 0; i < 1000; i++ {
