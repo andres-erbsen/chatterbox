@@ -10,14 +10,9 @@ import (
 	"time"
 )
 
-func GetRootDir() string {
-	const temporaryConstantRootDirectory = "/tmp/foo/bar"
-	return temporaryConstantRootDirectory
-}
-
-func Run() error {
+func Run(rootDir string) error {
 	conf := Config{
-		RootDir:    GetRootDir(),
+		RootDir:    rootDir,
 		Time:       time.Now,
 		TempPrefix: "daemon",
 	}

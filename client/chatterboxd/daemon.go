@@ -6,7 +6,8 @@ import (
 )
 
 func main() {
-	err := daemon.Run()
+	//TODO read the directory as an argument
+	err := daemon.Run("/tmp/foo/bar")
 	if err != nil {
 		log.Fatal(err)
 		return
