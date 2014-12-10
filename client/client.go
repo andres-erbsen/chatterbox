@@ -51,7 +51,7 @@ func (client *Client) CreateAccount() error {
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	if err := createAccount(client.conn, inBuf, outBuf); err != nil {
+	if err := CreateAccount(client.conn, inBuf, outBuf); err != nil {
 		return err
 	}
 	return nil

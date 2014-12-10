@@ -201,6 +201,7 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 }
 
 func DenameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
+	//TODO: move this to test?
 	newClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
 		return nil, nil, err
