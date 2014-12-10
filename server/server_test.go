@@ -69,7 +69,7 @@ func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []
 	pks, sks, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	server, err := StartServer(db, shutdown, pks, sks)
+	server, err := StartServer(db, shutdown, pks, sks, ":0")
 	handleError(err, t)
 
 	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
