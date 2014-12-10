@@ -32,7 +32,7 @@ func to32ByteList(list *[]proto.Byte32) *[][32]byte {
 	return &newList
 }
 
-func createAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
+func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
@@ -201,6 +201,7 @@ func receiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 }
 
 func denameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
+	//TODO: move this to test?
 	newClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
 		return nil, nil, err

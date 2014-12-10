@@ -2,11 +2,14 @@ package main
 
 import (
 	"flag"
+	"github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/transport"
 	//	"github.com/andres-erbsen/client/clientutil"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 )
@@ -29,15 +32,14 @@ func (h *hex32Byte) Set(value string) error {
 
 func main() {
 	dename := flag.String("dename", "", "Your dename username.")
-	var noPubkey hex32Byte
-	var serverTransportPubkey hex32Byte
-	flag.Var(&serverTransportPubkey, "server-pubkey", "The TCP port which the server listens on. Note that people sending you mesages expct to be able to reach your home server at port 1984.")
+	var serverTransportPubkey [32]byte
+	flag.Var((*hex32Byte)(&serverTransportPubkey), "server-pubkey", "The TCP port which the server listens on. Note that people sending you mesages expct to be able to reach your home server at port 1984.")
 	serverAddress := flag.String("server-host", "", "The IP address or hostname on which your (prospective) home server server can be reached")
 	serverPort := flag.Int("server-port", 1984, "The TCP port which the server listens on. Note that people sending you mesages expct to be able to reach your home server at port 1984.")
 	dir := flag.String("account-directory", "", "Dedicated directory for the account.")
 	flag.Parse()
 
-	if *dename == "" || serverTransportPubkey == noPubkey || *serverAddress == "" || serverPort == nil {
+	if *dename == "" || serverTransportPubkey == [32]byte{} || *serverAddress == "" {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -77,13 +79,36 @@ func main() {
 	}
 	if err := ioutil.WriteFile(configFilePath, secretConfigBytes, 0600); err != nil {
 		// TODO: "WriteFileSync" -- issue fsync after write
-		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", err)
+		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", configFilePath, err)
+		os.Exit(2)
+	}
+	profileFilePath := filepath.Join(*dir, "config.pb")
+	if err := ioutil.WriteFile(profileFilePath, publicProfileBytes, 0600); err != nil {
+		// TODO: "WriteFileSync" -- issue fsync after write
+		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", profileFilePath, err)
 		os.Exit(2)
 	}
 
-	// TODO: when should we create the account the at the server?
-
-	fmt.Printf("Local account initialization done.\n")
 	fmt.Printf("You may use the following command to link this account with your dename profile:.\n"+
-		"echo -n %x | xxd -r -p | dnmgr set '%s' 1984 -\n", publicProfileBytes, *dename)
+		"dnmgr set '%s' 1984 - < %s\n", *dename, profileFilePath)
+
+	// TODO: use TOR
+	fmt.Printf("Registering with the server...\n")
+	plainConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *serverAddress, *serverPort))
+	conn, _, err := transport.Handshake(plainConn,
+		(*[32]byte)(&publicProfile.UserIDAtServer),
+		(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
+		&serverTransportPubkey, client.MAX_MESSAGE_SIZE)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
+			*serverAddress, *serverPort, err)
+		os.Exit(1)
+	}
+	if err := client.CreateAccount(conn, make([]byte, client.MAX_MESSAGE_SIZE),
+		make([]byte, client.MAX_MESSAGE_SIZE)); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to connect to serverat %s%s: %s\n",
+			*serverAddress, *serverPort, err)
+		os.Exit(1)
+	}
+	fmt.Printf("Account initialization done.\n")
 }
