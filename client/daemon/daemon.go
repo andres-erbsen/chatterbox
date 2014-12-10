@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func Run(rootDir string) error {
+func Run(rootDir string, shutdown <-chan struct{}) error {
 	conf := Config{
 		RootDir:    rootDir,
 		Time:       time.Now,
@@ -31,6 +31,7 @@ func Run(rootDir string) error {
 	if err != nil {
 		return err
 	}
+	defer watcher.Close()
 
 	err = WatchDir(watcher, GetOutboxDir(conf), initFn)
 	if err != nil {
@@ -39,6 +40,8 @@ func Run(rootDir string) error {
 
 	for {
 		select {
+		case <-shutdown:
+			return nil
 		case ev := <-watcher.Event:
 			// event in the directory structure; watch any new directories
 			if !(ev.IsDelete() || ev.IsRename()) {
