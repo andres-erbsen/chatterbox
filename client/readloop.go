@@ -1,6 +1,5 @@
 package client
 
-/*
 import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
@@ -13,7 +12,7 @@ type connectionToServer struct {
 	ReadReply    chan *proto.ServerToClient // TODO: do we want to return an error?
 	ReadEnvelope chan []byte
 
-	suhtdown     chan struct{}
+	shutdown     chan struct{}
 	waitShutdown sync.WaitGroup
 }
 
@@ -25,7 +24,7 @@ func (c *connectionToServer) receiveMessages() error {
 		c.conn.Close()
 	}()
 	for {
-		msg, err := receiveProtobuf(c.conn, c.buf)
+		msg, err := ReceiveProtobuf(c.conn, c.buf)
 		select {
 		case <-c.shutdown:
 			return nil
@@ -35,10 +34,9 @@ func (c *connectionToServer) receiveMessages() error {
 			}
 		}
 		if msg.Envelope != nil {
-			c.ReadEnvelope <- msg.Evelope
+			//c.ReadEnvelope <- msg.Evelope
 		} else {
 			c.ReadReply <- msg
 		}
 	}
 }
-*/

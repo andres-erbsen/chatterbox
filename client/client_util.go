@@ -136,7 +136,7 @@ func CreateServerConn(dename []byte, config *client.Config) (*transport.Conn, er
 	return conn, nil
 }
 
-func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey [32]byte, config *client.Config) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, config *client.Config) ([]byte, *ratchet.Ratchet, error) {
 	denameClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
 		return nil, nil, err
@@ -156,8 +156,8 @@ func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey [32]b
 		return nil, nil, err
 	}
 
-	out := append([]byte{}, userKey[:]...)
-	out = ratch.EncryptFirst(out, message, &userKey)
+	out := append([]byte{}, (*userKey)[:]...)
+	out = ratch.EncryptFirst(out, message, userKey)
 
 	return out, ratch, nil
 }
