@@ -74,19 +74,19 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	return cerr
 }
 
+func UnmarshalFromFile(path string, out interface {
+	Unmarshal([]byte) error
+}) error {
+	fileContents, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return out.Unmarshal(fileContents)
+}
+
 func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
-	prekeysBytes, err := ioutil.ReadFile(filepath.Join(conf.KeysDir(), PrekeysFileName))
-	if err != nil {
-		return nil, err
-	}
-
 	prekeysProto := new(proto.Prekeys)
-	err = prekeysProto.Unmarshal(prekeysBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return prekeysProto, nil
+	return prekeysProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), PrekeysFileName), prekeysProto)
 }
 
 func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
@@ -120,22 +120,12 @@ func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 	return nil
 }
 
-func LoadRatchet(conf *Config) (*ratchet.Ratchet, error) {
-	/*
-		prekeysBytes, err := ioutil.ReadFile(filepath.Join(conf.KeysDir(), PrekeysFileName))
-		if err != nil {
-			return nil, err
-		}
-
-		prekeysProto := new(proto.Prekeys)
-		err = prekeysProto.Unmarshal(prekeysBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		return prekeysProto, nil
-	*/
-	return nil, nil
+func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
+	if err := ValidateName(name); err != nil {
+		return nil, err
+	}
+	ratchet := new(ratchet.Ratchet)
+	return ratchet, UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), name), ratchet)
 }
 
 func InitFs(conf Config) error {
