@@ -58,7 +58,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	}
 
 	// check that the temp directory has been cleaned up
-	files, err = ioutil.ReadDir(GetTmpDir(conf))
+	files, err = ioutil.ReadDir(getTmpDir(conf))
 	handleError(err, t)
 	if len(files) > 0 {
 		t.Error("tmp directory not cleaned up")
