@@ -14,14 +14,13 @@ import (
 )
 
 func Run(rootDir string, shutdown <-chan struct{}) error {
-	conf := Config{
+	conf := LoadConfig(&Config{
 		RootDir:    rootDir,
 		Now:        time.Now,
 		TempPrefix: "daemon",
-	}
+	})
 
-	err := InitFs(conf)
-	if err != nil {
+	if err := InitFs(conf); err != nil {
 		return err
 	}
 

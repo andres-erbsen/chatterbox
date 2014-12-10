@@ -14,6 +14,10 @@ import (
 	"syscall"
 )
 
+func (conf *Config) ConfigFile() string {
+	return filepath.Join(conf.RootDir, "config.pb")
+}
+
 func (conf *Config) ConversationDir() string {
 	return filepath.Join(conf.RootDir, "conversations")
 }
@@ -142,7 +146,7 @@ func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
 	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), name), ratch)
 }
 
-func InitFs(conf Config) error {
+func InitFs(conf *Config) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{

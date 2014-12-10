@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"github.com/andres-erbsen/chatterbox/proto"
 	"time"
 )
 
@@ -13,4 +14,11 @@ type Config struct {
 
 	// Prefix used in the temp folder
 	TempPrefix string
+
+	proto.LocalAccountConfig
+}
+
+func LoadConfig(conf *Config) *Config {
+	UnmarshalFromFile(conf.ConfigFile(), &conf.LocalAccountConfig)
+	return conf
 }
