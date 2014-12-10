@@ -9,10 +9,12 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"github.com/agl/ed25519"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
+	"io"
 	"time"
 )
 
@@ -36,11 +38,11 @@ func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
-	if err := writeProtobuf(conn, outBuf, command); err != nil {
+	if err := WriteProtobuf(conn, outBuf, command); err != nil {
 		return err
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
@@ -51,27 +53,27 @@ func ListUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte) (*[][32
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
-	if err := writeProtobuf(conn, outBuf, listMessages); err != nil {
+	if err := WriteProtobuf(conn, outBuf, listMessages); err != nil {
 		return nil, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return nil, err
 	}
 
-	return to32ByteList(&response.MessageList), nil
+	return To32ByteList(&response.MessageList), nil
 }
 
 func DownloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, messageHash *[32]byte) ([]byte, error) {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
-	if err := writeProtobuf(conn, outBuf, getEnvelope); err != nil {
+	if err := WriteProtobuf(conn, outBuf, getEnvelope); err != nil {
 		return nil, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -80,13 +82,13 @@ func DownloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, message
 
 func DeleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageList *[][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: *toProtoByte32List(messageList),
+		DeleteMessages: *ToProtoByte32List(messageList),
 	}
-	if err := writeProtobuf(conn, outBuf, deleteMessages); err != nil {
+	if err := WriteProtobuf(conn, outBuf, deleteMessages); err != nil {
 		return err
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
@@ -97,11 +99,11 @@ func UploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]
 	uploadKeys := &proto.ClientToServer{
 		UploadSignedKeys: *keyList,
 	}
-	if err := writeProtobuf(conn, outBuf, uploadKeys); err != nil {
+	if err := WriteProtobuf(conn, outBuf, uploadKeys); err != nil {
 		return nil
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
@@ -112,11 +114,11 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte) ([]
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
-	if err := writeProtobuf(conn, outBuf, getKey); err != nil {
+	if err := WriteProtobuf(conn, outBuf, getKey); err != nil {
 		return nil, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -127,11 +129,11 @@ func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte)
 	getNumKeys := &proto.ClientToServer{
 		GetNumKeys: (*proto.Byte32)(pk),
 	}
-	if err := writeProtobuf(conn, outBuf, getNumKeys); err != nil {
+	if err := WriteProtobuf(conn, outBuf, getNumKeys); err != nil {
 		return 0, err
 	}
 
-	response, err := receiveProtobuf(conn, inBuf)
+	response, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return 0, err
 	}
@@ -143,10 +145,10 @@ func EnablePush(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	command := &proto.ClientToServer{
 		ReceiveEnvelopes: &true_,
 	}
-	if err := writeProtobuf(conn, outBuf, command); err != nil {
+	if err := WriteProtobuf(conn, outBuf, command); err != nil {
 		return err
 	}
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
@@ -161,11 +163,11 @@ func UploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *
 	deliverCommand := &proto.ClientToServer{
 		DeliverEnvelope: message,
 	}
-	if err := writeProtobuf(conn, outBuf, deliverCommand); err != nil {
+	if err := WriteProtobuf(conn, outBuf, deliverCommand); err != nil {
 		return err
 	}
 
-	_, err := receiveProtobuf(conn, inBuf)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
