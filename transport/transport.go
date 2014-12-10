@@ -76,9 +76,11 @@ func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize 
 		hs, ok := box.Open(nil, theirHandshake[32:], &nullNonce, &theirPK, ourEphemeralSecret)
 		if !ok || !bytes.Equal(hs, append(theirEphemeralPublic[:], ourEphemeralPublic[:]...)) {
 			readErr = errors.New("authentication failed (ephemeral pk mismatch)")
+			return
 		}
 		if expectedPK != nil && !bytes.Equal(theirPK[:], expectedPK[:]) {
 			readErr = errors.New("authentication failed (observed pk != expected pk)")
+			return
 		}
 	}()
 	go func() {
