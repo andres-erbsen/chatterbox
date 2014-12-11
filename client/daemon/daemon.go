@@ -232,7 +232,12 @@ func processOutboxDir(conf *Config, dirname string) error {
 	for _, recipient := range metadata.Participants {
 		for _, msg := range messages {
 			// replace msg with message+metadata (new protobuf?)
-			if msgRatch, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
+			fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
+			checkAuth := util.CheckAuthWith(conf.denameClient)
+			if err != nil {
+				return err
+			}
+			if msgRatch, err := LoadRatchet(conf, recipient, fillAuth, checkAuth); err != nil { //First message in this conversation
 				ratch, err := conf.sendFirstMessage(msg, recipient)
 				if err != nil {
 					return err
@@ -383,6 +388,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				if err != nil {
 					return err
 				}
+
 				message, ratch, err := conf.decryptMessage(envelope, ratchets)
 				if err != nil {
 					return err

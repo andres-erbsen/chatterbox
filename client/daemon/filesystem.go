@@ -196,14 +196,19 @@ func StorePublicProfile(conf *Config, publicProfile *proto.Profile) error {
 	return MarshalToFile(conf, filepath.Join(conf.RootDir, ProfileFileName), publicProfile)
 }
 
-func LoadRatchet(conf *Config, name []byte) (*ratchet.Ratchet, error) {
+func LoadRatchet(conf *Config, name []byte, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
 	nameStr := string(name)
 	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(nameStr); err != nil {
 		return nil, err
 	}
 	ratch := new(ratchet.Ratchet)
-	return ratch, UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), nameStr), ratch)
+	if err := UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), nameStr), ratch); err != nil {
+		return nil, err
+	}
+	ratch.FillAuth = fillAuth
+	ratch.CheckAuth = checkAuth
+	return ratch, nil
 }
 
 func StoreRatchet(conf *Config, name []byte, ratch *ratchet.Ratchet) error {
