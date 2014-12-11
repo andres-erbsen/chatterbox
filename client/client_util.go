@@ -77,7 +77,7 @@ func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, ou
 	return To32ByteList(response.MessageList), nil
 }
 
-func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) error {
+func RequestMessage(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) error {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
@@ -88,14 +88,10 @@ func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, ou
 }
 
 func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
-	fmt.Printf("Signin key: %x\n", sk[:32])
-	fmt.Printf("Public key: %x\n", sk[32:])
 
 	pkList := make([][]byte, 0)
 	for _, key := range keys {
 		signature := ed25519.Sign(sk, key[:])
-		fmt.Printf("Key %x\n", key)
-		fmt.Printf("Sig %x\n", signature)
 		pkList = append(pkList, append(append([]byte{}, key[:]...), signature[:]...))
 	}
 	return pkList
@@ -186,23 +182,26 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr st
 	return conn, nil
 }
 
-func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client) ([]byte, *ratchet.Ratchet, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
 	}
 
+	//TODO; Actually fill in the right subject. Like, actually.
 	message, err := protobuf.Marshal(&proto.Message{
 		Subject:  nil,
 		Contents: msg,
-		Dename:   dename,
+		Dename:   sender,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 
+	//fmt.Printf("Encrypt PK %x\n", (*userKey))
 	out := append([]byte{}, (*userKey)[:]...)
 	out = ratch.EncryptFirst(out, message, userKey)
+	//fmt.Printf("Encrypt: %x\n", out[32:])
 
 	return out, ratch, nil
 }
@@ -229,15 +228,20 @@ func DecryptAuthFirst(in []byte, skList []*[32]byte, skAuth *[32]byte, denameCli
 		CheckAuth: CheckAuthWith(denameClient),
 	}
 
-	for i, key := range skList {
-		msg, err := ratch.DecryptFirst(in[32:], key)
-		if err == nil {
-			return ratch, msg, i, nil
-		}
+	if len(in) < 32 {
+		return nil, nil, -1, errors.New("Message length incorrect.")
+	}
+	envelope := in[32:]
+
+	//fmt.Printf("Decrypt: %x\n", envelope)
+
+	//fmt.Printf("Decrypt SK: %x\n", skList[0])
+	msg, err := ratch.DecryptFirst(envelope, skList[0])
+	if err == nil {
+		return ratch, msg, 0, nil
 	}
 	return nil, nil, -1, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
 }
-
 func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, error) {
 	msg, err := ratch.Decrypt(in[32:])
 	if err != nil {
@@ -295,9 +299,6 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, den
 	var sig [64]byte
 	copy(sig[:], response.SignedKey[32:(32+64)])
 
-	fmt.Printf("V PubKey %x\n", pkSig)
-	fmt.Printf("V Messag %x\n", userKey)
-	fmt.Printf("V Signat %x\n", sig)
 	if !ed25519.Verify(pkSig, userKey[:], &sig) {
 		return nil, errors.New("Improperly signed key returned")
 	}
@@ -449,7 +450,14 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 	return func(tag, data []byte, theirAuthPublic *[32]byte) {
 		var sharedAuthKey [32]byte
 		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
+
+		var ourAuthPublic [32]byte
+		curve25519.ScalarBaseMult(&ourAuthPublic, ourAuthPrivate)
+
+		fmt.Printf("Fill OAP: %x\n", ourAuthPublic)
+
 		h := hmac.New(sha256.New, sharedAuthKey[:])
+		//fmt.Printf("Fill SAK: %x\n", sharedAuthKey)
 		h.Write(data)
 		h.Sum(nil)
 		copy(tag, h.Sum(nil))
@@ -458,11 +466,14 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 
 func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
 	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
+		fmt.Printf("CheckAuth begin\n")
 		var sharedAuthKey [32]byte
 		message := new(proto.Message)
 		if err := message.Unmarshal(msg); err != nil {
 			return err
 		}
+
+		fmt.Printf("Message %v\n", message)
 		profile, err := dnmc.Lookup(message.Dename)
 		if err != nil {
 			return err
@@ -482,11 +493,18 @@ func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) 
 
 		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
 		h := hmac.New(sha256.New, sharedAuthKey[:])
+
+		//var bobAuthPublic [32]byte
+		//curve25519.ScalarBaseMult(&bobAuthPublic, ourAuthPrivate)
+
+		fmt.Printf("Chec OAP: %x\n", theirAuthPublic)
+		//fmt.Printf("Chec SAK: %x\n", sharedAuthKey)
 		h.Write(data)
 		if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
 
 			return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
 		}
+		fmt.Printf("CheckAuth OK\n")
 		return nil
 	}
 }

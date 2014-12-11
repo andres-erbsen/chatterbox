@@ -19,7 +19,6 @@ type Config struct {
 	proto.LocalAccountConfig
 
 	denameClient *client.Client
-	ourDename    []byte
 	inBuf        []byte
 	outBuf       []byte
 }

@@ -6,6 +6,7 @@ package daemon
 import (
 	"code.google.com/p/go.exp/fsnotify"
 	"errors"
+	"fmt"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
@@ -35,14 +36,11 @@ func Start(rootDir string) (*Config, error) {
 	inBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
-	ourDename := conf.Dename
-
 	denameClient, err := client.NewClient(nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	conf.denameClient = denameClient
-	conf.ourDename = ourDename
 	conf.inBuf = inBuf
 	conf.outBuf = outBuf
 
@@ -76,6 +74,8 @@ func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
+	fmt.Printf("Conf.Dename %s\n", conf.Dename)
+
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
 	if err != nil {
 		return err
 	}
-	encMsg, ratch, err := util.EncryptAuthFirst(theirDename, msg, ourSkAuth, theirKey, conf.denameClient)
+	encMsg, ratch, err := util.EncryptAuthFirst(conf.Dename, msg, ourSkAuth, theirKey, conf.denameClient)
 	StoreRatchet(conf, string(theirDename), ratch)
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 		return err
 	}
 
-	encMsg, ratch, err := util.EncryptAuth(theirDename, msg, msgRatch)
+	encMsg, ratch, err := util.EncryptAuth(conf.Dename, msg, msgRatch)
 	StoreRatchet(conf, string(theirDename), ratch)
 
 	if err != nil {
@@ -147,13 +147,12 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 	return nil
 }
 
-func (conf *Config) decryptFirstMessage(envelope []byte) ([]byte, error) {
-	skList, err := LoadPrekeys(conf)
+func (conf *Config) decryptFirstMessage(envelope []byte, skList []*[32]byte) ([]byte, error) {
+	skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
+	ratch, msg, index, err := util.DecryptAuthFirst(envelope, skList, skAuth, conf.denameClient)
 	if err != nil {
 		return nil, err
 	}
-	skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
-	ratch, msg, index, err := util.DecryptAuthFirst(envelope, skList, skAuth, conf.denameClient)
 	message := new(proto.Message)
 	if err := message.Unmarshal(msg); err != nil {
 		return nil, err
@@ -286,7 +285,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
-				msg, err := conf.decryptFirstMessage(envelope)
+				msg, err := conf.decryptFirstMessage(envelope, prekeys)
 				if err != nil {
 					return err
 				}

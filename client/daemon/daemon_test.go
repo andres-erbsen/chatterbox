@@ -38,25 +38,29 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	aliceConf := LoadConfig(&Config{
+	aliceConf := &Config{
 		RootDir:      dir,
 		Now:          time.Now,
 		TempPrefix:   "daemon",
 		denameClient: aliceDnmc,
 		inBuf:        make([]byte, util.MAX_MESSAGE_SIZE),
 		outBuf:       make([]byte, util.MAX_MESSAGE_SIZE),
-		ourDename:    []byte(alice),
-	})
+		LocalAccountConfig: proto.LocalAccountConfig{
+			Dename: []byte(alice),
+		},
+	}
 
-	bobConf := LoadConfig(&Config{
+	bobConf := &Config{
 		RootDir:      dir,
 		Now:          time.Now,
 		TempPrefix:   "daemon",
 		denameClient: bobDnmc,
 		inBuf:        make([]byte, util.MAX_MESSAGE_SIZE),
 		outBuf:       make([]byte, util.MAX_MESSAGE_SIZE),
-		ourDename:    []byte(bob),
-	})
+		LocalAccountConfig: proto.LocalAccountConfig{
+			Dename: []byte(bob),
+		},
+	}
 
 	aliceHomeConn := util.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
 	bobHomeConn := util.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
@@ -108,6 +112,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	//}
 	//Alice encrypts and sends a message
 	envelope := []byte("Envelope")
+
 	err = aliceConf.encryptFirstMessage(envelope, []byte(bob))
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +123,23 @@ func TestEncryptFirstMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("Messages: %v\n", messages)
+	//fmt.Printf("Messages: %v\n", messages)
+
+	err = util.RequestMessage(bobHomeConn, bobConnToServer, bobConf.outBuf, &(messages[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	incoming := <-bobConnToServer.ReadEnvelope
+
+	fmt.Printf("Correct PK %x\n", publicPrekeys[0])
+
+	out, err := bobConf.decryptFirstMessage(incoming, newSecretPrekeys)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Printf("Bob hears: %s\n", out)
 
 	newSecretPrekeys = newSecretPrekeys
 	aliceHomeConn = aliceHomeConn
