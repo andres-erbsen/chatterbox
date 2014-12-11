@@ -20,4 +20,5 @@ message LocalAccountConfig {
 	required bytes TransportSecretKeyForServer = 4 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
 	required bytes KeySigningSecretKey = 5 [(gogoproto.nullable) = false];
 	required bytes MessageAuthSecretKey = 6 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+    required bytes Dename = 7 [(gogoproto.nullable) = false];
 }

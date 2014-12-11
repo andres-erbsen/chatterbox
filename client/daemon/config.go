@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/dename/client"
 	"time"
 )
 
@@ -16,6 +17,11 @@ type Config struct {
 	TempPrefix string
 
 	proto.LocalAccountConfig
+
+	denameClient *client.Client
+	ourDename    []byte
+	inBuf        []byte
+	outBuf       []byte
 }
 
 func LoadConfig(conf *Config) *Config {

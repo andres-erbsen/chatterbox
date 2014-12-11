@@ -14,7 +14,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
-	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
+	//testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"io"
 	"net"
 	"time"
@@ -23,20 +23,20 @@ import (
 const MAX_MESSAGE_SIZE = 16 * 1024
 const PROFILE_FIELD_ID = 1984
 
-func ToProtoByte32List(list *[][32]byte) *[]proto.Byte32 {
+func ToProtoByte32List(list [][32]byte) []proto.Byte32 {
 	newList := make([]proto.Byte32, 0)
-	for _, element := range *list {
+	for _, element := range list {
 		newList = append(newList, (proto.Byte32)(element))
 	}
-	return &newList
+	return newList
 }
 
-func To32ByteList(list *[]proto.Byte32) *[][32]byte {
+func To32ByteList(list []proto.Byte32) [][32]byte {
 	newList := make([][32]byte, 0, 0)
-	for _, element := range *list {
+	for _, element := range list {
 		newList = append(newList, ([32]byte)(element))
 	}
-	return &newList
+	return newList
 }
 
 func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, error) {
@@ -44,7 +44,7 @@ func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, erro
 	return response, nil
 }
 
-func CreateAccount(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) error {
+func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
@@ -52,14 +52,14 @@ func CreateAccount(conn *transport.Conn, connToServer *ConnectionToServer, outBu
 		return err
 	}
 
-	_, err := ReceiveReply(connToServer)
+	_, err := ReceiveProtobuf(conn, inBuf)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) (*[][32]byte, error) {
+func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) ([][32]byte, error) {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -72,39 +72,29 @@ func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, ou
 		return nil, err
 	}
 
-	return To32ByteList(&response.MessageList), nil
+	return To32ByteList(response.MessageList), nil
 }
 
-func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) ([]byte, error) {
+func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) error {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
 	if err := WriteProtobuf(conn, outBuf, getEnvelope); err != nil {
-		return nil, err
+		return err
 	}
-
-	response, err := ReceiveReply(connToServer)
-	if err != nil {
-		return nil, err
-	}
-	return response.Envelope, nil
+	return nil
 }
 
-func SignKeys(keys *[][32]byte, sk *[64]byte) [][]byte {
+func SignKeys(keys [][32]byte, sk *[64]byte) [][]byte {
 	pkList := make([][]byte, 0)
-	for _, key := range *keys {
+	for _, key := range keys {
 		signedKey := ed25519.Sign(sk, key[:])
 		pkList = append(pkList, append(append([]byte{}, key[:]...), signedKey[:]...))
 	}
 	return pkList
 }
 
-func CreateServerConn(dename []byte, config *client.Config) (*transport.Conn, error) {
-	denameClient, err := client.NewClient(config, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
+func CreateServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
 		return nil, err
@@ -141,12 +131,7 @@ func CreateServerConn(dename []byte, config *client.Config) (*transport.Conn, er
 	return conn, nil
 }
 
-func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, config *client.Config) ([]byte, *ratchet.Ratchet, error) {
-	denameClient, err := client.NewClient(config, nil, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
+func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client) ([]byte, *ratchet.Ratchet, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
@@ -183,12 +168,7 @@ func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ra
 	return out, ratch, nil
 }
 
-func DecryptAuthFirst(in []byte, skList [][32]byte, skAuth *[32]byte, config *client.Config) (*ratchet.Ratchet, []byte, int, error) {
-	denameClient, err := client.NewClient(config, nil, nil)
-	if err != nil {
-		return nil, nil, -1, err
-	}
-
+func DecryptAuthFirst(in []byte, skList [][32]byte, skAuth *[32]byte, denameClient *client.Client) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
@@ -203,17 +183,17 @@ func DecryptAuthFirst(in []byte, skList [][32]byte, skAuth *[32]byte, config *cl
 	return nil, nil, -1, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
 }
 
-func DecryptAuth(in []byte, skList [][32]byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, error) {
+func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, error) {
 	msg, err := ratch.Decrypt(in[32:])
 	if err != nil {
-		return nil, nil, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
+		return nil, nil, errors.New("Invalid message.") //TODO: Should I make the error message something different?
 	}
 	return ratch, msg, nil
 }
 
-func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageList *[][32]byte) error {
+func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageList [][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: *ToProtoByte32List(messageList),
+		DeleteMessages: ToProtoByte32List(messageList),
 	}
 	if err := WriteProtobuf(conn, outBuf, deleteMessages); err != nil {
 		return err
@@ -226,9 +206,9 @@ func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outB
 	return nil
 }
 
-func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, keyList *[][]byte) error {
+func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, keyList [][]byte) error {
 	uploadKeys := &proto.ClientToServer{
-		UploadSignedKeys: *keyList,
+		UploadSignedKeys: keyList,
 	}
 	if err := WriteProtobuf(conn, outBuf, uploadKeys); err != nil {
 		return nil
@@ -241,7 +221,24 @@ func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return nil
 }
 
-func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, pkSig *[32]byte) (*[32]byte, error) {
+func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename []byte, denameClient *client.Client) (*[32]byte, error) {
+	profile, err := denameClient.Lookup(dename)
+	if err != nil {
+		return nil, err
+	}
+
+	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+	if err != nil {
+		return nil, err
+	}
+
+	chatProfile := new(proto.Profile)
+	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+		return nil, err
+	}
+
+	pkSig := (*[32]byte)(&chatProfile.KeySigningKey)
+
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
@@ -344,6 +341,8 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	return response, nil
 }
 
+//TODO: This function is deprecated
+/*
 func DenameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
 	//TODO: move this to test?
 	newClient, err := client.NewClient(config, nil, nil)
@@ -381,6 +380,7 @@ func DenameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client
 
 	return skAuth, newClient, nil
 }
+*/
 
 func GenerateLongTermKeys(secretConfig *proto.LocalAccountConfig, publicProfile *proto.Profile, rand io.Reader) error {
 	if pk, sk, err := box.GenerateKey(rand); err != nil {
