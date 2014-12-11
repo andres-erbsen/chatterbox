@@ -12,7 +12,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strings"
 	"syscall"
+	"time"
 )
 
 func (conf *Config) ConfigFile() string {
@@ -57,6 +60,19 @@ const (
 	LocalAccountConfigFileName = "config.pb"
 	ProfileFileName            = "profile.pb"
 )
+
+func GenerateConversationName(conf *Config, recipients [][]byte) string {
+	//dirName := "date-sender-recipient-recipient"
+	dateStr := conf.Now().Format(time.RFC3339)
+	recipientStrings := make([]string, len(recipients))
+	for i := 0; i < len(recipients); i++ {
+		recipientStrings[i] = string(recipients[i])
+	}
+	sort.Strings(recipientStrings)
+	recipientsStr := strings.Join(recipientStrings, "-")
+	dirName := fmt.Sprintf("%s-%s-%s", dateStr, conf.Dename, recipientsStr)
+	return dirName
+}
 
 func Copy(source string, dest string, perm os.FileMode) error {
 	in, err := os.Open(source)

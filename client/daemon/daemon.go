@@ -83,7 +83,6 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.R
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("prekey: ", theirKey)
 
 	encMsg, ratch, err := util.EncryptAuthFirst(conf.Dename, msg, ourSkAuth, theirKey, conf.denameClient)
 	if err != nil {
@@ -249,7 +248,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 		}
 	}
 
-	//move the sent messages to the conversation folder
+	// copy the metadata file to the oconversation folder if it doesn't already exist
 	convName, err := filepath.Rel(conf.OutboxDir(), dirname)
 	if err != nil {
 		return err
@@ -258,6 +257,19 @@ func processOutboxDir(conf *Config, dirname string) error {
 	if os.Mkdir(convPath, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
+	convMetadataFile := filepath.Join(convPath, MetadataFileName)
+	_, err = os.Stat(convMetadataFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err = Copy(filepath.Join(dirname, MetadataFileName), convMetadataFile, 0600); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// move the sent messages to the conversation folder
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, finfo.Name())); err != nil {

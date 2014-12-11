@@ -27,6 +27,9 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 		RootDir:    rootDir,
 		Now:        func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
 		TempPrefix: "some_ui",
+		LocalAccountConfig: proto.LocalAccountConfig{
+			Dename: []byte("user_dename"),
+		},
 	}
 
 	err = daemon.InitFs(conf)
@@ -40,7 +43,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 
 	// check that a conversation exists in the outbox with the correct name
 	outboxDir := conf.OutboxDir()
-	expectedName := "2009-11-10T23:00:00Z-0-user_dename-recipient_dename_a-recipient_dename_b"
+	expectedName := "2009-11-10T23:00:00Z-user_dename-recipient_dename_a-recipient_dename_b"
 	_, err = os.Stat(filepath.Join(outboxDir, expectedName))
 	handleError(err, t)
 
