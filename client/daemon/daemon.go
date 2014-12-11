@@ -17,14 +17,13 @@ import (
 const MAX_MESSAGE_SIZE = 16 * 1024
 
 func Run(rootDir string, shutdown <-chan struct{}) error {
-	conf := Config{
+	conf := LoadConfig(&Config{
 		RootDir:    rootDir,
-		Time:       time.Now,
+		Now:        time.Now,
 		TempPrefix: "daemon",
-	}
+	})
 
-	err := InitFs(conf)
-	if err != nil {
+	if err := InitFs(conf); err != nil {
 		return err
 	}
 

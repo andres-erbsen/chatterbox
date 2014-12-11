@@ -14,6 +14,10 @@ import (
 	"syscall"
 )
 
+func (conf *Config) ConfigFile() string {
+	return filepath.Join(conf.RootDir, "config.pb")
+}
+
 func (conf *Config) ConversationDir() string {
 	return filepath.Join(conf.RootDir, "conversations")
 }
@@ -74,23 +78,20 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	return cerr
 }
 
-func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
-	prekeysBytes, err := ioutil.ReadFile(filepath.Join(conf.KeysDir(), PrekeysFileName))
+func UnmarshalFromFile(path string, out interface {
+	Unmarshal([]byte) error
+}) error {
+	fileContents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	prekeysProto := new(proto.Prekeys)
-	err = prekeysProto.Unmarshal(prekeysBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return prekeysProto, nil
+	return out.Unmarshal(fileContents)
 }
 
-func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
-	prekeysBytes, err := prekeys.Marshal()
+func MarshalToFile(conf *Config, path string, in interface {
+	Marshal() ([]byte, error)
+}) error {
+	inBytes, err := in.Marshal()
 	if err != nil {
 		return err
 	}
@@ -101,18 +102,17 @@ func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tmpFile := filepath.Join(tmpDir, PrekeysFileName)
-	err = ioutil.WriteFile(tmpFile, prekeysBytes, 0600)
+	tmpFile := filepath.Join(tmpDir, filepath.Base(path))
+	err = ioutil.WriteFile(tmpFile, inBytes, 0600)
 	if err != nil {
 		return err
 	}
 
-	prekeysFile := filepath.Join(conf.KeysDir(), PrekeysFileName)
-	err = os.Rename(prekeysFile, tmpFile+".old")
+	err = os.Rename(path, path+".old")
 	if err != nil {
 		return err
 	}
-	err = os.Rename(tmpFile, prekeysFile)
+	err = os.Rename(tmpFile, path)
 	if err != nil {
 		return err
 	}
@@ -120,25 +120,33 @@ func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 	return nil
 }
 
-func LoadRatchet(conf *Config) (*ratchet.Ratchet, error) {
-	/*
-		prekeysBytes, err := ioutil.ReadFile(filepath.Join(conf.KeysDir(), PrekeysFileName))
-		if err != nil {
-			return nil, err
-		}
-
-		prekeysProto := new(proto.Prekeys)
-		err = prekeysProto.Unmarshal(prekeysBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		return prekeysProto, nil
-	*/
-	return nil, nil
+func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
+	prekeysProto := new(proto.Prekeys)
+	return prekeysProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), PrekeysFileName), prekeysProto)
 }
 
-func InitFs(conf Config) error {
+func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
+	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), prekeys)
+}
+
+func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
+	// TODO: move name validation to the firstr place where we encoiunter a name
+	if err := ValidateName(name); err != nil {
+		return nil, err
+	}
+	ratch := new(ratchet.Ratchet)
+	return ratch, UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), name), ratch)
+}
+
+func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
+	// TODO: move name validation to the firstr place where we encoiunter a name
+	if err := ValidateName(name); err != nil {
+		return err
+	}
+	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), name), ratch)
+}
+
+func InitFs(conf *Config) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{
