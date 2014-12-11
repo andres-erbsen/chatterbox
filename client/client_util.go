@@ -131,7 +131,7 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *tes
 	port := chatProfile.ServerPortTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
 
-	oldConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
+	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,7 +419,8 @@ func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretCon
 		t.Fatal(err)
 	}
 	var port int32
-	if _, err := fmt.Sscanf("%d", portStr, port); err != nil {
+	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
+		fmt.Printf("Port: '%v'\n", portStr)
 		t.Fatal(err)
 	}
 
