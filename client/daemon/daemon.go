@@ -9,10 +9,8 @@ import (
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
-	//"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	"log"
-	//"net"
 	"os"
 	"time"
 )
@@ -56,7 +54,7 @@ func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.Connectio
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
+	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient)
 	if err != nil {
 		return err
 	}
@@ -84,7 +82,7 @@ func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToSe
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
+	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient)
 	if err != nil {
 		return err
 	}
@@ -151,6 +149,11 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		return err
 	}
 
+	profile, err := LoadPublicProfile(conf)
+	if err != nil {
+		return err
+	}
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -162,7 +165,10 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		return err
 	}
 
-	ourConn, err := util.CreateServerConn(conf.ourDename, conf.denameClient)
+	ourConn, err := util.CreateHomeServerConn(
+		conf.ServerAddressTCP, (*[32]byte)(&profile.UserIDAtServer),
+		(*[32]byte)(&conf.TransportSecretKeyForServer),
+		(*[32]byte)(&conf.ServerTransportPK))
 	if err != nil {
 		return err
 	}
@@ -177,6 +183,8 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		ReadEnvelope: notifies,
 	}
 
+	go connToServer.ReceiveMessages()
+
 	// load prekeys and ensure that we have enough of them
 	prekeys, err := LoadPrekeys(conf)
 	if err != nil {
@@ -189,6 +197,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	if numKeys < MIN_PREKEYS {
 		publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
 		prekeys = append(prekeys, newSecretPrekeys...)
+		StorePrekeys(conf, prekeys)
 		var signingKey [64]byte
 		copy(signingKey[:], conf.KeySigningSecretKey[:64])
 		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(publicPrekeys, &signingKey))
@@ -196,7 +205,6 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 			return err // TODO handle this nicely
 		}
 	}
-	go connToServer.ReceiveMessages()
 
 	for {
 		select {

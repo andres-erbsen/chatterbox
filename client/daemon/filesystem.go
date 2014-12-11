@@ -163,11 +163,11 @@ func StoreLocalAccountConfig(conf *Config, localAccountConfig *proto.LocalAccoun
 
 func LoadPublicProfile(conf *Config) (*proto.Profile, error) {
 	profileProto := new(proto.Profile)
-	return profileProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), ProfileFileName), profileProto)
+	return profileProto, UnmarshalFromFile(filepath.Join(conf.RootDir, ProfileFileName), profileProto)
 }
 
 func StorePublicProfile(conf *Config, publicProfile *proto.Profile) error {
-	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), ProfileFileName), publicProfile)
+	return MarshalToFile(conf, filepath.Join(conf.RootDir, ProfileFileName), publicProfile)
 }
 
 func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
