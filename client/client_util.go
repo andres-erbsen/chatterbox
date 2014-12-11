@@ -95,22 +95,58 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
-func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) *transport.Conn {
+func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) (*transport.Conn, *[32]byte, *[32]byte) {
 
 	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
-	conn, err := CreateServerConn(name, denameClient)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, pkp, skp := CreateTestHomeServerConn(name, denameClient, t)
+
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
-	err = CreateAccount(conn, inBuf, outBuf)
+	err := CreateAccount(conn, inBuf, outBuf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return conn
+	return conn, pkp, skp
 }
+
+func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *testing.T) (*transport.Conn, *[32]byte, *[32]byte) {
+	profile, err := denameClient.Lookup(dename)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chatProfile := new(proto.Profile)
+	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+		t.Fatal(err)
+	}
+
+	addr := chatProfile.ServerAddressTCP
+	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
+
+	oldConn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pkp, skp, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return conn, pkp, skp
+}
+
 func CreateServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
