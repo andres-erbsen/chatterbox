@@ -45,6 +45,62 @@ func Start(rootDir string) error {
 	return nil
 }
 
+func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.ConnectionToServer) error {
+	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
+	var theirPk *[32]byte          //TODO: Load from file
+	var encMsg, theirDename []byte //TODO: Load from file
+
+	theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
+
+	theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
+	if err != nil {
+		return err
+	}
+	theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, conf.denameClient)
+	if err != nil {
+		return err
+	}
+	encMsg, ratch, err := util.EncryptAuthFirst(theirDename, msg, ourSkAuth, theirKey, conf.denameClient)
+	StoreRatchet(conf, string(theirDename), ratch)
+	if err != nil {
+		return err
+	}
+	err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToServer) error {
+	var theirPk *[32]byte
+	var encMsg, theirDename []byte
+
+	msgRatch, err := LoadRatchet(conf, string(theirDename))
+	if err != nil {
+		return err
+	}
+
+	theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
+
+	theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
+	if err != nil {
+		return err
+	}
+
+	encMsg, ratch, err := util.EncryptAuth(theirDename, msg, msgRatch)
+	StoreRatchet(conf, string(theirDename), ratch)
+
+	if err != nil {
+		return err
+	}
+	err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func Run(conf *Config, shutdown <-chan struct{}) error {
 	initFn := func(path string, f os.FileInfo, err error) error {
 		log.Printf("init path: %s\n", path)
@@ -94,55 +150,13 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 					if true { //TODO: First message in this conversation
 						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
-						var theirPk *[32]byte          //TODO: Load from file
-						var encMsg, theirDename []byte //TODO: Load from file
-
-						theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
-
-						theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
-						if err != nil {
-							return err
-						}
-						theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, conf.denameClient)
-						if err != nil {
-							return err
-						}
-						encMsg, ratch, err := util.EncryptAuthFirst(theirDename, msg, ourSkAuth, theirKey, conf.denameClient)
-						StoreRatchet(conf, string(theirDename), ratch)
-						if err != nil {
-							return err
-						}
-						err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
-						if err != nil {
+						if err := conf.encryptFirstMessage(msg, connToServer); err != nil {
 							return err
 						}
 					} else { //TODO: Not-first message in this conversation
 						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirPk *[32]byte
-						var encMsg, theirDename []byte
-
-						msgRatch, err := LoadRatchet(conf, string(theirDename))
-						if err != nil {
-							return err
-						}
-
-						theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
-
-						theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
-						if err != nil {
-							return err
-						}
-
-						encMsg, ratch, err := util.EncryptAuth(theirDename, msg, msgRatch)
-						StoreRatchet(conf, string(theirDename), ratch)
-
-						if err != nil {
-							return err
-						}
-						err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
-						if err != nil {
+						if err := conf.encryptMessage(msg, connToServer); err != nil {
 							return err
 						}
 					}
@@ -150,15 +164,19 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
-				var skList [][32]byte
-				var skAuth *[32]byte
+				skList, err := LoadPrekeys(conf)
+				if err != nil {
+					return err
+				}
+				skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
 				ratch, msg, index, err := util.DecryptAuthFirst(envelope, skList, skAuth, conf.denameClient)
 				message := new(proto.Message)
 				if err := message.Unmarshal(msg); err != nil {
 					return err
 				}
+				newPrekeys := append(skList[:index], skList[index+1:])
+				StorePrekeys(conf, skList)
 				StoreRatchet(conf, string(message.Dename), ratch)
-				//TODO: Delete skList form list
 			} else {
 				ratchets, err := AllRatchets(conf)
 				if err != nil {
