@@ -101,7 +101,7 @@ func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToSe
 }
 
 func (conf *Config) decryptFirstMessage(envelope []byte) ([]byte, error) {
-	skList, err := LoadPrekeys(conf)
+	pkList, skList, err := LoadPrekeys(conf)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	go connToServer.ReceiveMessages()
 
 	// load prekeys and ensure that we have enough of them
-	prekeys, err := LoadPrekeys(conf)
+	prekeyPublics, prekeySecrets, err := LoadPrekeys(conf)
 	if err != nil {
 		return err
 	}
@@ -195,12 +195,13 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		return err
 	}
 	if numKeys < MIN_PREKEYS {
-		publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
-		prekeys = append(prekeys, newSecretPrekeys...)
-		StorePrekeys(conf, prekeys)
+		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
+		prekeySecrets = append(prekeys, newSecretPrekeys...)
+		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
+		StorePrekeys(conf, prekeyPublics, prekeySecrets)
 		var signingKey [64]byte
 		copy(signingKey[:], conf.KeySigningSecretKey[:64])
-		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(publicPrekeys, &signingKey))
+		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
 		if err != nil {
 			return err // TODO handle this nicely
 		}

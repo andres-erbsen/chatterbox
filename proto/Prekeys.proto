@@ -14,5 +14,6 @@ option (gogoproto.testgen_all) = true;
 option (gogoproto.benchgen_all) = true;
 
 message Prekeys {
-	repeated bytes Prekeys = 1 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	repeated bytes PrekeySecrets = 1 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
+	repeated bytes PrekeyPublics = 2 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
 }

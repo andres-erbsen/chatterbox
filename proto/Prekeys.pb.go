@@ -20,7 +20,8 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type Prekeys struct {
-	Prekeys          []Byte32 `protobuf:"bytes,1,rep,customtype=Byte32" json:"Prekeys"`
+	PrekeySecrets    []Byte32 `protobuf:"bytes,1,rep,customtype=Byte32" json:"PrekeySecrets"`
+	PrekeyPublics    []Byte32 `protobuf:"bytes,2,rep,customtype=Byte32" json:"PrekeyPublics"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -51,7 +52,7 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt5.Errorf("proto: wrong wireType = %d for field Prekeys", wireType)
+				return fmt5.Errorf("proto: wrong wireType = %d for field PrekeySecrets", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -69,8 +70,31 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io5.ErrUnexpectedEOF
 			}
-			m.Prekeys = append(m.Prekeys, Byte32{})
-			m.Prekeys[len(m.Prekeys)-1].Unmarshal(data[index:postIndex])
+			m.PrekeySecrets = append(m.PrekeySecrets, Byte32{})
+			m.PrekeySecrets[len(m.PrekeySecrets)-1].Unmarshal(data[index:postIndex])
+			index = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt5.Errorf("proto: wrong wireType = %d for field PrekeyPublics", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io5.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io5.ErrUnexpectedEOF
+			}
+			m.PrekeyPublics = append(m.PrekeyPublics, Byte32{})
+			m.PrekeyPublics[len(m.PrekeyPublics)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
 		default:
 			var sizeOfWire int
@@ -98,8 +122,14 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 func (m *Prekeys) Size() (n int) {
 	var l int
 	_ = l
-	if len(m.Prekeys) > 0 {
-		for _, e := range m.Prekeys {
+	if len(m.PrekeySecrets) > 0 {
+		for _, e := range m.PrekeySecrets {
+			l = e.Size()
+			n += 1 + l + sovPrekeys(uint64(l))
+		}
+	}
+	if len(m.PrekeyPublics) > 0 {
+		for _, e := range m.PrekeyPublics {
 			l = e.Size()
 			n += 1 + l + sovPrekeys(uint64(l))
 		}
@@ -127,14 +157,22 @@ func NewPopulatedPrekeys(r randyPrekeys, easy bool) *Prekeys {
 	this := &Prekeys{}
 	if r.Intn(10) != 0 {
 		v1 := r.Intn(10)
-		this.Prekeys = make([]Byte32, v1)
+		this.PrekeySecrets = make([]Byte32, v1)
 		for i := 0; i < v1; i++ {
 			v2 := NewPopulatedByte32(r)
-			this.Prekeys[i] = *v2
+			this.PrekeySecrets[i] = *v2
+		}
+	}
+	if r.Intn(10) != 0 {
+		v3 := r.Intn(10)
+		this.PrekeyPublics = make([]Byte32, v3)
+		for i := 0; i < v3; i++ {
+			v4 := NewPopulatedByte32(r)
+			this.PrekeyPublics[i] = *v4
 		}
 	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedPrekeys(r, 2)
+		this.XXX_unrecognized = randUnrecognizedPrekeys(r, 3)
 	}
 	return this
 }
@@ -156,9 +194,9 @@ func randUTF8RunePrekeys(r randyPrekeys) rune {
 	return res
 }
 func randStringPrekeys(r randyPrekeys) string {
-	v3 := r.Intn(100)
-	tmps := make([]rune, v3)
-	for i := 0; i < v3; i++ {
+	v5 := r.Intn(100)
+	tmps := make([]rune, v5)
+	for i := 0; i < v5; i++ {
 		tmps[i] = randUTF8RunePrekeys(r)
 	}
 	return string(tmps)
@@ -180,11 +218,11 @@ func randFieldPrekeys(data []byte, r randyPrekeys, fieldNumber int, wire int) []
 	switch wire {
 	case 0:
 		data = encodeVarintPopulatePrekeys(data, uint64(key))
-		v4 := r.Int63()
+		v6 := r.Int63()
 		if r.Intn(2) == 0 {
-			v4 *= -1
+			v6 *= -1
 		}
-		data = encodeVarintPopulatePrekeys(data, uint64(v4))
+		data = encodeVarintPopulatePrekeys(data, uint64(v6))
 	case 1:
 		data = encodeVarintPopulatePrekeys(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -224,9 +262,21 @@ func (m *Prekeys) MarshalTo(data []byte) (n int, err error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Prekeys) > 0 {
-		for _, msg := range m.Prekeys {
+	if len(m.PrekeySecrets) > 0 {
+		for _, msg := range m.PrekeySecrets {
 			data[i] = 0xa
+			i++
+			i = encodeVarintPrekeys(data, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(data[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if len(m.PrekeyPublics) > 0 {
+		for _, msg := range m.PrekeyPublics {
+			data[i] = 0x12
 			i++
 			i = encodeVarintPrekeys(data, i, uint64(msg.Size()))
 			n, err := msg.MarshalTo(data[i:])
@@ -288,11 +338,19 @@ func (this *Prekeys) Equal(that interface{}) bool {
 	} else if this == nil {
 		return false
 	}
-	if len(this.Prekeys) != len(that1.Prekeys) {
+	if len(this.PrekeySecrets) != len(that1.PrekeySecrets) {
 		return false
 	}
-	for i := range this.Prekeys {
-		if !this.Prekeys[i].Equal(that1.Prekeys[i]) {
+	for i := range this.PrekeySecrets {
+		if !this.PrekeySecrets[i].Equal(that1.PrekeySecrets[i]) {
+			return false
+		}
+	}
+	if len(this.PrekeyPublics) != len(that1.PrekeyPublics) {
+		return false
+	}
+	for i := range this.PrekeyPublics {
+		if !this.PrekeyPublics[i].Equal(that1.PrekeyPublics[i]) {
 			return false
 		}
 	}

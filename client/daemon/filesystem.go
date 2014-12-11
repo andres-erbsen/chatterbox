@@ -123,31 +123,41 @@ func MarshalToFile(conf *Config, path string, in interface {
 	return nil
 }
 
-func LoadPrekeys(conf *Config) ([]*[32]byte, error) {
+func LoadPrekeys(conf *Config) ([]*[32]byte, []*[32]byte, error) {
 	prekeysProto := new(proto.Prekeys)
 	err := UnmarshalFromFile(filepath.Join((*conf).KeysDir(), PrekeysFileName), prekeysProto)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
-	// convert protobuf proto.Byte32 to *[32]byte
-	prekeys := make([]*[32]byte, len(prekeysProto.Prekeys))
-	for i := 0; i < len(prekeys); i++ {
-		prekeys[i] = (*[32]byte)(&prekeysProto.Prekeys[i])
+	if len(prekeysProto.PrekeyPublics) != len(prekeysProto.PrekeySecrets) {
+		return nil, nil, fmt.Errorf("len(prekeysProto.prekeyPublics) != len(prekeysProto.prekeySecrets)")
 	}
-	return prekeys, nil
+	// convert protobuf proto.Byte32 to *[32]byte
+	prekeySecrets := make([]*[32]byte, len(prekeysProto.PrekeySecrets))
+	prekeyPublics := make([]*[32]byte, len(prekeysProto.PrekeyPublics))
+	for i := 0; i < len(prekeySecrets); i++ {
+		prekeySecrets[i] = (*[32]byte)(&prekeysProto.PrekeySecrets[i])
+		prekeyPublics[i] = (*[32]byte)(&prekeysProto.PrekeyPublics[i])
+	}
+	return prekeyPublics, prekeySecrets, nil
 }
 
-func StorePrekeys(conf *Config, prekeys []*[32]byte) error {
+func StorePrekeys(conf *Config, prekeyPublics, prekeySecrets []*[32]byte) error {
+	if len(prekeyPublics) != len(prekeySecrets) {
+		panic("len(prekeysPublics) != len(prekeySecrets)")
+	}
 	// convert [32]byte to proto.Byte32
 	prekeysProto := proto.Prekeys{
-		Prekeys: make([]proto.Byte32, len(prekeys)),
+		PrekeySecrets: make([]proto.Byte32, len(prekeySecrets)),
+		PrekeyPublics: make([]proto.Byte32, len(prekeySecrets)),
 	}
-	for i := 0; i < len(prekeys); i++ {
-		prekeysProto.Prekeys[i] = (proto.Byte32)(*prekeys[i])
+	for i := 0; i < len(prekeyPublics); i++ {
+		prekeysProto.PrekeySecrets[i] = (proto.Byte32)(*prekeySecrets[i])
+		prekeysProto.PrekeyPublics[i] = (proto.Byte32)(*prekeyPublics[i])
 	}
 	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), &prekeysProto)
 }
