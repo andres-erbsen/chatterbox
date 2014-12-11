@@ -166,7 +166,7 @@ func TestMessageUploading(t *testing.T) {
 	t.Error("Expected message entry not found")
 }
 
-func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) *[][32]byte {
+func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) [][32]byte {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -174,7 +174,7 @@ func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *test
 
 	response := receiveProtobuf(conn, inBuf, t)
 
-	return to32ByteList(&response.MessageList)
+	return proto.To32ByteList(response.MessageList)
 }
 
 //Test message listing
@@ -206,7 +206,7 @@ func TestMessageListing(t *testing.T) {
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
-	messageList := *listUserMessages(conn, inBuf, outBuf, t)
+	messageList := listUserMessages(conn, inBuf, outBuf, t)
 
 	expected := make([][32]byte, 0, 64)
 	envelope1Hash := sha256.Sum256(envelope1)
@@ -252,7 +252,7 @@ func TestEnvelopeDownload(t *testing.T) {
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
-	messageList := *listUserMessages(conn, inBuf, outBuf, t)
+	messageList := listUserMessages(conn, inBuf, outBuf, t)
 
 	//TODO: Should messageHash just be 32-bytes? Answer: Probably yes, oh well
 	for _, message := range messageList {
@@ -265,9 +265,9 @@ func TestEnvelopeDownload(t *testing.T) {
 	server.StopServer()
 }
 
-func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList *[][32]byte) {
+func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList [][32]byte) {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: *toProtoByte32List(messageList),
+		DeleteMessages: proto.ToProtoByte32List(messageList),
 	}
 	writeProtobuf(conn, outBuf, deleteMessages, t)
 
@@ -293,11 +293,11 @@ func TestMessageDeletion(t *testing.T) {
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope1)
 	uploadMessageToUser(conn, inBuf, outBuf, t, pkp, envelope2)
 
-	messageList := *listUserMessages(conn, inBuf, outBuf, t)
+	messageList := listUserMessages(conn, inBuf, outBuf, t)
 
-	deleteMessages(conn, inBuf, outBuf, t, &messageList)
+	deleteMessages(conn, inBuf, outBuf, t, messageList)
 
-	newMessageList := *listUserMessages(conn, inBuf, outBuf, t)
+	newMessageList := listUserMessages(conn, inBuf, outBuf, t)
 
 	if !(len(newMessageList) == 0) {
 		t.Error("Not all messages properly deleted")

@@ -162,4 +162,6 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 
 	fmt.Printf("Alice hears: %s\n", outAlice)
+
+	//TODO: Confirm message is as expected within the test
 }
