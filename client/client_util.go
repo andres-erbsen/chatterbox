@@ -182,7 +182,7 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr st
 	return conn, nil
 }
 
-func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client, subject string, participants [][]byte) ([]byte, *ratchet.Ratchet, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
@@ -190,9 +190,10 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 
 	//TODO; Actually fill in the right subject. Like, actually.
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  "",
-		Contents: msg,
-		Dename:   sender,
+		Subject:      subject,
+		Contents:     msg,
+		Dename:       sender,
+		Participants: participants,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -204,11 +205,12 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 	return out, ratch, nil
 }
 
-func EncryptAuth(sender []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuth(sender []byte, msg []byte, ratch *ratchet.Ratchet, subject string, participants [][]byte) ([]byte, *ratchet.Ratchet, error) {
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  "",
-		Contents: msg,
-		Dename:   sender,
+		Subject:      subject,
+		Contents:     msg,
+		Dename:       sender,
+		Participants: participants,
 	})
 	if err != nil {
 		return nil, nil, err

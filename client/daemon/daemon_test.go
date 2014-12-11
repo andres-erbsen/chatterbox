@@ -129,7 +129,10 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	envelope := []byte("Envelope")
 
-	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob))
+	participants := make([][]byte, 0)
+	participants = append(participants, []byte(alice))
+	participants = append(participants, []byte(bob))
+	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob), "subject", participants)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +147,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	fmt.Printf("Bob hears: %s\n", out)
 
 	envelope2 := []byte("Envelope2")
-	bobRatch, err = bobConf.sendMessage(envelope2, []byte(alice), bobRatch)
+	bobRatch, err = bobConf.sendMessage(envelope2, []byte(alice), "subject", participants, bobRatch)
 	if err != nil {
 		t.Fatal(err)
 	}
