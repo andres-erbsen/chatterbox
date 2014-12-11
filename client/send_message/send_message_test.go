@@ -1,7 +1,8 @@
-package daemon
+package main
 
 import (
 	"fmt"
+	"github.com/andres-erbsen/chatterbox/client/daemon"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"io/ioutil"
 	"os"
@@ -22,17 +23,17 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	defer os.RemoveAll(rootDir)
 	handleError(err, t)
 
-	conf := &Config{
+	conf := &daemon.Config{
 		RootDir:    rootDir,
 		Now:        func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
 		TempPrefix: "some_ui",
 	}
 
-	err = InitFs(conf)
+	err = daemon.InitFs(conf)
 	handleError(err, t)
 
 	subject := "test subject"
-	recipients := []string{"recipient_dename_b", "recipient_dename_a"}
+	recipients := [][]byte{[]byte("recipient_dename_b"), []byte("recipient_dename_a")}
 	messages := [][]byte{[]byte("message1"), []byte("message2")}
 	err = SpawnConversationInOutbox(conf, subject, recipients, messages)
 	handleError(err, t)
@@ -44,7 +45,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	handleError(err, t)
 
 	// check that it has a valid metadata file
-	metadataBytes, err := ioutil.ReadFile(filepath.Join(outboxDir, expectedName, MetadataFileName))
+	metadataBytes, err := ioutil.ReadFile(filepath.Join(outboxDir, expectedName, daemon.MetadataFileName))
 	handleError(err, t)
 	metadataProto := new(proto.ConversationMetadata)
 	err = metadataProto.Unmarshal(metadataBytes)

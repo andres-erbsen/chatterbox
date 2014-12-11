@@ -15,7 +15,7 @@ option (gogoproto.benchgen_all) = true;
 
 message Message {
     required bytes contents = 1 [(gogoproto.nullable) = false];
-    required bytes subject = 2 [(gogoproto.nullable) = false];
+    required string subject = 2 [(gogoproto.nullable) = false];
     repeated bytes participants = 3 [(gogoproto.nullable) = false];
     required bytes dename = 4 [(gogoproto.nullable) = false]; 
 } 

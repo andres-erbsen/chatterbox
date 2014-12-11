@@ -190,7 +190,7 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 
 	//TODO; Actually fill in the right subject. Like, actually.
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  nil,
+		Subject:  "",
 		Contents: msg,
 		Dename:   sender,
 	})
@@ -198,17 +198,15 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 		return nil, nil, err
 	}
 
-	//fmt.Printf("Encrypt PK %x\n", (*userKey))
 	out := append([]byte{}, (*userKey)[:]...)
 	out = ratch.EncryptFirst(out, message, userKey)
-	//fmt.Printf("Encrypt: %x\n", out[32:])
 
 	return out, ratch, nil
 }
 
 func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  nil,
+		Subject:  "",
 		Contents: msg,
 		Dename:   dename,
 	})
@@ -222,7 +220,7 @@ func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ra
 	return out, ratch, nil
 }
 
-func DecryptAuthFirst(in []byte, skList []*[32]byte, skAuth *[32]byte, denameClient *client.Client) (*ratchet.Ratchet, []byte, int, error) {
+func DecryptAuthFirst(in []byte, pkList []*[32]byte, skList []*[32]byte, skAuth *[32]byte, denameClient *client.Client) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
@@ -231,14 +229,17 @@ func DecryptAuthFirst(in []byte, skList []*[32]byte, skAuth *[32]byte, denameCli
 	if len(in) < 32 {
 		return nil, nil, -1, errors.New("Message length incorrect.")
 	}
+	var pkAuth [32]byte
+	copy(pkAuth[:], in[:32])
+
 	envelope := in[32:]
-
-	//fmt.Printf("Decrypt: %x\n", envelope)
-
-	//fmt.Printf("Decrypt SK: %x\n", skList[0])
-	msg, err := ratch.DecryptFirst(envelope, skList[0])
-	if err == nil {
-		return ratch, msg, 0, nil
+	for i, pk := range pkList {
+		if *pk == pkAuth {
+			msg, err := ratch.DecryptFirst(envelope, skList[i])
+			if err == nil {
+				return ratch, msg, i, nil
+			}
+		}
 	}
 	return nil, nil, -1, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
 }
@@ -454,10 +455,7 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 		var ourAuthPublic [32]byte
 		curve25519.ScalarBaseMult(&ourAuthPublic, ourAuthPrivate)
 
-		fmt.Printf("Fill OAP: %x\n", ourAuthPublic)
-
 		h := hmac.New(sha256.New, sharedAuthKey[:])
-		//fmt.Printf("Fill SAK: %x\n", sharedAuthKey)
 		h.Write(data)
 		h.Sum(nil)
 		copy(tag, h.Sum(nil))
@@ -466,14 +464,12 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 
 func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
 	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
-		fmt.Printf("CheckAuth begin\n")
 		var sharedAuthKey [32]byte
 		message := new(proto.Message)
 		if err := message.Unmarshal(msg); err != nil {
 			return err
 		}
 
-		fmt.Printf("Message %v\n", message)
 		profile, err := dnmc.Lookup(message.Dename)
 		if err != nil {
 			return err
@@ -497,14 +493,11 @@ func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) 
 		//var bobAuthPublic [32]byte
 		//curve25519.ScalarBaseMult(&bobAuthPublic, ourAuthPrivate)
 
-		fmt.Printf("Chec OAP: %x\n", theirAuthPublic)
-		//fmt.Printf("Chec SAK: %x\n", sharedAuthKey)
 		h.Write(data)
 		if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
 
 			return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
 		}
-		fmt.Printf("CheckAuth OK\n")
 		return nil
 	}
 }

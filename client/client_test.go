@@ -50,7 +50,7 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	}
 
 	msg, err := protobuf.Marshal(&proto.Message{
-		Subject:  nil,
+		Subject:  "",
 		Contents: []byte("Message"),
 		Dename:   []byte("Alice"),
 	})

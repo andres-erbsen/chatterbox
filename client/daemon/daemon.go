@@ -11,8 +11,10 @@ import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/dename/client"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -47,7 +49,7 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
+func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) error {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -84,8 +86,10 @@ func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
 	if err != nil {
 		return err
 	}
+
 	encMsg, ratch, err := util.EncryptAuthFirst(conf.Dename, msg, ourSkAuth, theirKey, conf.denameClient)
-	StoreRatchet(conf, string(theirDename), ratch)
+	StoreRatchet(conf, theirDename, ratch)
+
 	if err != nil {
 		return err
 	}
@@ -96,7 +100,7 @@ func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
 	return nil
 }
 
-func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
+func (conf *Config) sendMessage(msg []byte, theirDename []byte) error {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -121,7 +125,7 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 	if err != nil {
 		return err
 	}
-	msgRatch, err := LoadRatchet(conf, string(theirDename))
+	msgRatch, err := LoadRatchet(conf, theirDename)
 	if err != nil {
 		return err
 	}
@@ -135,7 +139,7 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 	}
 
 	encMsg, ratch, err := util.EncryptAuth(conf.Dename, msg, msgRatch)
-	StoreRatchet(conf, string(theirDename), ratch)
+	StoreRatchet(conf, theirDename, ratch)
 
 	if err != nil {
 		return err
@@ -147,21 +151,21 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 	return nil
 }
 
-func (conf *Config) decryptFirstMessage(envelope []byte, skList []*[32]byte) ([]byte, error) {
+func (conf *Config) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) ([]byte, int, error) {
 	skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
-	ratch, msg, index, err := util.DecryptAuthFirst(envelope, skList, skAuth, conf.denameClient)
+	ratch, msg, index, err := util.DecryptAuthFirst(envelope, pkList, skList, skAuth, conf.denameClient)
+
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	message := new(proto.Message)
 	if err := message.Unmarshal(msg); err != nil {
-		return nil, err
+		return nil, -1, err
 	}
-	newPrekeys := append(skList[:index], skList[index+1:]...)
-	StorePrekeys(conf, newPrekeys)
-	StoreRatchet(conf, string(message.Dename), ratch)
 
-	return msg, nil
+	StoreRatchet(conf, message.Dename, ratch)
+
+	return msg, index, nil
 }
 
 func (conf *Config) decryptMessage(envelope []byte) ([]byte, error) {
@@ -184,7 +188,7 @@ func (conf *Config) decryptMessage(envelope []byte) ([]byte, error) {
 	if err := message.Unmarshal(msg); err != nil {
 		return nil, err
 	}
-	StoreRatchet(conf, string(message.Dename), ratch)
+	StoreRatchet(conf, message.Dename, ratch)
 	return msg, nil
 }
 
@@ -232,7 +236,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	go connToServer.ReceiveMessages()
 
 	// load prekeys and ensure that we have enough of them
-	prekeys, err := LoadPrekeys(conf)
+	prekeyPublics, prekeySecrets, err := LoadPrekeys(conf)
 	if err != nil {
 		return err
 	}
@@ -241,12 +245,13 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		return err
 	}
 	if numKeys < MIN_PREKEYS {
-		publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
-		prekeys = append(prekeys, newSecretPrekeys...)
-		StorePrekeys(conf, prekeys)
+		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
+		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
+		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
+		StorePrekeys(conf, prekeyPublics, prekeySecrets)
 		var signingKey [64]byte
 		copy(signingKey[:], conf.KeySigningSecretKey[:64])
-		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(publicPrekeys, &signingKey))
+		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
 		if err != nil {
 			return err // TODO handle this nicely
 		}
@@ -263,34 +268,75 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				if err != nil {
 					return err
 				}
-				if true { //TODO: Fill in something's changed in the outbox
-					if true { //TODO: First message in this conversation
-						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirDename []byte //TODO: Load from file
+				// parse metadata
+				metadataFile := filepath.Join(ev.Name, MetadataFileName)
+				metadata := proto.ConversationMetadata{}
+				err = UnmarshalFromFile(metadataFile, &metadata)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("metadata: ", metadata)
 
-						if err := conf.encryptFirstMessage(msg, theirDename); err != nil {
+				// add ourselves to the participants list
+				allParticipants := append(metadata.Participants, conf.Dename)
+
+				// load messages
+				potentialMessages, err := ioutil.ReadDir(ev.Name)
+				if err != nil {
+					return err
+				}
+				messages := make([][]byte, 0, len(potentialMessages))
+				for _, finfo := range potentialMessages {
+					if !finfo.IsDir() && finfo.Name() != MetadataFileName {
+						msg, err := ioutil.ReadFile(filepath.Join(ev.Name, finfo.Name()))
+						if err != nil {
 							return err
 						}
-					} else { //TODO: Not-first message in this conversation
-						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirDename []byte //TODO: Load from file
-
-						if err := conf.encryptMessage(msg, theirDename); err != nil {
+						// make protobuf for message; append it
+						payload := proto.Message{
+							Subject:      metadata.Subject,
+							Participants: allParticipants,
+							Dename:       conf.Dename,
+							Contents:     msg,
+						}
+						payloadBytes, err := payload.Marshal()
+						if err != nil {
 							return err
+						}
+						messages = append(messages, payloadBytes)
+					}
+				}
+				if len(messages) == 0 {
+					break
+				}
+
+				for _, recipient := range metadata.Participants {
+					for _, msg := range messages {
+						// TODO replace msg with message+metadata (new protobuf?)
+						if _, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
+							if err := conf.sendFirstMessage(msg, recipient); err != nil {
+								return err
+							}
+						} else { //TODO: Not-first message in this conversation
+							if err := conf.sendMessage(msg, recipient); err != nil {
+								return err
+							}
 						}
 					}
 				}
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
-				msg, err := conf.decryptFirstMessage(envelope, prekeys)
+				msg, index, err := conf.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
 				if err != nil {
 					return err
 				}
 
-				msg = msg //Take out
+				//TODO: Update prekeys by removing index, store
+				msg = msg     //Take out
+				index = index //Take out
 				//TODO: Take out metadata + converastion from msg, Store the decrypted message
 			} else {
 				msg, err := conf.decryptMessage(envelope)

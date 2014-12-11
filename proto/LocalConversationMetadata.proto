@@ -14,6 +14,6 @@ option (gogoproto.testgen_all) = true;
 option (gogoproto.benchgen_all) = true;
 
 message ConversationMetadata {
-	repeated string participants = 1 [(gogoproto.nullable) = false];
-	required string subject = 2 [(gogoproto.nullable) = false];
+	repeated bytes Participants = 1 [(gogoproto.nullable) = false];
+	required string Subject = 2 [(gogoproto.nullable) = false];
 }

@@ -20,8 +20,8 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type ConversationMetadata struct {
-	Participants     []string `protobuf:"bytes,1,rep,name=participants" json:"participants"`
-	Subject          string   `protobuf:"bytes,2,req,name=subject" json:"subject"`
+	Participants     [][]byte `protobuf:"bytes,1,rep" json:"Participants"`
+	Subject          string   `protobuf:"bytes,2,req" json:"Subject"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -54,23 +54,24 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			if wireType != 2 {
 				return fmt4.Errorf("proto: wrong wireType = %d for field Participants", wireType)
 			}
-			var stringLen uint64
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io4.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				byteLen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + int(stringLen)
+			postIndex := index + byteLen
 			if postIndex > l {
 				return io4.ErrUnexpectedEOF
 			}
-			m.Participants = append(m.Participants, string(data[index:postIndex]))
+			m.Participants = append(m.Participants, make([]byte, postIndex-index))
+			copy(m.Participants[len(m.Participants)-1], data[index:postIndex])
 			index = postIndex
 		case 2:
 			if wireType != 2 {
@@ -121,8 +122,8 @@ func (m *ConversationMetadata) Size() (n int) {
 	var l int
 	_ = l
 	if len(m.Participants) > 0 {
-		for _, s := range m.Participants {
-			l = len(s)
+		for _, b := range m.Participants {
+			l = len(b)
 			n += 1 + l + sovLocalConversationMetadata(uint64(l))
 		}
 	}
@@ -150,10 +151,14 @@ func sozLocalConversationMetadata(x uint64) (n int) {
 func NewPopulatedConversationMetadata(r randyLocalConversationMetadata, easy bool) *ConversationMetadata {
 	this := &ConversationMetadata{}
 	if r.Intn(10) != 0 {
-		v1 := r.Intn(10)
-		this.Participants = make([]string, v1)
+		v1 := r.Intn(100)
+		this.Participants = make([][]byte, v1)
 		for i := 0; i < v1; i++ {
-			this.Participants[i] = randStringLocalConversationMetadata(r)
+			v2 := r.Intn(100)
+			this.Participants[i] = make([]byte, v2)
+			for j := 0; j < v2; j++ {
+				this.Participants[i][j] = byte(r.Intn(256))
+			}
 		}
 	}
 	this.Subject = randStringLocalConversationMetadata(r)
@@ -180,9 +185,9 @@ func randUTF8RuneLocalConversationMetadata(r randyLocalConversationMetadata) run
 	return res
 }
 func randStringLocalConversationMetadata(r randyLocalConversationMetadata) string {
-	v2 := r.Intn(100)
-	tmps := make([]rune, v2)
-	for i := 0; i < v2; i++ {
+	v3 := r.Intn(100)
+	tmps := make([]rune, v3)
+	for i := 0; i < v3; i++ {
 		tmps[i] = randUTF8RuneLocalConversationMetadata(r)
 	}
 	return string(tmps)
@@ -204,11 +209,11 @@ func randFieldLocalConversationMetadata(data []byte, r randyLocalConversationMet
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(key))
-		v3 := r.Int63()
+		v4 := r.Int63()
 		if r.Intn(2) == 0 {
-			v3 *= -1
+			v4 *= -1
 		}
-		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(v3))
+		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(v4))
 	case 1:
 		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -249,18 +254,11 @@ func (m *ConversationMetadata) MarshalTo(data []byte) (n int, err error) {
 	var l int
 	_ = l
 	if len(m.Participants) > 0 {
-		for _, s := range m.Participants {
+		for _, b := range m.Participants {
 			data[i] = 0xa
 			i++
-			l = len(s)
-			for l >= 1<<7 {
-				data[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			data[i] = uint8(l)
-			i++
-			i += copy(data[i:], s)
+			i = encodeVarintLocalConversationMetadata(data, i, uint64(len(b)))
+			i += copy(data[i:], b)
 		}
 	}
 	data[i] = 0x12
@@ -323,7 +321,7 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 		return false
 	}
 	for i := range this.Participants {
-		if this.Participants[i] != that1.Participants[i] {
+		if !bytes4.Equal(this.Participants[i], that1.Participants[i]) {
 			return false
 		}
 	}

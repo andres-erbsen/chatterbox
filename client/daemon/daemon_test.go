@@ -113,7 +113,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	//Alice encrypts and sends a message
 	envelope := []byte("Envelope")
 
-	err = aliceConf.encryptFirstMessage(envelope, []byte(bob))
+	err = aliceConf.sendFirstMessage(envelope, []byte(bob))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	fmt.Printf("Correct PK %x\n", publicPrekeys[0])
 
-	out, err := bobConf.decryptFirstMessage(incoming, newSecretPrekeys)
+	out, _, err := bobConf.decryptFirstMessage(incoming, publicPrekeys, newSecretPrekeys)
 	if err != nil {
 		t.Fatal(err)
 	}
