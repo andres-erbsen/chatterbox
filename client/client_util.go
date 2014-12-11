@@ -96,10 +96,10 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
-func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) (*transport.Conn, *[32]byte, *[32]byte) {
+func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) *transport.Conn {
 
 	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
-	conn, pkp, skp := CreateTestHomeServerConn(name, denameClient, t)
+	conn := CreateTestHomeServerConn(name, denameClient, secretConfig, t)
 
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
@@ -108,10 +108,10 @@ func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *p
 	if err != nil {
 		t.Fatal(err)
 	}
-	return conn, pkp, skp
+	return conn
 }
 
-func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *testing.T) (*transport.Conn, *[32]byte, *[32]byte) {
+func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, t *testing.T) *transport.Conn {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
 		t.Fatal(err)
@@ -130,23 +130,21 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *tes
 	addr := chatProfile.ServerAddressTCP
 	port := chatProfile.ServerPortTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
+	pkp := (*[32]byte)(&chatProfile.UserIDAtServer)
 
 	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkp, skp, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+	skp := (*[32]byte)(&secretConfig.TransportSecretKeyForServer)
 
 	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return conn, pkp, skp
+	return conn
 }
 
 func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transport.Conn, error) {

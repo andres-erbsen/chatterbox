@@ -60,9 +60,10 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	fmt.Printf("Address: %v\n", serverAddr)
 
-	aliceHomeConn, alicePk, aliceSk := util.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-	bobHomeConn, bobPk, bobSk := util.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	aliceHomeConn := util.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	bobHomeConn := util.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
 
+	fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
 	aliceNotifies := make(chan []byte)
 	aliceReplies := make(chan *proto.ServerToClient)
 
@@ -102,6 +103,12 @@ func TestEncryptFirstMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	numKeys, err := util.GetNumKeys(bobHomeConn, bobConnToServer, bobConf.outBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Num keys %v\n", numKeys)
 
 	//Alice encrypts and sends a message
 	envelope := []byte("Envelope")
