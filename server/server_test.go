@@ -179,7 +179,7 @@ func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *test
 
 //Test message listing
 func TestMessageListing(t *testing.T) {
-	server, pks, teardown := CreateTestServer(t)
+	server, pks, _, teardown := CreateTestServer(t)
 
 	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
 	if err != nil {

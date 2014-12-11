@@ -18,7 +18,10 @@ func TestEncryptFirstMessage(t *testing.T) {
 	denameConfig, denameTeardown := denameTestutil.SingleServer(t)
 	// FIXME: make denameTestutil.SingleServer wait until the server is up
 	defer denameTeardown()
-	dnmc, err := denameClient.NewClient(denameConfig, nil, nil)
+
+	aliceDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
+	bobDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,21 +36,40 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	conf := LoadConfig(&Config{
+	aliceConf := LoadConfig(&Config{
 		RootDir:      dir,
 		Now:          time.Now,
 		TempPrefix:   "daemon",
-		denameClient: dnmc,
+		denameClient: aliceDnmc,
 		inBuf:        make([]byte, client.MAX_MESSAGE_SIZE),
 		outBuf:       make([]byte, client.MAX_MESSAGE_SIZE),
 		ourDename:    []byte(alice),
 	})
 
-	aliceHomeConn := client.CreateTestAccount([]byte(alice), dnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-	bobHomeConn := client.CreateTestAccount([]byte(bob), dnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	bobConf := LoadConfig(&Config{
+		RootDir:      dir,
+		Now:          time.Now,
+		TempPrefix:   "daemon",
+		denameClient: bobDnmc,
+		inBuf:        make([]byte, client.MAX_MESSAGE_SIZE),
+		outBuf:       make([]byte, client.MAX_MESSAGE_SIZE),
+		ourDename:    []byte(bob),
+	})
 
-	if err := InitFs(conf); err != nil {
+	aliceHomeConn, alicePk, aliceSk := client.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	bobHomeConn, bobPk, bobSk := client.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+
+	if err := InitFs(aliceConf); err != nil {
 		t.Fatal(err)
 	}
 
+	if err := InitFs(bobConf); err != nil {
+		t.Fatal(err)
+	}
+	aliceHomeConn = aliceHomeConn
+	bobHomeConn = bobHomeConn
+	alicePk = alicePk
+	aliceSk = aliceSk
+	bobSk = bobSk
+	bobPk = bobPk
 }
