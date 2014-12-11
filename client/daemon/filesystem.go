@@ -221,7 +221,7 @@ func StoreRatchet(conf *Config, name []byte, ratch *ratchet.Ratchet) error {
 	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), nameStr), ratch)
 }
 
-func AllRatchets(conf *Config) ([]*ratchet.Ratchet, error) {
+func AllRatchets(conf *Config, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) ([]*ratchet.Ratchet, error) {
 	files, err := ioutil.ReadDir(conf.RatchetKeysDir())
 	if err != nil {
 		return nil, err
@@ -231,8 +231,7 @@ func AllRatchets(conf *Config) ([]*ratchet.Ratchet, error) {
 		if file.IsDir() {
 			continue
 		}
-		ratch := new(ratchet.Ratchet)
-		err := UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), file.Name()), ratch)
+		ratch, err := LoadRatchet(conf, []byte(file.Name()), fillAuth, checkAuth)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ratchet for \"%s\": %s", file.Name(), err)
 		}
