@@ -88,10 +88,15 @@ func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, ou
 }
 
 func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
+	fmt.Printf("Signin key: %x\n", sk[:32])
+	fmt.Printf("Public key: %x\n", sk[32:])
+
 	pkList := make([][]byte, 0)
 	for _, key := range keys {
-		signedKey := ed25519.Sign(sk, key[:])
-		pkList = append(pkList, append(append([]byte{}, key[:]...), signedKey[:]...))
+		signature := ed25519.Sign(sk, key[:])
+		fmt.Printf("Key %x\n", key)
+		fmt.Printf("Sig %x\n", signature)
+		pkList = append(pkList, append(append([]byte{}, key[:]...), signature[:]...))
 	}
 	return pkList
 }
@@ -288,8 +293,11 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, den
 	copy(userKey[:], response.SignedKey[:32])
 
 	var sig [64]byte
-	copy(userKey[:], response.SignedKey[32:(32+64)])
+	copy(sig[:], response.SignedKey[32:(32+64)])
 
+	fmt.Printf("V PubKey %x\n", pkSig)
+	fmt.Printf("V Messag %x\n", userKey)
+	fmt.Printf("V Signat %x\n", sig)
 	if !ed25519.Verify(pkSig, userKey[:], &sig) {
 		return nil, errors.New("Improperly signed key returned")
 	}
@@ -383,7 +391,6 @@ func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretCon
 	}
 	var port int32
 	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
-		fmt.Printf("Port: '%v'\n", portStr)
 		t.Fatal(err)
 	}
 
