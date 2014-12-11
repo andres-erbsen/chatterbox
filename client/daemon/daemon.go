@@ -8,13 +8,19 @@ import (
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
+	//"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	"log"
+	//"net"
 	"os"
 	"time"
 )
 
-const MAX_MESSAGE_SIZE = 16 * 1024
+const (
+	MAX_MESSAGE_SIZE = 16 * 1024
+	MAX_PREKEYS      = 100 //TODO make this configurable
+	MIN_PREKEYS      = 50
+)
 
 func Run(rootDir string, shutdown <-chan struct{}) error {
 	conf := LoadConfig(&Config{
@@ -23,10 +29,43 @@ func Run(rootDir string, shutdown <-chan struct{}) error {
 		TempPrefix: "daemon",
 	})
 
+	// ensure that we have a correct directory structure
+	// including a correctly-populated outbox
 	if err := InitFs(conf); err != nil {
 		return err
 	}
 
+	//// connect to the server
+	//plainConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *serverAddress, *serverPort))
+	//conn, _, err := transport.Handshake(plainConn,
+	//	(*[32]byte)(&publicProfile.UserIDAtServer),
+	//	(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
+	//	&serverTransportPubkey, client.MAX_MESSAGE_SIZE)
+	//if err != nil {
+	//	return err
+	//}
+	//inBuf := make([]byte, client.MAX_MESSAGE_SIZE)
+	//outBuf := make([]byte, client.MAX_MESSAGE_SIZE)
+
+	//// load prekeys and ensure that we have enough of them
+	//prekeys, err := LoadPrekeys(conf)
+	//if err != nil {
+	//	return err
+	//}
+	//numKeys, err := client.GetNumKeys(conn, inBuf, outBuf)
+	//if err != nil {
+	//	return err
+	//}
+	//if numKeys < MIN_KEYS {
+	//	publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - numKeys)
+	//	prekeys = Append(prekeys, newSecretPrekeys)
+	//	err = client.UploadKeys(conn, inBuf, outBuf, publicPrekeys)
+	//	if err != nil {
+	//		return err // TODO handle this nicely
+	//	}
+	//}
+
+	// set up a filesystem watcher on the outbox
 	initFn := func(path string, f os.FileInfo, err error) error {
 		log.Printf("init path: %s\n", path)
 		return err
