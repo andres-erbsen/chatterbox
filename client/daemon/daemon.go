@@ -18,9 +18,8 @@ import (
 )
 
 const (
-	MAX_MESSAGE_SIZE = 16 * 1024
-	MAX_PREKEYS      = 100 //TODO make this configurable
-	MIN_PREKEYS      = 50
+	MAX_PREKEYS = 100 //TODO make this configurable
+	MIN_PREKEYS = 50
 )
 
 func Start(rootDir string) (*Config, error) {
@@ -35,8 +34,8 @@ func Start(rootDir string) (*Config, error) {
 	if err := InitFs(conf); err != nil {
 		return nil, err
 	}
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, util.MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
 	ourDename := conf.Dename
 
@@ -55,7 +54,7 @@ func Start(rootDir string) (*Config, error) {
 func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.ConnectionToServer, theirPk *[32]byte, encMsg []byte, theirDename []byte) error {
 	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
 
-	theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
+	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
 	theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
 	if err != nil {
@@ -83,7 +82,7 @@ func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToSe
 		return err
 	}
 
-	theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
+	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
 	theirConn, err := util.CreateServerConn(theirDename, conf.denameClient)
 	if err != nil {

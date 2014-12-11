@@ -95,6 +95,22 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
+func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) {
+
+	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
+	conn, err := CreateServerConn(name, denameClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+
+	err = CreateAccount(conn, inBuf, outBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
 func CreateServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
