@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func CreateTestServer(t *testing.T) (*Server, *[32]byte, func()) {
+func CreateTestServer(t *testing.T) (*Server, *[32]byte, string, func()) {
 	dir, err := ioutil.TempDir("", "testdb")
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func CreateTestServer(t *testing.T) (*Server, *[32]byte, func()) {
 		t.Fatal(err)
 	}
 
-	return server, pks, func() {
+	return server, pks, server.listener.Addr().String(), func() {
 		server.StopServer()
 		os.RemoveAll(dir)
 		db.Close()
