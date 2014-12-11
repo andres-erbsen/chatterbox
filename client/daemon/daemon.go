@@ -23,7 +23,7 @@ const (
 	MIN_PREKEYS      = 50
 )
 
-func Start(rootDir string) error {
+func Start(rootDir string) (*Config, error) {
 	conf := LoadConfig(&Config{
 		RootDir:    rootDir,
 		Now:        time.Now,
@@ -33,7 +33,7 @@ func Start(rootDir string) error {
 	// ensure that we have a correct directory structure
 	// including a correctly-populated outbox
 	if err := InitFs(conf); err != nil {
-		return err
+		return nil, err
 	}
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
@@ -42,14 +42,14 @@ func Start(rootDir string) error {
 
 	denameClient, err := client.NewClient(nil, nil, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	conf.denameClient = denameClient
 	conf.ourDename = ourDename
 	conf.inBuf = inBuf
 	conf.outBuf = outBuf
 
-	return nil
+	return conf, nil
 }
 
 func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.ConnectionToServer) error {

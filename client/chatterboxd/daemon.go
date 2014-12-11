@@ -8,6 +8,12 @@ import (
 )
 
 func main() {
+	daemonCfg, err := daemon.Start("/tmp/foo/bar")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	shutdown := make(chan struct{})
 	go func() {
 		ch := make(chan os.Signal)
@@ -16,7 +22,7 @@ func main() {
 		close(shutdown)
 	}()
 	//TODO read the directory as an argument
-	err := daemon.Run("/tmp/foo/bar", shutdown)
+	err = daemon.Run(daemonCfg, shutdown)
 	if err != nil {
 		log.Fatal(err)
 		return
