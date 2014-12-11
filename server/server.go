@@ -231,13 +231,10 @@ func (server *Server) handleClient(connection net.Conn) error {
 
 func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch read of some kind?
 	prefix := append([]byte{'k'}, (*user)[:]...)
-	server.keyMutex.Lock()
 	snapshot, err := server.database.GetSnapshot()
 	if err != nil {
-		server.keyMutex.Unlock()
 		return nil, err
 	}
-	server.keyMutex.Unlock()
 	defer snapshot.Release()
 	keyRange := util.BytesPrefix(prefix)
 	iter := snapshot.NewIterator(keyRange, nil)
