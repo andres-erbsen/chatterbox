@@ -96,6 +96,35 @@ func createAccount(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing
 	receiveProtobuf(conn, inBuf, t)
 }
 
+func CreateTestServer(t *testing.T) (*Server, *[32]byte, func()) {
+	dir, err := ioutil.TempDir("", "testdb")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(dir)
+	db, err := leveldb.OpenFile(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shutdown := make(chan struct{})
+
+	pks, sks, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, err := StartServer(db, shutdown, pks, sks, ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return server, pks, func() {
+		os.RemoveAll(dir)
+		db.Close()
+	}
+}
+
 //Tests whether database contains new account after creating one
 func TestAccountCreation(t *testing.T) {
 	dir, err := ioutil.TempDir("", "testdb")
@@ -179,16 +208,25 @@ func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *test
 
 //Test message listing
 func TestMessageListing(t *testing.T) {
-	dir, err := ioutil.TempDir("", "testdb")
-	handleError(err, t)
+	server, pks, teardown := createTestServer(t)
 
-	defer os.RemoveAll(dir)
-	db, err := leveldb.OpenFile(dir, nil)
-	handleError(err, t)
+	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	defer db.Close()
+	pkp, skp, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pks, MAX_MESSAGE_SIZE)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
 	envelope1 := []byte("Envelope1")
 	envelope2 := []byte("Envelope2")
@@ -211,6 +249,7 @@ func TestMessageListing(t *testing.T) {
 		}
 	}
 	server.StopServer()
+	teardown()
 }
 
 func downloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageHash *[32]byte) []byte {
