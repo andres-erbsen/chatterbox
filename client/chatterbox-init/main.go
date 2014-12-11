@@ -97,7 +97,7 @@ func main() {
 
 	// TODO: use TOR
 	fmt.Printf("Registering with the server...\n")
-	plainConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *serverAddress, *serverPort))
+	plainConn, err := net.Dial("tcp", net.JoinHostPort(*serverAddress, fmt.Sprint(*serverPort)))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
 			*serverAddress, *serverPort, err)
