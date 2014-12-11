@@ -20,12 +20,12 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type Profile struct {
-	ServerAddressTCP string `protobuf:"bytes,1,req" json:"ServerAddressTCP"`
-	// allowing the port to be specified might open a DOS vector, so not now
-	ServerTransportPK Byte32 `protobuf:"bytes,2,req,customtype=Byte32" json:"ServerTransportPK"`
-	UserIDAtServer    Byte32 `protobuf:"bytes,3,req,customtype=Byte32" json:"UserIDAtServer"`
-	KeySigningKey     Byte32 `protobuf:"bytes,4,req,customtype=Byte32" json:"KeySigningKey"`
-	MessageAuthKey    Byte32 `protobuf:"bytes,5,req,customtype=Byte32" json:"MessageAuthKey"`
+	ServerAddressTCP  string `protobuf:"bytes,1,req" json:"ServerAddressTCP"`
+	ServerPort        int32  `protobuf:"varint,2,req" json:"ServerPort"`
+	ServerTransportPK Byte32 `protobuf:"bytes,3,req,customtype=Byte32" json:"ServerTransportPK"`
+	UserIDAtServer    Byte32 `protobuf:"bytes,4,req,customtype=Byte32" json:"UserIDAtServer"`
+	KeySigningKey     Byte32 `protobuf:"bytes,5,req,customtype=Byte32" json:"KeySigningKey"`
+	MessageAuthKey    Byte32 `protobuf:"bytes,6,req,customtype=Byte32" json:"MessageAuthKey"`
 	XXX_unrecognized  []byte `json:"-"`
 }
 
@@ -77,6 +77,21 @@ func (m *Profile) Unmarshal(data []byte) error {
 			m.ServerAddressTCP = string(data[index:postIndex])
 			index = postIndex
 		case 2:
+			if wireType != 0 {
+				return fmt2.Errorf("proto: wrong wireType = %d for field ServerPort", wireType)
+			}
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io2.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				m.ServerPort |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
 			if wireType != 2 {
 				return fmt2.Errorf("proto: wrong wireType = %d for field ServerTransportPK", wireType)
 			}
@@ -100,7 +115,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt2.Errorf("proto: wrong wireType = %d for field UserIDAtServer", wireType)
 			}
@@ -124,7 +139,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt2.Errorf("proto: wrong wireType = %d for field KeySigningKey", wireType)
 			}
@@ -148,7 +163,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 5:
+		case 6:
 			if wireType != 2 {
 				return fmt2.Errorf("proto: wrong wireType = %d for field MessageAuthKey", wireType)
 			}
@@ -200,6 +215,7 @@ func (m *Profile) Size() (n int) {
 	_ = l
 	l = len(m.ServerAddressTCP)
 	n += 1 + l + sovDenameChatProfile(uint64(l))
+	n += 1 + sovDenameChatProfile(uint64(uint32(m.ServerPort)))
 	l = m.ServerTransportPK.Size()
 	n += 1 + l + sovDenameChatProfile(uint64(l))
 	l = m.UserIDAtServer.Size()
@@ -230,6 +246,10 @@ func sozDenameChatProfile(x uint64) (n int) {
 func NewPopulatedProfile(r randyDenameChatProfile, easy bool) *Profile {
 	this := &Profile{}
 	this.ServerAddressTCP = randStringDenameChatProfile(r)
+	this.ServerPort = r.Int31()
+	if r.Intn(2) == 0 {
+		this.ServerPort *= -1
+	}
 	v1 := NewPopulatedByte32(r)
 	this.ServerTransportPK = *v1
 	v2 := NewPopulatedByte32(r)
@@ -239,7 +259,7 @@ func NewPopulatedProfile(r randyDenameChatProfile, easy bool) *Profile {
 	v4 := NewPopulatedByte32(r)
 	this.MessageAuthKey = *v4
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedDenameChatProfile(r, 6)
+		this.XXX_unrecognized = randUnrecognizedDenameChatProfile(r, 7)
 	}
 	return this
 }
@@ -333,7 +353,10 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(len(m.ServerAddressTCP)))
 	i += copy(data[i:], m.ServerAddressTCP)
-	data[i] = 0x12
+	data[i] = 0x10
+	i++
+	i = encodeVarintDenameChatProfile(data, i, uint64(uint32(m.ServerPort)))
+	data[i] = 0x1a
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(m.ServerTransportPK.Size()))
 	n1, err := m.ServerTransportPK.MarshalTo(data[i:])
@@ -341,7 +364,7 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 		return 0, err
 	}
 	i += n1
-	data[i] = 0x1a
+	data[i] = 0x22
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(m.UserIDAtServer.Size()))
 	n2, err := m.UserIDAtServer.MarshalTo(data[i:])
@@ -349,7 +372,7 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 		return 0, err
 	}
 	i += n2
-	data[i] = 0x22
+	data[i] = 0x2a
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(m.KeySigningKey.Size()))
 	n3, err := m.KeySigningKey.MarshalTo(data[i:])
@@ -357,7 +380,7 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 		return 0, err
 	}
 	i += n3
-	data[i] = 0x2a
+	data[i] = 0x32
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(m.MessageAuthKey.Size()))
 	n4, err := m.MessageAuthKey.MarshalTo(data[i:])
@@ -418,6 +441,9 @@ func (this *Profile) Equal(that interface{}) bool {
 		return false
 	}
 	if this.ServerAddressTCP != that1.ServerAddressTCP {
+		return false
+	}
+	if this.ServerPort != that1.ServerPort {
 		return false
 	}
 	if !this.ServerTransportPK.Equal(that1.ServerTransportPK) {
