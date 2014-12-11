@@ -48,21 +48,21 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) error {
+func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	chatProfileBytes, err := client.GetProfileField(profile, util.PROFILE_FIELD_ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	chatProfile := new(proto.Profile)
 	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return err
+		return nil, err
 	}
 
 	addr := chatProfile.ServerAddressTCP
@@ -77,42 +77,40 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) error {
 
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, pkSig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Println("prekey: ", theirKey)
 
 	encMsg, ratch, err := util.EncryptAuthFirst(conf.Dename, msg, ourSkAuth, theirKey, conf.denameClient)
-	StoreRatchet(conf, theirDename, ratch)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return ratch, nil
 }
 
-func (conf *Config) sendMessage(msg []byte, theirDename []byte) error {
+func (conf *Config) sendMessage(msg []byte, theirDename []byte, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	chatProfileBytes, err := client.GetProfileField(profile, util.PROFILE_FIELD_ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	chatProfile := new(proto.Profile)
 	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return err
+		return nil, err
 	}
 
 	addr := chatProfile.ServerAddressTCP
@@ -121,11 +119,10 @@ func (conf *Config) sendMessage(msg []byte, theirDename []byte) error {
 	theirPk := (*[32]byte)(&chatProfile.UserIDAtServer)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
-	msgRatch, err := LoadRatchet(conf, theirDename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
@@ -133,61 +130,57 @@ func (conf *Config) sendMessage(msg []byte, theirDename []byte) error {
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	encMsg, ratch, err := util.EncryptAuth(conf.Dename, msg, msgRatch)
-	StoreRatchet(conf, theirDename, ratch)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return ratch, nil
 }
 
-func (conf *Config) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) ([]byte, int, error) {
+func (conf *Config) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) (*proto.Message, *ratchet.Ratchet, int, error) {
 	skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
 	ratch, msg, index, err := util.DecryptAuthFirst(envelope, pkList, skList, skAuth, conf.denameClient)
 
 	if err != nil {
-		return nil, -1, err
+		return nil, nil, -1, err
 	}
 	message := new(proto.Message)
 	if err := message.Unmarshal(msg); err != nil {
-		return nil, -1, err
+		return nil, nil, -1, err
 	}
 
-	StoreRatchet(conf, message.Dename, ratch)
-
-	return msg, index, nil
+	return message, ratch, index, nil
 }
 
-func (conf *Config) decryptMessage(envelope []byte) ([]byte, error) {
-	ratchets, err := AllRatchets(conf)
-	if err != nil {
-		return nil, err
-	}
+func (conf *Config) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*proto.Message, *ratchet.Ratchet, error) {
 	var ratch *ratchet.Ratchet
 	var msg []byte
 	for _, msgRatch := range ratchets {
+		var err error
 		ratch, msg, err = util.DecryptAuth(envelope, msgRatch)
+		if err != nil {
+			return nil, nil, err
+		}
 		if err == nil {
 			break
 		}
 	}
 	if msg == nil {
-		return nil, errors.New("Invalid message received.")
+		fmt.Println("No ratchets worked.")
+		return nil, nil, errors.New("Invalid message received.")
 	}
 	message := new(proto.Message)
 	if err := message.Unmarshal(msg); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	StoreRatchet(conf, message.Dename, ratch)
-	return msg, nil
+	return message, ratch, nil
 }
 
 func processOutboxDir(conf *Config, dirname string) error {
@@ -240,14 +233,18 @@ func processOutboxDir(conf *Config, dirname string) error {
 	for _, recipient := range metadata.Participants {
 		for _, msg := range messages {
 			// replace msg with message+metadata (new protobuf?)
-			if _, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
-				if err := conf.sendFirstMessage(msg, recipient); err != nil {
+			if msgRatch, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
+				ratch, err := conf.sendFirstMessage(msg, recipient)
+				if err != nil {
 					return err
 				}
+				StoreRatchet(conf, recipient, ratch)
 			} else { // Not-first message in this conversation
-				if err := conf.sendMessage(msg, recipient); err != nil {
+				ratch, err := conf.sendMessage(msg, recipient, msgRatch)
+				if err != nil {
 					return err
 				}
+				StoreRatchet(conf, recipient, ratch)
 			}
 		}
 	}
@@ -359,27 +356,28 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
-				msg, index, err := conf.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
+				message, ratch, index, err := conf.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
 				if err != nil {
 					return err
 				}
+				StoreRatchet(conf, message.Dename, ratch)
 
 				//TODO: Update prekeys by removing index, store
-				thing := proto.Message{}
-				thing.Unmarshal(msg)
-				fmt.Printf("%s\n", thing)
-				msg = msg     //Take out
+				fmt.Printf("%s\n", message)
 				index = index //Take out
 				//TODO: Take out metadata + converastion from msg, Store the decrypted message
 			} else {
-				msg, err := conf.decryptMessage(envelope)
+				ratchets, err := AllRatchets(conf)
+				if err != nil {
+					return err
+				}
+				message, ratch, err := conf.decryptMessage(envelope, ratchets)
 				if err != nil {
 					return err
 				}
 
-				msg = msg //Take out
 				//TODO: Take out metadata + conversation from msg, then store
-
+				StoreRatchet(conf, message.Dename, ratch)
 			}
 		case err := <-watcher.Error:
 			if err != nil {

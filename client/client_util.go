@@ -204,18 +204,17 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 	return out, ratch, nil
 }
 
-func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuth(sender []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
 	message, err := protobuf.Marshal(&proto.Message{
 		Subject:  "",
 		Contents: msg,
-		Dename:   dename,
+		Dename:   sender,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	out := []byte{}
-	out = ratch.Encrypt(out, message)
+	out := ratch.Encrypt(nil, message)
 
 	return out, ratch, nil
 }
@@ -244,9 +243,9 @@ func DecryptAuthFirst(in []byte, pkList []*[32]byte, skList []*[32]byte, skAuth 
 	return nil, nil, -1, errors.New("Invalid first message received.") //TODO: Should I make the error message something different?
 }
 func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, error) {
-	msg, err := ratch.Decrypt(in[32:])
+	msg, err := ratch.Decrypt(in)
 	if err != nil {
-		return nil, nil, errors.New("Invalid first message.") //TODO: Should I make the error message something different?
+		return nil, nil, err
 	}
 	return ratch, msg, nil
 }

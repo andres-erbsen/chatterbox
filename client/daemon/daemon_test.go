@@ -4,6 +4,8 @@ import (
 	"fmt"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/ratchet"
+	//protobuf "code.google.com/p/gogoprotobuf/proto"
 	"github.com/andres-erbsen/chatterbox/server"
 	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
@@ -98,50 +100,63 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	//Bob uploads keys
-	publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(1)
-	var signingKey [64]byte
-	copy(signingKey[:], bobConf.KeySigningSecretKey[:64])
-	err = util.UploadKeys(bobHomeConn, bobConnToServer, bobConf.outBuf, util.SignKeys(publicPrekeys, &signingKey))
+	bobPublicPrekeys, bobSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS)
+	var bobSigningKey [64]byte
+	copy(bobSigningKey[:], bobConf.KeySigningSecretKey[:64])
+	err = util.UploadKeys(bobHomeConn, bobConnToServer, bobConf.outBuf, util.SignKeys(bobPublicPrekeys, &bobSigningKey))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//_, err := util.GetNumKeys(bobHomeConn, bobConnToServer, bobConf.outBuf)
-	//if err != nil {
-	//t.Fatal(err)
-	//}
-	//Alice encrypts and sends a message
+	//Bob enables notifications
+	if err = util.EnablePush(bobHomeConn, bobConnToServer, bobConf.outBuf); err != nil {
+		t.Fatal(err)
+	}
+
+	//Alice uploads keys
+	alicePublicPrekeys, _, err := GeneratePrekeys(MAX_PREKEYS)
+	var aliceSigningKey [64]byte
+	copy(aliceSigningKey[:], aliceConf.KeySigningSecretKey[:64])
+	err = util.UploadKeys(aliceHomeConn, aliceConnToServer, aliceConf.outBuf, util.SignKeys(alicePublicPrekeys, &aliceSigningKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//Alice enables notification
+	if err = util.EnablePush(aliceHomeConn, aliceConnToServer, aliceConf.outBuf); err != nil {
+		t.Fatal(err)
+	}
+
 	envelope := []byte("Envelope")
 
-	err = aliceConf.sendFirstMessage(envelope, []byte(bob))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//Bob checks his messages
-	messages, err := util.ListUserMessages(bobHomeConn, bobConnToServer, bobConf.outBuf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	//fmt.Printf("Messages: %v\n", messages)
-
-	err = util.RequestMessage(bobHomeConn, bobConnToServer, bobConf.outBuf, &(messages[0]))
+	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	incoming := <-bobConnToServer.ReadEnvelope
 
-	fmt.Printf("Correct PK %x\n", publicPrekeys[0])
-
-	out, _, err := bobConf.decryptFirstMessage(incoming, publicPrekeys, newSecretPrekeys)
+	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming, bobPublicPrekeys, bobSecretPrekeys)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	fmt.Printf("Bob hears: %s\n", out)
 
-	newSecretPrekeys = newSecretPrekeys
-	aliceHomeConn = aliceHomeConn
-	bobHomeConn = bobHomeConn
+	envelope2 := []byte("Envelope2")
+	bobRatch, err = bobConf.sendMessage(envelope2, []byte(alice), bobRatch)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	incomingAlice := <-aliceConnToServer.ReadEnvelope
+
+	aliceRatchets := make([]*ratchet.Ratchet, 0)
+	aliceRatchets = append(aliceRatchets, aliceRatch)
+	outAlice, aliceRatch, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Printf("Alice hears: %s\n", outAlice)
 }
