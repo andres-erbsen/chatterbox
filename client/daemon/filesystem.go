@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"code.google.com/p/go.exp/fsnotify"
+	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"io"
@@ -130,7 +131,7 @@ func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
 }
 
 func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
-	// TODO: move name validation to the firstr place where we encoiunter a name
+	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(name); err != nil {
 		return nil, err
 	}
@@ -139,11 +140,31 @@ func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
 }
 
 func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
-	// TODO: move name validation to the firstr place where we encoiunter a name
+	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(name); err != nil {
 		return err
 	}
 	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), name), ratch)
+}
+
+func AllRatchets(conf *Config) ([]*ratchet.Ratchet, error) {
+	files, err := ioutil.ReadDir(conf.RatchetKeysDir())
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]*ratchet.Ratchet, 0, len(files))
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		ratch := new(ratchet.Ratchet)
+		err := UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), file.Name()), ratch)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ratchet for \"%s\": %s", file.Name(), err)
+		}
+		ret = append(ret, ratch)
+	}
+	return ret, nil
 }
 
 func InitFs(conf *Config) error {
