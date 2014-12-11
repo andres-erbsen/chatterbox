@@ -52,10 +52,8 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.ConnectionToServer) error {
+func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.ConnectionToServer, theirPk *[32]byte, encMsg []byte, theirDename []byte) error {
 	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
-	var theirPk *[32]byte          //TODO: Load from file
-	var encMsg, theirDename []byte //TODO: Load from file
 
 	theirInBuf := make([]byte, MAX_MESSAGE_SIZE)
 
@@ -79,10 +77,7 @@ func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.Connectio
 	return nil
 }
 
-func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToServer) error {
-	var theirPk *[32]byte
-	var encMsg, theirDename []byte
-
+func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToServer, theirPk *[32]byte, encMsg []byte, theirDename []byte) error {
 	msgRatch, err := LoadRatchet(conf, string(theirDename))
 	if err != nil {
 		return err
@@ -219,13 +214,19 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 					if true { //TODO: First message in this conversation
 						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						if err := conf.encryptFirstMessage(msg, connToServer); err != nil {
+						var theirPk *[32]byte          //TODO: Load from file
+						var encMsg, theirDename []byte //TODO: Load from file
+
+						if err := conf.encryptFirstMessage(msg, connToServer, theirPk, encMsg, theirDename); err != nil {
 							return err
 						}
 					} else { //TODO: Not-first message in this conversation
 						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						if err := conf.encryptMessage(msg, connToServer); err != nil {
+						var theirPk *[32]byte          //TODO: Load from file
+						var encMsg, theirDename []byte //TODO: Load from file
+
+						if err := conf.encryptMessage(msg, connToServer, theirPk, encMsg, theirDename); err != nil {
 							return err
 						}
 					}
