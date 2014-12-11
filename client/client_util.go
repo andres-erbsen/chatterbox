@@ -150,7 +150,7 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *tes
 }
 
 func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transport.Conn, error) {
-	oldConn, err := net.Dial("tcp", addr+":1984")
+	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, "1984"))
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client) (*trans
 	port := chatProfile.ServerPortTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
 
-	oldConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
+	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
 		return nil, err
 	}
