@@ -36,7 +36,7 @@ var _ = math.Inf
 
 type Message struct {
 	Contents         []byte   `protobuf:"bytes,1,req,name=contents" json:"contents"`
-	Subject          []byte   `protobuf:"bytes,2,req,name=subject" json:"subject"`
+	Subject          string   `protobuf:"bytes,2,req,name=subject" json:"subject"`
 	Participants     [][]byte `protobuf:"bytes,3,rep,name=participants" json:"participants"`
 	Dename           []byte   `protobuf:"bytes,4,req,name=dename" json:"dename"`
 	XXX_unrecognized []byte   `json:"-"`
@@ -93,23 +93,23 @@ func (m *Message) Unmarshal(data []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Subject", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				byteLen |= (int(b) & 0x7F) << shift
+				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
+			postIndex := index + int(stringLen)
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Subject = append(m.Subject, data[index:postIndex]...)
+			m.Subject = string(data[index:postIndex])
 			index = postIndex
 		case 3:
 			if wireType != 2 {
@@ -220,25 +220,21 @@ func NewPopulatedMessage(r randyClientClient, easy bool) *Message {
 	for i := 0; i < v1; i++ {
 		this.Contents[i] = byte(r.Intn(256))
 	}
-	v2 := r.Intn(100)
-	this.Subject = make([]byte, v2)
-	for i := 0; i < v2; i++ {
-		this.Subject[i] = byte(r.Intn(256))
-	}
+	this.Subject = randStringClientClient(r)
 	if r.Intn(10) != 0 {
-		v3 := r.Intn(100)
-		this.Participants = make([][]byte, v3)
-		for i := 0; i < v3; i++ {
-			v4 := r.Intn(100)
-			this.Participants[i] = make([]byte, v4)
-			for j := 0; j < v4; j++ {
+		v2 := r.Intn(100)
+		this.Participants = make([][]byte, v2)
+		for i := 0; i < v2; i++ {
+			v3 := r.Intn(100)
+			this.Participants[i] = make([]byte, v3)
+			for j := 0; j < v3; j++ {
 				this.Participants[i][j] = byte(r.Intn(256))
 			}
 		}
 	}
-	v5 := r.Intn(100)
-	this.Dename = make([]byte, v5)
-	for i := 0; i < v5; i++ {
+	v4 := r.Intn(100)
+	this.Dename = make([]byte, v4)
+	for i := 0; i < v4; i++ {
 		this.Dename[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -264,9 +260,9 @@ func randUTF8RuneClientClient(r randyClientClient) rune {
 	return res
 }
 func randStringClientClient(r randyClientClient) string {
-	v6 := r.Intn(100)
-	tmps := make([]rune, v6)
-	for i := 0; i < v6; i++ {
+	v5 := r.Intn(100)
+	tmps := make([]rune, v5)
+	for i := 0; i < v5; i++ {
 		tmps[i] = randUTF8RuneClientClient(r)
 	}
 	return string(tmps)
@@ -288,11 +284,11 @@ func randFieldClientClient(data []byte, r randyClientClient, fieldNumber int, wi
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateClientClient(data, uint64(key))
-		v7 := r.Int63()
+		v6 := r.Int63()
 		if r.Intn(2) == 0 {
-			v7 *= -1
+			v6 *= -1
 		}
-		data = encodeVarintPopulateClientClient(data, uint64(v7))
+		data = encodeVarintPopulateClientClient(data, uint64(v6))
 	case 1:
 		data = encodeVarintPopulateClientClient(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -407,7 +403,7 @@ func (this *Message) Equal(that interface{}) bool {
 	if !bytes.Equal(this.Contents, that1.Contents) {
 		return false
 	}
-	if !bytes.Equal(this.Subject, that1.Subject) {
+	if this.Subject != that1.Subject {
 		return false
 	}
 	if len(this.Participants) != len(that1.Participants) {

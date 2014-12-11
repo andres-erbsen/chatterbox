@@ -193,7 +193,7 @@ func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 	}
 
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  nil,
+		Subject:  "",
 		Contents: msg,
 		Dename:   dename,
 	})
@@ -209,7 +209,7 @@ func EncryptAuthFirst(dename []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 
 func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  nil,
+		Subject:  "",
 		Contents: msg,
 		Dename:   dename,
 	})

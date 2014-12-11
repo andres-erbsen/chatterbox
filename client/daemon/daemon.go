@@ -295,10 +295,11 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 						}
 
 						// make protobuf for message; append it
-						payload := proto.MessagePayload{
+						payload := proto.Message{
 							Subject:      metadata.Subject,
 							Participants: allParticipants,
-							Message:      msg,
+							Dename:       conf.Dename,
+							Contents:     msg,
 						}
 						payloadBytes, err := payload.Marshal()
 						if err != nil {
