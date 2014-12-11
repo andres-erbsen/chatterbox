@@ -130,7 +130,7 @@ func CreateServerConn(dename []byte, denameClient *client.Client) (*transport.Co
 	addr := chatProfile.ServerAddressTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
 
-	oldConn, err := net.Dial("tcp", addr)
+	oldConn, err := net.Dial("tcp", addr+":1984")
 	if err != nil {
 		return nil, err
 	}

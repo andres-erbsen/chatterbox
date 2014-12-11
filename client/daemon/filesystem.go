@@ -127,6 +127,9 @@ func LoadPrekeys(conf *Config) ([]*[32]byte, error) {
 	prekeysProto := new(proto.Prekeys)
 	err := UnmarshalFromFile(filepath.Join((*conf).KeysDir(), PrekeysFileName), prekeysProto)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

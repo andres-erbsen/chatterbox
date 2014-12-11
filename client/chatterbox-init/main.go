@@ -49,11 +49,14 @@ func main() {
 	}
 
 	secretConfig := &proto.LocalAccountConfig{
-		ServerAddressTCP: *serverAddress,
-		ServerPortTCP:    int32(*serverPort),
+		ServerAddressTCP:  *serverAddress,
+		ServerPortTCP:     int32(*serverPort),
+		ServerTransportPK: serverTransportPubkey,
+		Dename:            []byte(*dename),
 	}
 	publicProfile := &proto.Profile{
-		ServerAddressTCP: *serverAddress,
+		ServerAddressTCP:  *serverAddress,
+		ServerTransportPK: serverTransportPubkey,
 	}
 	if err := client.GenerateLongTermKeys(secretConfig, publicProfile, rand.Reader); err != nil {
 		panic(err)
