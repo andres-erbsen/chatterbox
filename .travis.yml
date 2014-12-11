@@ -1,6 +1,9 @@
 language: go
 notificaitons:
   email:
-    recipients: andres@krutt.org
+    recipients:
+        - andres@krutt.org
+        - abergal@mit.edu
+        - kaufmand@mit.edu
     on_success: change
     on_failure: always
