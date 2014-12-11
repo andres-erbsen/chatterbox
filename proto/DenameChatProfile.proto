@@ -15,7 +15,7 @@ option (gogoproto.benchgen_all) = true;
 
 message Profile {
 	required string ServerAddressTCP = 1 [(gogoproto.nullable) = false];
-	required int32 ServerPort = 2 [(gogoproto.nullable) = false];
+	required int32 ServerPortTCP = 2 [(gogoproto.nullable) = false];
 	required bytes ServerTransportPK = 3 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
 	required bytes UserIDAtServer = 4 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];
 	required bytes KeySigningKey = 5 [(gogoproto.customtype) = "Byte32", (gogoproto.nullable) = false];

@@ -21,7 +21,7 @@ var _ = math.Inf
 
 type Profile struct {
 	ServerAddressTCP  string `protobuf:"bytes,1,req" json:"ServerAddressTCP"`
-	ServerPort        int32  `protobuf:"varint,2,req" json:"ServerPort"`
+	ServerPortTCP     int32  `protobuf:"varint,2,req" json:"ServerPortTCP"`
 	ServerTransportPK Byte32 `protobuf:"bytes,3,req,customtype=Byte32" json:"ServerTransportPK"`
 	UserIDAtServer    Byte32 `protobuf:"bytes,4,req,customtype=Byte32" json:"UserIDAtServer"`
 	KeySigningKey     Byte32 `protobuf:"bytes,5,req,customtype=Byte32" json:"KeySigningKey"`
@@ -78,7 +78,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 			index = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt2.Errorf("proto: wrong wireType = %d for field ServerPort", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field ServerPortTCP", wireType)
 			}
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
@@ -86,7 +86,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 				}
 				b := data[index]
 				index++
-				m.ServerPort |= (int32(b) & 0x7F) << shift
+				m.ServerPortTCP |= (int32(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -215,7 +215,7 @@ func (m *Profile) Size() (n int) {
 	_ = l
 	l = len(m.ServerAddressTCP)
 	n += 1 + l + sovDenameChatProfile(uint64(l))
-	n += 1 + sovDenameChatProfile(uint64(uint32(m.ServerPort)))
+	n += 1 + sovDenameChatProfile(uint64(uint32(m.ServerPortTCP)))
 	l = m.ServerTransportPK.Size()
 	n += 1 + l + sovDenameChatProfile(uint64(l))
 	l = m.UserIDAtServer.Size()
@@ -246,9 +246,9 @@ func sozDenameChatProfile(x uint64) (n int) {
 func NewPopulatedProfile(r randyDenameChatProfile, easy bool) *Profile {
 	this := &Profile{}
 	this.ServerAddressTCP = randStringDenameChatProfile(r)
-	this.ServerPort = r.Int31()
+	this.ServerPortTCP = r.Int31()
 	if r.Intn(2) == 0 {
-		this.ServerPort *= -1
+		this.ServerPortTCP *= -1
 	}
 	v1 := NewPopulatedByte32(r)
 	this.ServerTransportPK = *v1
@@ -355,7 +355,7 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 	i += copy(data[i:], m.ServerAddressTCP)
 	data[i] = 0x10
 	i++
-	i = encodeVarintDenameChatProfile(data, i, uint64(uint32(m.ServerPort)))
+	i = encodeVarintDenameChatProfile(data, i, uint64(uint32(m.ServerPortTCP)))
 	data[i] = 0x1a
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(m.ServerTransportPK.Size()))
@@ -443,7 +443,7 @@ func (this *Profile) Equal(that interface{}) bool {
 	if this.ServerAddressTCP != that1.ServerAddressTCP {
 		return false
 	}
-	if this.ServerPort != that1.ServerPort {
+	if this.ServerPortTCP != that1.ServerPortTCP {
 		return false
 	}
 	if !this.ServerTransportPK.Equal(that1.ServerTransportPK) {

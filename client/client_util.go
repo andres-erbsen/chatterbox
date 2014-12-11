@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"github.com/agl/ed25519"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
@@ -127,9 +128,10 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *tes
 	}
 
 	addr := chatProfile.ServerAddressTCP
+	port := chatProfile.ServerPortTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
 
-	oldConn, err := net.Dial("tcp", addr)
+	oldConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,9 +166,10 @@ func CreateServerConn(dename []byte, denameClient *client.Client) (*transport.Co
 	}
 
 	addr := chatProfile.ServerAddressTCP
+	port := chatProfile.ServerPortTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
 
-	oldConn, err := net.Dial("tcp", addr+":1984")
+	oldConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
 		return nil, err
 	}
@@ -397,14 +400,22 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) {
 	//TODO: move this to test?
 	//TODO: All these names are horrible, please change them
+	addr, portStr, err := net.SplitHostPort(serverAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var port int32
+	if _, err := fmt.Sscanf("%d", portStr, port); err != nil {
+		t.Fatal(err)
+	}
+
 	chatProfile := &proto.Profile{
-		ServerAddressTCP:  serverAddr,
+		ServerAddressTCP:  addr,
+		ServerPortTCP:     port,
 		ServerTransportPK: (proto.Byte32)(*serverPk),
 	}
 
-	err := GenerateLongTermKeys(secretConfig, chatProfile, rand.Reader)
-
-	if err != nil {
+	if err := GenerateLongTermKeys(secretConfig, chatProfile, rand.Reader); err != nil {
 		t.Fatal(err)
 	}
 

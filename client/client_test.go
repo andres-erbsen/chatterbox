@@ -81,6 +81,7 @@ func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte,
 
 	chatProfile := &proto.Profile{
 		ServerAddressTCP:  "",
+		ServerPortTCP:     -1,
 		ServerTransportPK: (proto.Byte32)([32]byte{}),
 		UserIDAtServer:    (proto.Byte32)([32]byte{}),
 		KeySigningKey:     (proto.Byte32)([32]byte{}),

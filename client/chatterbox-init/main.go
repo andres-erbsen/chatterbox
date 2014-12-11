@@ -36,7 +36,7 @@ func main() {
 	var serverTransportPubkey [32]byte
 	flag.Var((*hex32Byte)(&serverTransportPubkey), "server-pubkey", "The TCP port which the server listens on. Note that people sending you mesages expct to be able to reach your home server at port 1984.")
 	serverAddress := flag.String("server-host", "", "The IP address or hostname on which your (prospective) home server server can be reached")
-	serverPort := flag.Int("server-port", 1984, "The TCP port which the server listens on. Note that people sending you mesages expct to be able to reach your home server at port 1984.")
+	serverPort := flag.Int("server-port", 1984, "The TCP port which the server listens on.")
 	dir := flag.String("account-directory", "", "Dedicated directory for the account.")
 	flag.Parse()
 
@@ -56,6 +56,7 @@ func main() {
 	}
 	publicProfile := &proto.Profile{
 		ServerAddressTCP:  *serverAddress,
+		ServerPortTCP:     int32(*serverPort),
 		ServerTransportPK: serverTransportPubkey,
 	}
 	if err := client.GenerateLongTermKeys(secretConfig, publicProfile, rand.Reader); err != nil {
