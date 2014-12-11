@@ -96,35 +96,6 @@ func createAccount(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing
 	receiveProtobuf(conn, inBuf, t)
 }
 
-func CreateTestServer(t *testing.T) (*Server, *[32]byte, func()) {
-	dir, err := ioutil.TempDir("", "testdb")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(dir)
-	db, err := leveldb.OpenFile(dir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	shutdown := make(chan struct{})
-
-	pks, sks, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	server, err := StartServer(db, shutdown, pks, sks, ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return server, pks, func() {
-		os.RemoveAll(dir)
-		db.Close()
-	}
-}
-
 //Tests whether database contains new account after creating one
 func TestAccountCreation(t *testing.T) {
 	dir, err := ioutil.TempDir("", "testdb")
@@ -208,7 +179,7 @@ func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *test
 
 //Test message listing
 func TestMessageListing(t *testing.T) {
-	server, pks, teardown := createTestServer(t)
+	server, pks, teardown := CreateTestServer(t)
 
 	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
 	if err != nil {
@@ -248,7 +219,6 @@ func TestMessageListing(t *testing.T) {
 			t.Error("Wrong message list returned")
 		}
 	}
-	server.StopServer()
 	teardown()
 }
 
