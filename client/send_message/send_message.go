@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -52,8 +51,14 @@ func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [
 	ioutil.WriteFile(metadataFile, metadataBytes, 0600)
 
 	// write messages to files in the folder (or error)
-	for index, message := range messages {
-		ioutil.WriteFile(filepath.Join(tmpDir, dirName, strconv.Itoa(index)), message, 0600)
+	for _, message := range messages {
+		f, err := ioutil.TempFile(filepath.Join(tmpDir, dirName), "")
+		if err != nil {
+			return err
+		}
+		if err = ioutil.WriteFile(f.Name(), message, 0600); err != nil {
+			return err
+		}
 	}
 
 	// move folder to the outbox (or error)
