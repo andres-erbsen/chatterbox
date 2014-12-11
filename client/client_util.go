@@ -14,7 +14,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
-	//testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
+	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"io"
 	"net"
 	"time"
@@ -341,46 +341,39 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	return response, nil
 }
 
-//TODO: This function is deprecated
-/*
-func DenameCreateAccount(name []byte, config *client.Config) (*[32]byte, *client.Client, error) {
+func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte) error {
 	//TODO: move this to test?
-	newClient, err := client.NewClient(config, nil, nil)
-	if err != nil {
-		return nil, nil, err
+	//TODO: All these names are horrible, please change them
+	chatProfile := &proto.Profile{
+		ServerAddressTCP:  serverAddr,
+		ServerTransportPK: (proto.Byte32)(*serverPk),
 	}
 
-	//TODO: All these names are horrible, please change them
-	pkAuth, skAuth, err := box.GenerateKey(rand.Reader)
+	err := GenerateLongTermKeys(secretConfig, chatProfile, rand.Reader)
 
-	chatProfile := &proto.Profile{
-		ServerAddressTCP:  "",
-		ServerTransportPK: (proto.Byte32)([32]byte{}),
-		UserIDAtServer:    (proto.Byte32)([32]byte{}),
-		KeySigningKey:     (proto.Byte32)([32]byte{}),
-		MessageAuthKey:    (proto.Byte32)(*pkAuth),
+	if err != nil {
+		return err
 	}
 
 	chatProfileBytes, err := protobuf.Marshal(chatProfile)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	profile, sk, err := client.NewProfile(nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	client.SetProfileField(profile, PROFILE_FIELD_ID, chatProfileBytes)
 
-	err = newClient.Register(sk, name, profile, testutil2.MakeToken())
+	err = denameClient.Register(sk, name, profile, testutil2.MakeToken())
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	return skAuth, newClient, nil
+	return nil
 }
-*/
 
 func GenerateLongTermKeys(secretConfig *proto.LocalAccountConfig, publicProfile *proto.Profile, rand io.Reader) error {
 	if pk, sk, err := box.GenerateKey(rand); err != nil {
