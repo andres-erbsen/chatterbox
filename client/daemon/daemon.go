@@ -49,16 +49,38 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.ConnectionToServer, theirPk *[32]byte, encMsg []byte, theirDename []byte) error {
+func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
+	//If using TOR, dename client is fresh TOR connection
+	profile, err := conf.denameClient.Lookup(theirDename)
+	if err != nil {
+		return err
+	}
+
+	chatProfileBytes, err := client.GetProfileField(profile, util.PROFILE_FIELD_ID)
+	if err != nil {
+		return err
+	}
+
+	chatProfile := new(proto.Profile)
+	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+		return err
+	}
+
+	addr := chatProfile.ServerAddressTCP
+	pkSig := (*[32]byte)(&chatProfile.KeySigningKey)
+	port := (int)(chatProfile.ServerPortTCP)
+	pkTransport := (*[32]byte)(&chatProfile.ServerTransportPK)
+	theirPk := (*[32]byte)(&chatProfile.UserIDAtServer)
+
 	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient)
+	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 	if err != nil {
 		return err
 	}
-	theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, conf.denameClient)
+	theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, pkSig)
 	if err != nil {
 		return err
 	}
@@ -74,7 +96,31 @@ func (conf *Config) encryptFirstMessage(msg []byte, connToServer *util.Connectio
 	return nil
 }
 
-func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToServer, theirPk *[32]byte, encMsg []byte, theirDename []byte) error {
+func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
+	//If using TOR, dename client is fresh TOR connection
+	profile, err := conf.denameClient.Lookup(theirDename)
+	if err != nil {
+		return err
+	}
+
+	chatProfileBytes, err := client.GetProfileField(profile, util.PROFILE_FIELD_ID)
+	if err != nil {
+		return err
+	}
+
+	chatProfile := new(proto.Profile)
+	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
+		return err
+	}
+
+	addr := chatProfile.ServerAddressTCP
+	port := (int)(chatProfile.ServerPortTCP)
+	pkTransport := (*[32]byte)(&chatProfile.ServerTransportPK)
+	theirPk := (*[32]byte)(&chatProfile.UserIDAtServer)
+
+	if err != nil {
+		return err
+	}
 	msgRatch, err := LoadRatchet(conf, string(theirDename))
 	if err != nil {
 		return err
@@ -82,7 +128,8 @@ func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToSe
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient)
+	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
+
 	if err != nil {
 		return err
 	}
@@ -221,19 +268,17 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 					if true { //TODO: First message in this conversation
 						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirPk *[32]byte          //TODO: Load from file
-						var encMsg, theirDename []byte //TODO: Load from file
+						var theirDename []byte //TODO: Load from file
 
-						if err := conf.encryptFirstMessage(msg, connToServer, theirPk, encMsg, theirDename); err != nil {
+						if err := conf.encryptFirstMessage(msg, theirDename); err != nil {
 							return err
 						}
 					} else { //TODO: Not-first message in this conversation
 						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirPk *[32]byte          //TODO: Load from file
-						var encMsg, theirDename []byte //TODO: Load from file
+						var theirDename []byte //TODO: Load from file
 
-						if err := conf.encryptMessage(msg, connToServer, theirPk, encMsg, theirDename); err != nil {
+						if err := conf.encryptMessage(msg, theirDename); err != nil {
 							return err
 						}
 					}

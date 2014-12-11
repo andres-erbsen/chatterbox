@@ -103,6 +103,20 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	//Alice encrypts and sends a message
+	envelope := []byte("Envelope")
+	err = aliceConf.encryptFirstMessage(envelope, []byte(bob))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//Bob checks his messages
+	messages, err := util.ListUserMessages(bobHomeConn, bobConnToServer, bobConf.outBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Messages: %v\n", messages)
+
 	newSecretPrekeys = newSecretPrekeys
 	aliceHomeConn = aliceHomeConn
 	bobHomeConn = bobHomeConn

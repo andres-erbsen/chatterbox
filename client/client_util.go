@@ -163,25 +163,7 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 	return conn, nil
 }
 
-func CreateForeignServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
-	profile, err := denameClient.Lookup(dename)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfile := new(proto.Profile)
-	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return nil, err
-	}
-
-	addr := chatProfile.ServerAddressTCP
-	port := chatProfile.ServerPortTCP
-	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
+func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
 
 	oldConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
@@ -193,7 +175,7 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client) (*trans
 		return nil, err
 	}
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, MAX_MESSAGE_SIZE)
 	if err != nil {
 		return nil, err
 	}
@@ -291,24 +273,7 @@ func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return nil
 }
 
-func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename []byte, denameClient *client.Client) (*[32]byte, error) {
-	profile, err := denameClient.Lookup(dename)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfile := new(proto.Profile)
-	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return nil, err
-	}
-
-	pkSig := (*[32]byte)(&chatProfile.KeySigningKey)
-
+func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename []byte, pkSig *[32]byte) (*[32]byte, error) {
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
