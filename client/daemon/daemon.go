@@ -164,12 +164,10 @@ func (conf *Config) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet)
 	for _, msgRatch := range ratchets {
 		var err error
 		ratch, msg, err = util.DecryptAuth(envelope, msgRatch)
-		if err != nil {
-			return nil, nil, err
-		}
 		if err == nil {
-			break
+			break // found the right ratchet
 		}
+		fmt.Printf("Decryption Error: %v\n", err)
 	}
 	if msg == nil {
 		fmt.Println("No ratchets worked.")
@@ -372,27 +370,31 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				processOutboxDir(conf, ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
-			if true { //TODO: is the first message we're receiving from the person
-				message, ratch, index, err := conf.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
-				if err != nil {
-					return err
-				}
+			// assume it's the first message we're receiving from the person; try to decrypt
+			message, ratch, index, err := conf.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
+			if err == nil {
+				// assumption was correct, found a prekey that matched
 				StoreRatchet(conf, message.Dename, ratch)
 
 				//TODO: Update prekeys by removing index, store
 				fmt.Printf("%s\n", message)
 				index = index //Take out
 				//TODO: Take out metadata + converastion from msg, Store the decrypted message
-			} else {
-				ratchets, err := AllRatchets(conf)
+			} else { // try decrypting with a ratchet
+				fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
+				checkAuth := util.CheckAuthWith(conf.denameClient)
+				ratchets, err := AllRatchets(conf, fillAuth, checkAuth)
 				if err != nil {
 					return err
 				}
+				fmt.Printf("Num ratchets: %d\n", len(ratchets))
+				fmt.Printf("Ratchets: %#v\n", ratchets[0])
 
 				message, ratch, err := conf.decryptMessage(envelope, ratchets)
 				if err != nil {
 					return err
 				}
+				fmt.Printf("%s\n", message)
 
 				//TODO: Take out metadata + conversation from msg, then store
 				StoreRatchet(conf, message.Dename, ratch)
