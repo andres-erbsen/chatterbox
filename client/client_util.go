@@ -17,6 +17,7 @@ import (
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"io"
 	"net"
+	"testing"
 	"time"
 )
 
@@ -341,7 +342,7 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	return response, nil
 }
 
-func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte) error {
+func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) {
 	//TODO: move this to test?
 	//TODO: All these names are horrible, please change them
 	chatProfile := &proto.Profile{
@@ -352,27 +353,25 @@ func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretCon
 	err := GenerateLongTermKeys(secretConfig, chatProfile, rand.Reader)
 
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
 
 	chatProfileBytes, err := protobuf.Marshal(chatProfile)
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
 
 	profile, sk, err := client.NewProfile(nil, nil)
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
 
 	client.SetProfileField(profile, PROFILE_FIELD_ID, chatProfileBytes)
 
 	err = denameClient.Register(sk, name, profile, testutil2.MakeToken())
 	if err != nil {
-		return err
+		t.Fatal(err)
 	}
-
-	return nil
 }
 
 func GenerateLongTermKeys(secretConfig *proto.LocalAccountConfig, publicProfile *proto.Profile, rand io.Reader) error {
