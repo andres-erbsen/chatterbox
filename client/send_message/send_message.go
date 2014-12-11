@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 )
 
@@ -27,15 +25,7 @@ func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [
 	}
 
 	// create folder for conversation with the conversation name (or error?)
-	//dirName := "date-number-sender-recipient-recipient-..."
-	dateStr := conf.Now().Format(time.RFC3339)
-	recipientStrings := make([]string, len(recipients))
-	for i := 0; i < len(recipients); i++ {
-		recipientStrings[i] = string(recipients[i])
-	}
-	sort.Strings(recipientStrings)
-	recipientsStr := strings.Join(recipientStrings, "-")
-	dirName := fmt.Sprintf("%s-%d-%s-%s", dateStr, 0, "user_dename", recipientsStr) // FIXME don't hard code username or number
+	dirName := daemon.GenerateConversationName(conf, recipients)
 	os.MkdirAll(filepath.Join(tmpDir, dirName), 0700)
 
 	// create metadata file or error
