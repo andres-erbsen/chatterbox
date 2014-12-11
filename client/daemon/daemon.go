@@ -6,6 +6,7 @@ package daemon
 import (
 	"code.google.com/p/go.exp/fsnotify"
 	"errors"
+	"fmt"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
@@ -82,6 +83,7 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("prekey: ", theirKey)
 
 	encMsg, ratch, err := util.EncryptAuthFirst(conf.Dename, msg, ourSkAuth, theirKey, conf.denameClient)
 	StoreRatchet(conf, theirDename, ratch)
@@ -311,7 +313,9 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
 		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
 		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
-		StorePrekeys(conf, prekeyPublics, prekeySecrets)
+		if err = StorePrekeys(conf, prekeyPublics, prekeySecrets); err != nil {
+			return err
+		}
 		var signingKey [64]byte
 		copy(signingKey[:], conf.KeySigningSecretKey[:64])
 		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
@@ -361,6 +365,9 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				}
 
 				//TODO: Update prekeys by removing index, store
+				thing := proto.Message{}
+				thing.Unmarshal(msg)
+				fmt.Printf("%s\n", thing)
 				msg = msg     //Take out
 				index = index //Take out
 				//TODO: Take out metadata + converastion from msg, Store the decrypted message

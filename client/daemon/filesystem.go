@@ -111,8 +111,8 @@ func MarshalToFile(conf *Config, path string, in interface {
 		return err
 	}
 
-	err = os.Rename(path, path+".old")
-	if err != nil {
+	err = os.Rename(path, tmpFile+".old")
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	err = os.Rename(tmpFile, path)
