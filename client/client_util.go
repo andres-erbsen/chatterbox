@@ -39,7 +39,12 @@ func To32ByteList(list *[]proto.Byte32) *[][32]byte {
 	return &newList
 }
 
-func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
+func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, error) {
+	response := <-connToServer.ReadReply //TODO: Timeout
+	return response, nil
+}
+
+func CreateAccount(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) error {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
@@ -47,14 +52,14 @@ func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 		return err
 	}
 
-	_, err := ReceiveProtobuf(conn, inBuf)
+	_, err := ReceiveReply(connToServer)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func ListUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte) (*[][32]byte, error) {
+func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) (*[][32]byte, error) {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -62,7 +67,7 @@ func ListUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte) (*[][32
 		return nil, err
 	}
 
-	response, err := ReceiveProtobuf(conn, inBuf)
+	response, err := ReceiveReply(connToServer)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +75,7 @@ func ListUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte) (*[][32
 	return To32ByteList(&response.MessageList), nil
 }
 
-func DownloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, messageHash *[32]byte) ([]byte, error) {
+func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) ([]byte, error) {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
@@ -78,7 +83,7 @@ func DownloadEnvelope(conn *transport.Conn, inBuf []byte, outBuf []byte, message
 		return nil, err
 	}
 
-	response, err := ReceiveProtobuf(conn, inBuf)
+	response, err := ReceiveReply(connToServer)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +211,7 @@ func DecryptAuth(in []byte, skList [][32]byte, ratch *ratchet.Ratchet) (*ratchet
 	return ratch, msg, nil
 }
 
-func DeleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageList *[][32]byte) error {
+func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageList *[][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
 		DeleteMessages: *ToProtoByte32List(messageList),
 	}
@@ -214,14 +219,14 @@ func DeleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, messageLi
 		return err
 	}
 
-	_, err := ReceiveProtobuf(conn, inBuf)
+	_, err := ReceiveReply(connToServer)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func UploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]byte) error {
+func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, keyList *[][]byte) error {
 	uploadKeys := &proto.ClientToServer{
 		UploadSignedKeys: *keyList,
 	}
@@ -229,7 +234,7 @@ func UploadKeys(conn *transport.Conn, inBuf []byte, outBuf []byte, keyList *[][]
 		return nil
 	}
 
-	_, err := ReceiveProtobuf(conn, inBuf)
+	_, err := ReceiveReply(connToServer)
 	if err != nil {
 		return err
 	}
@@ -262,7 +267,7 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, pkS
 	return &userKey, nil
 }
 
-func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte) (int64, error) {
+func GetNumKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) (int64, error) {
 	getNumKeys := &proto.ClientToServer{
 		GetNumKeys: protobuf.Bool(true),
 	}
@@ -270,14 +275,14 @@ func GetNumKeys(conn *transport.Conn, inBuf []byte, outBuf []byte) (int64, error
 		return 0, err
 	}
 
-	response, err := ReceiveProtobuf(conn, inBuf)
+	response, err := ReceiveReply(connToServer)
 	if err != nil {
 		return 0, err
 	}
 	return *response.NumKeys, nil
 }
 
-func EnablePush(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
+func EnablePush(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) error {
 	true_ := true
 	command := &proto.ClientToServer{
 		ReceiveEnvelopes: &true_,
@@ -285,7 +290,7 @@ func EnablePush(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	if err := WriteProtobuf(conn, outBuf, command); err != nil {
 		return err
 	}
-	_, err := ReceiveProtobuf(conn, inBuf)
+	_, err := ReceiveReply(connToServer)
 	if err != nil {
 		return err
 	}

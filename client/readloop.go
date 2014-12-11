@@ -6,27 +6,27 @@ import (
 	"sync"
 )
 
-type connectionToServer struct {
-	buf          []byte
-	conn         *transport.Conn
+type ConnectionToServer struct {
+	Buf          []byte
+	Conn         *transport.Conn
 	ReadReply    chan *proto.ServerToClient // TODO: do we want to return an error?
 	ReadEnvelope chan []byte
 
-	shutdown     chan struct{}
+	Shutdown     <-chan struct{}
 	waitShutdown sync.WaitGroup
 }
 
-func (c *connectionToServer) receiveMessages() error {
+func (c *ConnectionToServer) ReceiveMessages() error {
 	c.waitShutdown.Add(1)
 	go func() {
 		defer c.waitShutdown.Done()
-		<-c.shutdown
-		c.conn.Close()
+		<-c.Shutdown
+		c.Conn.Close()
 	}()
 	for {
-		msg, err := ReceiveProtobuf(c.conn, c.buf)
+		msg, err := ReceiveProtobuf(c.Conn, c.Buf)
 		select {
-		case <-c.shutdown:
+		case <-c.Shutdown:
 			return nil
 		default:
 			if err != nil {
