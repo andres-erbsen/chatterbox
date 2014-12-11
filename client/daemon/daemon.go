@@ -164,6 +164,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
+				conf.decryptFirstMessage(envelope, connToServer)
 				skList, err := LoadPrekeys(conf)
 				if err != nil {
 					return err
