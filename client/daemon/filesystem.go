@@ -52,8 +52,10 @@ func (conf *Config) UniqueTmpDir() (string, error) {
 }
 
 const (
-	MetadataFileName = "metadata.pb"
-	PrekeysFileName  = "prekeys.pb"
+	MetadataFileName           = "metadata.pb"
+	PrekeysFileName            = "prekeys.pb"
+	LocalAccountConfigFileName = "config.pb"
+	ProfileFileName            = "profile.pb"
 )
 
 func Copy(source string, dest string, perm os.FileMode) error {
@@ -121,13 +123,48 @@ func MarshalToFile(conf *Config, path string, in interface {
 	return nil
 }
 
-func LoadPrekeys(conf *Config) (*proto.Prekeys, error) {
+func LoadPrekeys(conf *Config) ([]*[32]byte, error) {
 	prekeysProto := new(proto.Prekeys)
-	return prekeysProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), PrekeysFileName), prekeysProto)
+	err := UnmarshalFromFile(filepath.Join((*conf).KeysDir(), PrekeysFileName), prekeysProto)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert protobuf proto.Byte32 to *[32]byte
+	prekeys := make([]*[32]byte, len(prekeysProto.Prekeys))
+	for i := 0; i < len(prekeys); i++ {
+		prekeys[i] = (*[32]byte)(&prekeysProto.Prekeys[i])
+	}
+	return prekeys, nil
 }
 
-func StorePrekeys(conf *Config, prekeys *proto.Prekeys) error {
-	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), prekeys)
+func StorePrekeys(conf *Config, prekeys []*[32]byte) error {
+	// convert [32]byte to proto.Byte32
+	prekeysProto := proto.Prekeys{
+		Prekeys: make([]proto.Byte32, len(prekeys)),
+	}
+	for i := 0; i < len(prekeys); i++ {
+		prekeysProto.Prekeys[i] = (proto.Byte32)(*prekeys[i])
+	}
+	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), &prekeysProto)
+}
+
+func LoadLocalAccountConfig(conf *Config) (*proto.LocalAccountConfig, error) {
+	localAccountProto := new(proto.LocalAccountConfig)
+	return localAccountProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), LocalAccountConfigFileName), localAccountProto)
+}
+
+func StoreLocalAccountConfig(conf *Config, localAccountConfig *proto.LocalAccountConfig) error {
+	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), LocalAccountConfigFileName), localAccountConfig)
+}
+
+func LoadPublicProfile(conf *Config) (*proto.Profile, error) {
+	profileProto := new(proto.Profile)
+	return profileProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), ProfileFileName), profileProto)
+}
+
+func StorePublicProfile(conf *Config, publicProfile *proto.Profile) error {
+	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), ProfileFileName), publicProfile)
 }
 
 func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {

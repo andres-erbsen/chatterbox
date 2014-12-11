@@ -9,13 +9,19 @@ import (
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
+	//"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	"log"
+	//"net"
 	"os"
 	"time"
 )
 
-const MAX_MESSAGE_SIZE = 16 * 1024
+const (
+	MAX_MESSAGE_SIZE = 16 * 1024
+	MAX_PREKEYS      = 100 //TODO make this configurable
+	MIN_PREKEYS      = 50
+)
 
 func Start(rootDir string) error {
 	conf := LoadConfig(&Config{
@@ -24,10 +30,11 @@ func Start(rootDir string) error {
 		TempPrefix: "daemon",
 	})
 
+	// ensure that we have a correct directory structure
+	// including a correctly-populated outbox
 	if err := InitFs(conf); err != nil {
 		return err
 	}
-
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
 
@@ -101,7 +108,50 @@ func (conf *Config) encryptMessage(msg []byte, connToServer *util.ConnectionToSe
 	return nil
 }
 
+func (conf *Config) decryptFirstMessage(envelope []byte) ([]byte, error) {
+	skList, err := LoadPrekeys(conf)
+	if err != nil {
+		return nil, err
+	}
+	skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
+	ratch, msg, index, err := util.DecryptAuthFirst(envelope, skList, skAuth, conf.denameClient)
+	message := new(proto.Message)
+	if err := message.Unmarshal(msg); err != nil {
+		return nil, err
+	}
+	newPrekeys := append(skList[:index], skList[index+1:]...)
+	StorePrekeys(conf, newPrekeys)
+	StoreRatchet(conf, string(message.Dename), ratch)
+
+	return msg, nil
+}
+
+func (conf *Config) decryptMessage(envelope []byte) ([]byte, error) {
+	ratchets, err := AllRatchets(conf)
+	if err != nil {
+		return nil, err
+	}
+	var ratch *ratchet.Ratchet
+	var msg []byte
+	for _, msgRatch := range ratchets {
+		ratch, msg, err = util.DecryptAuth(envelope, msgRatch)
+		if err == nil {
+			break
+		}
+	}
+	if msg == nil {
+		return nil, errors.New("Invalid message received.")
+	}
+	message := new(proto.Message)
+	if err := message.Unmarshal(msg); err != nil {
+		return nil, err
+	}
+	StoreRatchet(conf, string(message.Dename), ratch)
+	return msg, nil
+}
+
 func Run(conf *Config, shutdown <-chan struct{}) error {
+
 	initFn := func(path string, f os.FileInfo, err error) error {
 		log.Printf("init path: %s\n", path)
 		return err
@@ -133,6 +183,25 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		ReadEnvelope: notifies,
 	}
 
+	// load prekeys and ensure that we have enough of them
+	prekeys, err := LoadPrekeys(conf)
+	if err != nil {
+		return err
+	}
+	numKeys, err := util.GetNumKeys(ourConn, connToServer, conf.outBuf)
+	if err != nil {
+		return err
+	}
+	if numKeys < MIN_PREKEYS {
+		publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
+		prekeys = append(prekeys, newSecretPrekeys...)
+		var signingKey [64]byte
+		copy(signingKey[:], conf.KeySigningSecretKey[:64])
+		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(publicPrekeys, &signingKey))
+		if err != nil {
+			return err // TODO handle this nicely
+		}
+	}
 	go connToServer.ReceiveMessages()
 
 	for {
@@ -164,41 +233,20 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
-				conf.decryptFirstMessage(envelope, connToServer)
-				skList, err := LoadPrekeys(conf)
+				msg, err := conf.decryptFirstMessage(envelope)
 				if err != nil {
 					return err
 				}
-				skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
-				ratch, msg, index, err := util.DecryptAuthFirst(envelope, skList, skAuth, conf.denameClient)
-				message := new(proto.Message)
-				if err := message.Unmarshal(msg); err != nil {
-					return err
-				}
-				newPrekeys := append(skList[:index], skList[index+1:])
-				StorePrekeys(conf, skList)
-				StoreRatchet(conf, string(message.Dename), ratch)
+
+				msg = msg //Take out
+				//TODO: Take out metadata + converastion from msg, Store the decrypted message
 			} else {
-				ratchets, err := AllRatchets(conf)
+				msg, err := conf.decryptMessage(envelope)
 				if err != nil {
 					return err
 				}
-				var ratch *ratchet.Ratchet
-				var msg []byte
-				for _, msgRatch := range ratchets {
-					ratch, msg, err = util.DecryptAuth(envelope, msgRatch)
-					if err == nil {
-						break
-					}
-				}
-				if msg == nil {
-					return errors.New("Invalid message received.")
-				}
-				message := new(proto.Message)
-				if err := message.Unmarshal(msg); err != nil {
-					return err
-				}
-				StoreRatchet(conf, string(message.Dename), ratch)
+
+				msg = msg //Take out
 				//TODO: Take out metadata + conversation from msg, then store
 
 			}

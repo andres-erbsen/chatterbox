@@ -85,7 +85,7 @@ func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, ou
 	return nil
 }
 
-func SignKeys(keys [][32]byte, sk *[64]byte) [][]byte {
+func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	pkList := make([][]byte, 0)
 	for _, key := range keys {
 		signedKey := ed25519.Sign(sk, key[:])
@@ -168,14 +168,14 @@ func EncryptAuth(dename []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ra
 	return out, ratch, nil
 }
 
-func DecryptAuthFirst(in []byte, skList [][32]byte, skAuth *[32]byte, denameClient *client.Client) (*ratchet.Ratchet, []byte, int, error) {
+func DecryptAuthFirst(in []byte, skList []*[32]byte, skAuth *[32]byte, denameClient *client.Client) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
 	}
 
 	for i, key := range skList {
-		msg, err := ratch.DecryptFirst(in[32:], &key)
+		msg, err := ratch.DecryptFirst(in[32:], key)
 		if err == nil {
 			return ratch, msg, i, nil
 		}
