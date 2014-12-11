@@ -241,12 +241,12 @@ func DecryptAuthFirst(in []byte, pkList []*[32]byte, skList []*[32]byte, skAuth 
 			}
 		}
 	}
-	return nil, nil, -1, errors.New("Invalid message received.") //TODO: Should I make the error message something different?
+	return nil, nil, -1, errors.New("Invalid first message received.") //TODO: Should I make the error message something different?
 }
 func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, error) {
 	msg, err := ratch.Decrypt(in[32:])
 	if err != nil {
-		return nil, nil, errors.New("Invalid message.") //TODO: Should I make the error message something different?
+		return nil, nil, errors.New("Invalid first message.") //TODO: Should I make the error message something different?
 	}
 	return ratch, msg, nil
 }
