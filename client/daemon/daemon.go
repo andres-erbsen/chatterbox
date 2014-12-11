@@ -6,12 +6,15 @@ package daemon
 import (
 	"code.google.com/p/go.exp/fsnotify"
 	"errors"
+	"fmt"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/dename/client"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -49,7 +52,7 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
+func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) error {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -85,7 +88,7 @@ func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
 		return err
 	}
 	encMsg, ratch, err := util.EncryptAuthFirst(theirDename, msg, ourSkAuth, theirKey, conf.denameClient)
-	StoreRatchet(conf, string(theirDename), ratch)
+	StoreRatchet(conf, theirDename, ratch)
 	if err != nil {
 		return err
 	}
@@ -96,7 +99,7 @@ func (conf *Config) encryptFirstMessage(msg []byte, theirDename []byte) error {
 	return nil
 }
 
-func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
+func (conf *Config) sendMessage(msg []byte, theirDename []byte) error {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -121,7 +124,7 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 	if err != nil {
 		return err
 	}
-	msgRatch, err := LoadRatchet(conf, string(theirDename))
+	msgRatch, err := LoadRatchet(conf, theirDename)
 	if err != nil {
 		return err
 	}
@@ -135,7 +138,7 @@ func (conf *Config) encryptMessage(msg []byte, theirDename []byte) error {
 	}
 
 	encMsg, ratch, err := util.EncryptAuth(theirDename, msg, msgRatch)
-	StoreRatchet(conf, string(theirDename), ratch)
+	StoreRatchet(conf, theirDename, ratch)
 
 	if err != nil {
 		return err
@@ -160,7 +163,7 @@ func (conf *Config) decryptFirstMessage(envelope []byte) ([]byte, error) {
 	}
 	newPrekeys := append(skList[:index], skList[index+1:]...)
 	StorePrekeys(conf, newPrekeys)
-	StoreRatchet(conf, string(message.Dename), ratch)
+	StoreRatchet(conf, message.Dename, ratch)
 
 	return msg, nil
 }
@@ -185,7 +188,7 @@ func (conf *Config) decryptMessage(envelope []byte) ([]byte, error) {
 	if err := message.Unmarshal(msg); err != nil {
 		return nil, err
 	}
-	StoreRatchet(conf, string(message.Dename), ratch)
+	StoreRatchet(conf, message.Dename, ratch)
 	return msg, nil
 }
 
@@ -265,22 +268,60 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				if err != nil {
 					return err
 				}
-				if true { //TODO: Fill in something's changed in the outbox
-					if true { //TODO: First message in this conversation
-						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirDename []byte //TODO: Load from file
+				// parse metadata
+				metadataFile := filepath.Join(ev.Name, MetadataFileName)
+				metadata := proto.ConversationMetadata{}
+				err = UnmarshalFromFile(metadataFile, &metadata)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("metadata: ", metadata)
 
-						if err := conf.encryptFirstMessage(msg, theirDename); err != nil {
+				// add ourselves to the participants list
+				allParticipants := append(metadata.Participants, conf.Dename)
+
+				// load messages
+				potentialMessages, err := ioutil.ReadDir(ev.Name)
+				if err != nil {
+					return err
+				}
+				messages := make([][]byte, 0, len(potentialMessages))
+				for _, finfo := range potentialMessages {
+					if !finfo.IsDir() && finfo.Name() != MetadataFileName {
+						msg, err := ioutil.ReadFile(filepath.Join(ev.Name, finfo.Name()))
+						if err != nil {
 							return err
 						}
-					} else { //TODO: Not-first message in this conversation
-						msg := []byte("Message") //TODO: msg is metadata + conversation
 
-						var theirDename []byte //TODO: Load from file
-
-						if err := conf.encryptMessage(msg, theirDename); err != nil {
+						// make protobuf for message; append it
+						payload := proto.MessagePayload{
+							Subject:      metadata.Subject,
+							Participants: allParticipants,
+							Message:      msg,
+						}
+						payloadBytes, err := payload.Marshal()
+						if err != nil {
 							return err
+						}
+						messages = append(messages, payloadBytes)
+					}
+				}
+				if len(messages) == 0 {
+					break
+				}
+
+				for _, recipient := range metadata.Participants {
+					for _, msg := range messages {
+						// TODO replace msg with message+metadata (new protobuf?)
+						if _, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
+							if err := conf.sendFirstMessage(msg, recipient); err != nil {
+								return err
+							}
+						} else { //TODO: Not-first message in this conversation
+							if err := conf.sendMessage(msg, recipient); err != nil {
+								return err
+							}
 						}
 					}
 				}

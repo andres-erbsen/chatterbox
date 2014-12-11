@@ -11,6 +11,7 @@
 		DenameChatProfile.proto
 		LocalAccountConfig.proto
 		LocalConversationMetadata.proto
+		MessagePayload.proto
 		Prekeys.proto
 
 	It has these top-level messages:

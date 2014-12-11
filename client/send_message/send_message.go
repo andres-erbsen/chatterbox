@@ -1,7 +1,8 @@
-package daemon
+package main
 
 import (
 	"fmt"
+	"github.com/andres-erbsen/chatterbox/client/daemon"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"io/ioutil"
 	"os"
@@ -18,7 +19,7 @@ import (
 // subject = subject of the new conversation
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
-func SpawnConversationInOutbox(conf *Config, subject string, recipients []string, messages [][]byte) error {
+func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [][]byte, messages [][]byte) error {
 	// create temp directory or error
 	tmpDir, err := conf.UniqueTmpDir()
 	defer os.RemoveAll(tmpDir)
@@ -29,8 +30,12 @@ func SpawnConversationInOutbox(conf *Config, subject string, recipients []string
 	// create folder for conversation with the conversation name (or error?)
 	//dirName := "date-number-sender-recipient-recipient-..."
 	dateStr := conf.Now().Format(time.RFC3339)
-	sort.Strings(recipients)
-	recipientsStr := strings.Join(recipients, "-")
+	recipientStrings := make([]string, len(recipients))
+	for i := 0; i < len(recipients); i++ {
+		recipientStrings[i] = string(recipients[i])
+	}
+	sort.Strings(recipientStrings)
+	recipientsStr := strings.Join(recipientStrings, "-")
 	dirName := fmt.Sprintf("%s-%d-%s-%s", dateStr, 0, "user_dename", recipientsStr) // FIXME don't hard code username or number
 	os.MkdirAll(filepath.Join(tmpDir, dirName), 0700)
 
@@ -39,7 +44,7 @@ func SpawnConversationInOutbox(conf *Config, subject string, recipients []string
 		Participants: recipients,
 		Subject:      subject,
 	}
-	metadataFile := filepath.Join(tmpDir, dirName, MetadataFileName)
+	metadataFile := filepath.Join(tmpDir, dirName, daemon.MetadataFileName)
 	metadataBytes, err := metadata.Marshal()
 	if err != nil {
 		return err
@@ -58,4 +63,25 @@ func SpawnConversationInOutbox(conf *Config, subject string, recipients []string
 	}
 
 	return nil
+}
+
+func main() {
+	args := os.Args[1:]
+	if len(args) < 4 {
+		fmt.Println("arguments: <root_dir> <user_dename> <subject> <message>")
+		os.Exit(1)
+	}
+
+	rootDir := args[0]
+	recipient := []byte(args[1])
+	subject := args[2]
+	message := args[3]
+
+	conf := daemon.LoadConfig(&daemon.Config{
+		RootDir:    rootDir,
+		Now:        time.Now,
+		TempPrefix: "some_ui",
+	})
+
+	SpawnConversationInOutbox(conf, subject, [][]byte{recipient}, [][]byte{([]byte)(message)})
 }

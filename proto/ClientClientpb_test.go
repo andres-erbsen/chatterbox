@@ -11,6 +11,7 @@ It is generated from these files:
 	DenameChatProfile.proto
 	LocalAccountConfig.proto
 	LocalConversationMetadata.proto
+	MessagePayload.proto
 	Prekeys.proto
 
 It has these top-level messages:
