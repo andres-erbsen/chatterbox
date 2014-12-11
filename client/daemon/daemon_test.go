@@ -58,11 +58,10 @@ func TestEncryptFirstMessage(t *testing.T) {
 		ourDename:    []byte(bob),
 	})
 
-	fmt.Printf("Address: %v\n", serverAddr)
+	aliceHomeConn := util.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	bobHomeConn := util.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
 
-	aliceHomeConn, alicePk, aliceSk := util.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-	bobHomeConn, bobPk, bobSk := util.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-
+	//fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
 	aliceNotifies := make(chan []byte)
 	aliceReplies := make(chan *proto.ServerToClient)
 
@@ -95,7 +94,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	//Bob uploads keys
-	publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS)
+	publicPrekeys, newSecretPrekeys, err := GeneratePrekeys(1)
 	var signingKey [64]byte
 	copy(signingKey[:], bobConf.KeySigningSecretKey[:64])
 	err = util.UploadKeys(bobHomeConn, bobConnToServer, bobConf.outBuf, util.SignKeys(publicPrekeys, &signingKey))
@@ -103,11 +102,25 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	//_, err := util.GetNumKeys(bobHomeConn, bobConnToServer, bobConf.outBuf)
+	//if err != nil {
+	//t.Fatal(err)
+	//}
+	//Alice encrypts and sends a message
+	envelope := []byte("Envelope")
+	err = aliceConf.encryptFirstMessage(envelope, []byte(bob))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//Bob checks his messages
+	messages, err := util.ListUserMessages(bobHomeConn, bobConnToServer, bobConf.outBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("Messages: %v\n", messages)
+
 	newSecretPrekeys = newSecretPrekeys
 	aliceHomeConn = aliceHomeConn
 	bobHomeConn = bobHomeConn
-	alicePk = alicePk
-	aliceSk = aliceSk
-	bobSk = bobSk
-	bobPk = bobPk
 }

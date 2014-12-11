@@ -88,18 +88,23 @@ func DownloadEnvelope(conn *transport.Conn, connToServer *ConnectionToServer, ou
 }
 
 func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
+	fmt.Printf("Signin key: %x\n", sk[:32])
+	fmt.Printf("Public key: %x\n", sk[32:])
+
 	pkList := make([][]byte, 0)
 	for _, key := range keys {
-		signedKey := ed25519.Sign(sk, key[:])
-		pkList = append(pkList, append(append([]byte{}, key[:]...), signedKey[:]...))
+		signature := ed25519.Sign(sk, key[:])
+		fmt.Printf("Key %x\n", key)
+		fmt.Printf("Sig %x\n", signature)
+		pkList = append(pkList, append(append([]byte{}, key[:]...), signature[:]...))
 	}
 	return pkList
 }
 
-func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) (*transport.Conn, *[32]byte, *[32]byte) {
+func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) *transport.Conn {
 
 	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
-	conn, pkp, skp := CreateTestHomeServerConn(name, denameClient, t)
+	conn := CreateTestHomeServerConn(name, denameClient, secretConfig, t)
 
 	inBuf := make([]byte, MAX_MESSAGE_SIZE)
 	outBuf := make([]byte, MAX_MESSAGE_SIZE)
@@ -108,10 +113,10 @@ func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *p
 	if err != nil {
 		t.Fatal(err)
 	}
-	return conn, pkp, skp
+	return conn
 }
 
-func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *testing.T) (*transport.Conn, *[32]byte, *[32]byte) {
+func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, t *testing.T) *transport.Conn {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
 		t.Fatal(err)
@@ -130,23 +135,21 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *tes
 	addr := chatProfile.ServerAddressTCP
 	port := chatProfile.ServerPortTCP
 	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
+	pkp := (*[32]byte)(&chatProfile.UserIDAtServer)
 
 	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pkp, skp, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+	skp := (*[32]byte)(&secretConfig.TransportSecretKeyForServer)
 
 	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return conn, pkp, skp
+	return conn
 }
 
 func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transport.Conn, error) {
@@ -163,25 +166,7 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 	return conn, nil
 }
 
-func CreateForeignServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
-	profile, err := denameClient.Lookup(dename)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfile := new(proto.Profile)
-	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return nil, err
-	}
-
-	addr := chatProfile.ServerAddressTCP
-	port := chatProfile.ServerPortTCP
-	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
+func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
 
 	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
@@ -193,7 +178,7 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client) (*trans
 		return nil, err
 	}
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, MAX_MESSAGE_SIZE)
 	if err != nil {
 		return nil, err
 	}
@@ -291,24 +276,7 @@ func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return nil
 }
 
-func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename []byte, denameClient *client.Client) (*[32]byte, error) {
-	profile, err := denameClient.Lookup(dename)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
-	if err != nil {
-		return nil, err
-	}
-
-	chatProfile := new(proto.Profile)
-	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return nil, err
-	}
-
-	pkSig := (*[32]byte)(&chatProfile.KeySigningKey)
-
+func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename []byte, pkSig *[32]byte) (*[32]byte, error) {
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
@@ -325,8 +293,11 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, den
 	copy(userKey[:], response.SignedKey[:32])
 
 	var sig [64]byte
-	copy(userKey[:], response.SignedKey[32:(32+64)])
+	copy(sig[:], response.SignedKey[32:(32+64)])
 
+	fmt.Printf("V PubKey %x\n", pkSig)
+	fmt.Printf("V Messag %x\n", userKey)
+	fmt.Printf("V Signat %x\n", sig)
 	if !ed25519.Verify(pkSig, userKey[:], &sig) {
 		return nil, errors.New("Improperly signed key returned")
 	}
@@ -420,7 +391,6 @@ func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretCon
 	}
 	var port int32
 	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
-		fmt.Printf("Port: '%v'\n", portStr)
 		t.Fatal(err)
 	}
 

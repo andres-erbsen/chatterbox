@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -201,6 +202,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 				}
 			}
 			if err != nil {
+				fmt.Printf("Server error: %v\n", err)
 				response.Status = proto.ServerToClient_PARSE_ERROR.Enum()
 			} else {
 				response.Status = proto.ServerToClient_OK.Enum()
@@ -253,7 +255,8 @@ func (server *Server) deleteKey(uid *[32]byte, key []byte) error {
 }
 
 func (server *Server) getKey(user *[32]byte) ([]byte, error) {
-	prefix := append([]byte{'k'}, (*user)[:]...)
+	//fmt.Printf("SBob: %v\n", *user)
+	prefix := append([]byte{'k'}, user[:]...)
 	server.keyMutex.Lock()
 	defer server.keyMutex.Unlock()
 	snapshot, err := server.database.GetSnapshot()
