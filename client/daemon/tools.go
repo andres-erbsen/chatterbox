@@ -18,7 +18,7 @@ import (
 // subject = subject of the new conversation
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
-func SpawnConversationInOutbox(conf Config, subject string, recipients []string, messages [][]byte) error {
+func SpawnConversationInOutbox(conf *Config, subject string, recipients []string, messages [][]byte) error {
 	// create temp directory or error
 	tmpDir, err := conf.UniqueTmpDir()
 	defer os.RemoveAll(tmpDir)
