@@ -22,7 +22,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	defer os.RemoveAll(rootDir)
 	handleError(err, t)
 
-	conf := Config{
+	conf := &Config{
 		RootDir:    rootDir,
 		Now:        func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
 		TempPrefix: "some_ui",
