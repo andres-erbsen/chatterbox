@@ -147,7 +147,21 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, t *tes
 	return conn, pkp, skp
 }
 
-func CreateServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
+func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transport.Conn, error) {
+	oldConn, err := net.Dial("tcp", addr+":1984")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, MAX_MESSAGE_SIZE)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func CreateForeignServerConn(dename []byte, denameClient *client.Client) (*transport.Conn, error) {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
 		return nil, err
@@ -377,7 +391,7 @@ func WriteProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToS
 
 func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient, error) {
 	response := new(proto.ServerToClient)
-	conn.SetDeadline(time.Now().Add(time.Second))
+	conn.SetDeadline(time.Now().Add(time.Hour))
 	num, err := conn.ReadFrame(inBuf)
 	if err != nil {
 		return nil, err
