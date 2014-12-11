@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	daemonCfg, err := daemon.Start("/tmp/foo/bar")
+	daemonCfg, err := daemon.Start(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 		return
