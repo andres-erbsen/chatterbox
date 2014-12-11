@@ -140,7 +140,7 @@ func LoadRatchet(conf *Config, name string) (*ratchet.Ratchet, error) {
 }
 
 func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
-	// TODO: move name validation to the firstr place where we encoiunter a name
+	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(name); err != nil {
 		return err
 	}
