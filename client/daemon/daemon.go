@@ -6,13 +6,11 @@ package daemon
 import (
 	"code.google.com/p/go.exp/fsnotify"
 	"errors"
-	"fmt"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/dename/client"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -75,8 +73,6 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) error {
 	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
 
 	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
-
-	fmt.Printf("Conf.Dename %s\n", conf.Dename)
 
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 	if err != nil {
@@ -192,25 +188,92 @@ func (conf *Config) decryptMessage(envelope []byte) ([]byte, error) {
 	return msg, nil
 }
 
+func processOutboxDir(conf *Config, dirname string) error {
+	// parse metadata
+	metadataFile := filepath.Join(dirname, MetadataFileName)
+	if _, err := os.Stat(metadataFile); err != nil {
+		return nil // no metadata --> not an outgoing message
+	}
+
+	metadata := proto.ConversationMetadata{}
+	err := UnmarshalFromFile(metadataFile, &metadata)
+	if err != nil {
+		return err
+	}
+
+	// add ourselves to the participants list
+	allParticipants := append(metadata.Participants, conf.Dename)
+
+	// load messages
+	potentialMessages, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		return err
+	}
+	messages := make([][]byte, 0, len(potentialMessages))
+	for _, finfo := range potentialMessages {
+		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
+			msg, err := ioutil.ReadFile(filepath.Join(dirname, finfo.Name()))
+			if err != nil {
+				return err
+			}
+
+			// make protobuf for message; append it
+			payload := proto.Message{
+				Subject:      metadata.Subject,
+				Participants: allParticipants,
+				Dename:       conf.Dename,
+				Contents:     msg,
+			}
+			payloadBytes, err := payload.Marshal()
+			if err != nil {
+				return err
+			}
+			messages = append(messages, payloadBytes)
+		}
+	}
+	if len(messages) == 0 {
+		return nil // no messages to send, just the metadata file
+	}
+
+	for _, recipient := range metadata.Participants {
+		for _, msg := range messages {
+			// replace msg with message+metadata (new protobuf?)
+			if _, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
+				if err := conf.sendFirstMessage(msg, recipient); err != nil {
+					return err
+				}
+			} else { // Not-first message in this conversation
+				if err := conf.sendMessage(msg, recipient); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	//move the sent messages to the conversation folder
+	convName, err := filepath.Rel(conf.OutboxDir(), dirname)
+	if err != nil {
+		return err
+	}
+	convPath := filepath.Join(conf.ConversationDir(), convName)
+	if os.Mkdir(convPath, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+	for _, finfo := range potentialMessages {
+		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
+			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, finfo.Name())); err != nil {
+				// TODO handle os.IsExists(err)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func Run(conf *Config, shutdown <-chan struct{}) error {
 
-	initFn := func(path string, f os.FileInfo, err error) error {
-		log.Printf("init path: %s\n", path)
-		return err
-	}
-
 	profile, err := LoadPublicProfile(conf)
-	if err != nil {
-		return err
-	}
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	defer watcher.Close()
-
-	err = WatchDir(watcher, conf.OutboxDir(), initFn)
 	if err != nil {
 		return err
 	}
@@ -257,6 +320,25 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		}
 	}
 
+	initFn := func(path string, f os.FileInfo, err error) error {
+		return processOutboxDir(conf, path)
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	err = WatchDir(watcher, conf.OutboxDir(), initFn)
+	if err != nil {
+		return err
+	}
+
+	if err = util.EnablePush(ourConn, connToServer, conf.outBuf); err != nil {
+		return err
+	}
+
 	for {
 		select {
 		case <-shutdown:
@@ -269,63 +351,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 					return err
 				}
 
-				// parse metadata
-				metadataFile := filepath.Join(ev.Name, MetadataFileName)
-				metadata := proto.ConversationMetadata{}
-				err = UnmarshalFromFile(metadataFile, &metadata)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("metadata: ", metadata)
-
-				// add ourselves to the participants list
-				allParticipants := append(metadata.Participants, conf.Dename)
-
-				// load messages
-				potentialMessages, err := ioutil.ReadDir(ev.Name)
-				if err != nil {
-					return err
-				}
-				messages := make([][]byte, 0, len(potentialMessages))
-				for _, finfo := range potentialMessages {
-					if !finfo.IsDir() && finfo.Name() != MetadataFileName {
-						msg, err := ioutil.ReadFile(filepath.Join(ev.Name, finfo.Name()))
-						if err != nil {
-							return err
-						}
-
-						// make protobuf for message; append it
-						payload := proto.Message{
-							Subject:      metadata.Subject,
-							Participants: allParticipants,
-							Dename:       conf.Dename,
-							Contents:     msg,
-						}
-						payloadBytes, err := payload.Marshal()
-						if err != nil {
-							return err
-						}
-						messages = append(messages, payloadBytes)
-					}
-				}
-				if len(messages) == 0 {
-					break
-				}
-
-				for _, recipient := range metadata.Participants {
-					for _, msg := range messages {
-						// TODO replace msg with message+metadata (new protobuf?)
-						if _, err := LoadRatchet(conf, recipient); err != nil { //First message in this conversation
-							if err := conf.sendFirstMessage(msg, recipient); err != nil {
-								return err
-							}
-						} else { //TODO: Not-first message in this conversation
-							if err := conf.sendMessage(msg, recipient); err != nil {
-								return err
-							}
-						}
-					}
-				}
+				processOutboxDir(conf, ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			if true { //TODO: is the first message we're receiving from the person
