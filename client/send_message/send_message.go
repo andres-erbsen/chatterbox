@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/client/daemon"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ import (
 func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [][]byte, messages [][]byte) error {
 	// create temp directory or error
 	tmpDir, err := conf.UniqueTmpDir()
-	defer os.RemoveAll(tmpDir)
+	defer shred.RemoveAll(tmpDir)
 	if err != nil {
 		return err
 	}

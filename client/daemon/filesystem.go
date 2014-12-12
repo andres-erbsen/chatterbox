@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"io"
 	"io/ioutil"
 	"os"
@@ -128,7 +129,7 @@ func MarshalToFile(conf *Config, path string, in interface {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpDir)
+	defer shred.RemoveAll(tmpDir)
 
 	tmpFile := filepath.Join(tmpDir, filepath.Base(path))
 	err = ioutil.WriteFile(tmpFile, inBytes, 0600)
@@ -277,7 +278,7 @@ func InitFs(conf *Config) error {
 				if err != nil {
 					return err
 				}
-				defer os.RemoveAll(tmpDir)
+				defer shred.RemoveAll(tmpDir)
 				conversationInfo, err := os.Stat(cPath)
 				if err != nil {
 					return err

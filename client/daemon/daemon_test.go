@@ -5,8 +5,8 @@ import (
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
-	//protobuf "code.google.com/p/gogoprotobuf/proto"
 	"github.com/andres-erbsen/chatterbox/server"
+	"github.com/andres-erbsen/chatterbox/shred"
 	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
 	"io/ioutil"
@@ -38,7 +38,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
+	defer shred.RemoveAll(dir)
 
 	aliceConf := &Config{
 		RootDir:      dir,

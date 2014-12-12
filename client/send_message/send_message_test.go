@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/client/daemon"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func handleError(err error, t *testing.T) {
 func TestSpawnConversationInOutbox(t *testing.T) {
 	// init the file system + configuration structure
 	rootDir, err := ioutil.TempDir("", "")
-	defer os.RemoveAll(rootDir)
+	defer shred.RemoveAll(rootDir)
 	handleError(err, t)
 
 	conf := &daemon.Config{
