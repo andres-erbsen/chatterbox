@@ -34,8 +34,8 @@ func Start(rootDir string) (*Config, error) {
 	if err := InitFs(conf); err != nil {
 		return nil, err
 	}
-	inBuf := make([]byte, util.MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, util.MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
+	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	denameClient, err := client.NewClient(nil, nil, nil)
 	if err != nil {
@@ -73,7 +73,7 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.R
 
 	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
 
-	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
+	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 	if err != nil {
@@ -83,7 +83,6 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.R
 	if err != nil {
 		return nil, err
 	}
-
 	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, conf.denameClient)
 	if err != nil {
 		return nil, err
@@ -124,7 +123,7 @@ func (conf *Config) sendMessage(msg []byte, theirDename []byte, msgRatch *ratche
 		return nil, err
 	}
 
-	theirInBuf := make([]byte, util.MAX_MESSAGE_SIZE)
+	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
 
@@ -167,10 +166,8 @@ func (conf *Config) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet)
 		if err == nil {
 			break // found the right ratchet
 		}
-		fmt.Printf("Decryption Error: %v\n", err)
 	}
 	if msg == nil {
-		fmt.Println("No ratchets worked.")
 		return nil, nil, errors.New("Invalid message received.")
 	}
 	message := new(proto.Message)
