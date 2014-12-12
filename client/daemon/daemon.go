@@ -201,6 +201,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 		return err
 	}
 	messages := make([][]byte, 0, len(potentialMessages))
+	sendTime := conf.Now().UTC()
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
 			msg, err := ioutil.ReadFile(filepath.Join(dirname, finfo.Name()))
@@ -214,7 +215,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 				Contents:      msg,
 				Subject:       metadata.Subject,
 				Participants:  metadata.Participants,
-				Date:          conf.Now().UTC().UnixNano(),
+				Date:          sendTime.UnixNano(),
 				InitialSender: metadata.InitialSender,
 				InitialDate:   metadata.Date,
 			}
@@ -227,6 +228,28 @@ func processOutboxDir(conf *Config, dirname string) error {
 	}
 	if len(messages) == 0 {
 		return nil // no messages to send, just the metadata file
+	}
+
+	// ensure the conversation directory exists
+	convName, err := filepath.Rel(conf.OutboxDir(), dirname)
+	if err != nil {
+		return err
+	}
+	convPath := filepath.Join(conf.ConversationDir(), convName)
+	if os.Mkdir(convPath, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// copy the metadata file to the conversation directory if it isn't already there
+	convMetadataFile := filepath.Join(convPath, MetadataFileName)
+	if _, err = os.Stat(convMetadataFile); err != nil {
+		if os.IsNotExist(err) {
+			if err = MarshalToFile(conf, convMetadataFile, &metadata); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	for _, recipient := range metadata.Participants {
@@ -255,31 +278,10 @@ func processOutboxDir(conf *Config, dirname string) error {
 		}
 	}
 
-	// copy the metadata file to the conversation folder if it doesn't already exist
-	convName, err := filepath.Rel(conf.OutboxDir(), dirname)
-	if err != nil {
-		return err
-	}
-	convPath := filepath.Join(conf.ConversationDir(), convName)
-	if os.Mkdir(convPath, 0700); err != nil && !os.IsExist(err) {
-		return err
-	}
-	convMetadataFile := filepath.Join(convPath, MetadataFileName)
-	if _, err = os.Stat(convMetadataFile); err != nil {
-		if os.IsNotExist(err) {
-			if err = MarshalToFile(conf, convMetadataFile, &metadata); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
 	// move the sent messages to the conversation folder
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
-			messageName := GenerateMessageName(time.Now(), string(conf.Dename)) // TODO: move things as you send them
-			//messageName := GenerateMessageName(time.Unix(0, message.Date), string(conf.Dename)) // TODO: move things as you send them
+			messageName := GenerateMessageName(sendTime, string(conf.Dename))
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
 			}
