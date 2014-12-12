@@ -144,14 +144,10 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println("Sending message")
 	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob))
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("Message sent")
-
-	fmt.Println("Checking incoming")
 	incoming := <-bobConnToServer.ReadEnvelope
 
 	fmt.Println("Trying to decrypt message")

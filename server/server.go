@@ -1,6 +1,7 @@
 package server
 
 import (
+	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -13,9 +14,7 @@ import (
 	"sync"
 )
 
-const MAX_MESSAGE_SIZE = 16 * 1024
-
-var WO_sync = &opt.WriteOptions{Sync: true}
+var wO_sync = &opt.WriteOptions{Sync: true}
 
 type Server struct {
 	database *leveldb.DB
@@ -88,7 +87,7 @@ func (server *Server) readClientCommands(conn *transport.Conn,
 	defer server.wg.Done()
 	defer close(commands)
 	defer close(disconnected)
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 	cmd := new(proto.ClientToServer)
 	for {
 		num, err := conn.ReadFrame(inBuf)
@@ -96,7 +95,8 @@ func (server *Server) readClientCommands(conn *transport.Conn,
 			disconnected <- err
 			return
 		}
-		if err := cmd.Unmarshal(inBuf[:num]); err != nil {
+		unpadMsg := proto.Unpad(inBuf[:num])
+		if err := cmd.Unmarshal(unpadMsg); err != nil {
 			disconnected <- err
 			return
 		}
@@ -127,7 +127,7 @@ func (server *Server) readClientNotifications(notificationsIn chan []byte, notif
 //for each client, listen for commands
 func (server *Server) handleClient(connection net.Conn) error {
 	defer server.wg.Done()
-	newConnection, uid, err := transport.Handshake(connection, server.pk, server.sk, nil, MAX_MESSAGE_SIZE) //TODO: Decide on this bound
+	newConnection, uid, err := transport.Handshake(connection, server.pk, server.sk, nil, proto.SERVER_MESSAGE_SIZE) //TODO: Decide on this bound
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 		}
 	}()
 
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 	response := new(proto.ServerToClient)
 	for {
 		select {
@@ -235,7 +235,7 @@ func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch
 func (server *Server) deleteKey(uid *[32]byte, key []byte) error {
 	keyHash := sha256.Sum256((key))
 	dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
-	return server.database.Delete(dbKey, WO_sync)
+	return server.database.Delete(dbKey, wO_sync)
 }
 
 func (server *Server) getKey(user *[32]byte) ([]byte, error) {
@@ -265,7 +265,7 @@ func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 		dbKey := append(append([]byte{'k'}, uid[:]...), keyHash[:]...)
 		batch.Put(dbKey, key)
 	}
-	return server.database.Write(batch, WO_sync)
+	return server.database.Write(batch, wO_sync)
 }
 func (server *Server) deleteMessages(uid *[32]byte, messageList [][32]byte) error {
 	batch := new(leveldb.Batch)
@@ -273,7 +273,7 @@ func (server *Server) deleteMessages(uid *[32]byte, messageList [][32]byte) erro
 		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 		batch.Delete(key)
 	}
-	return server.database.Write(batch, WO_sync)
+	return server.database.Write(batch, wO_sync)
 }
 
 func (server *Server) getEnvelope(uid *[32]byte, messageHash *[32]byte) ([]byte, error) {
@@ -283,11 +283,13 @@ func (server *Server) getEnvelope(uid *[32]byte, messageHash *[32]byte) ([]byte,
 }
 
 func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ServerToClient) error {
-	size, err := message.MarshalTo(outBuf)
+	unpadMsg, err := protobuf.Marshal(message)
 	if err != nil {
 		return err
 	}
-	conn.WriteFrame(outBuf[:size])
+	padMsg := proto.Pad(unpadMsg, proto.SERVER_MESSAGE_SIZE)
+	copy(outBuf, padMsg)
+	conn.WriteFrame(outBuf[:proto.SERVER_MESSAGE_SIZE])
 	return nil
 }
 
@@ -315,7 +317,7 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	// TODO: check that user exists
 	messageHash := sha256.Sum256(envelope)
 	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
-	err := server.database.Put(key, (envelope)[:], WO_sync)
+	err := server.database.Put(key, (envelope)[:], wO_sync)
 	if err != nil {
 		return err
 	}
@@ -324,5 +326,5 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 }
 
 func (server *Server) newUser(uid *[32]byte) error {
-	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), WO_sync)
+	return server.database.Put(append([]byte{'u'}, uid[:]...), []byte(""), wO_sync)
 }
