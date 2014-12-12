@@ -182,6 +182,7 @@ func (conf *Config) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet)
 }
 
 func processOutboxDir(conf *Config, dirname string) error {
+	fmt.Printf("processing outbox dir: %s\n", dirname)
 	// parse metadata
 	metadataFile := filepath.Join(dirname, MetadataFileName)
 	if _, err := os.Stat(metadataFile); err != nil {
@@ -253,7 +254,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 		}
 	}
 
-	// copy the metadata file to the oconversation folder if it doesn't already exist
+	// copy the metadata file to the conversation folder if it doesn't already exist
 	convName, err := filepath.Rel(conf.OutboxDir(), dirname)
 	if err != nil {
 		return err
@@ -277,8 +278,9 @@ func processOutboxDir(conf *Config, dirname string) error {
 	// move the sent messages to the conversation folder
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
-			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, finfo.Name())); err != nil {
-				// TODO handle os.IsExists(err)
+			messageName := GenerateMessageName(time.Now(), string(conf.Dename)) // TODO: move things as you send them
+			//messageName := GenerateMessageName(time.Unix(0, message.Date), string(message.Dename)) // TODO: move things as you send them
+			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
 			}
 		}
@@ -298,15 +300,16 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 	}
 
 	// generate conversation name
-	convName := GenerateConversationName(conf, &metadata)
+	convName := GenerateConversationName(message.Dename, &metadata)
 
 	// create conversation directory if it doesn't already exist
-	if err := os.Mkdir(filepath.Join(conf.ConversationDir(), convName), 0700); err != nil && !os.IsExist(err) {
+	convDir := filepath.Join(conf.ConversationDir(), convName)
+	if err := os.Mkdir(convDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 
 	// create metadata file if it doesn't already exist
-	convMetadataFile := filepath.Join(convName, MetadataFileName)
+	convMetadataFile := filepath.Join(convDir, MetadataFileName)
 	if _, err := os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
 			MarshalToFile(conf, convMetadataFile, &metadata)
@@ -319,7 +322,7 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 	messageName := GenerateMessageName(time.Unix(0, message.Date), string(message.Dename))
 
 	// write the message to the conversation folder
-	if err := ioutil.WriteFile(messageName, message.Contents, 0600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(convDir, messageName), message.Contents, 0600); err != nil {
 		return err
 	}
 
@@ -378,7 +381,11 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	}
 
 	initFn := func(path string, f os.FileInfo, err error) error {
-		return processOutboxDir(conf, path)
+		if f.IsDir() {
+			return processOutboxDir(conf, path)
+		} else {
+			return processOutboxDir(conf, filepath.Dir(path))
+		}
 	}
 
 	watcher, err := fsnotify.NewWatcher()
@@ -401,8 +408,9 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		case <-shutdown:
 			return nil
 		case ev := <-watcher.Event:
+			fmt.Printf("event: %v\n", ev)
 			// event in the directory structure; watch any new directories
-			if !(ev.IsDelete() || ev.IsRename()) {
+			if _, err = os.Stat(ev.Name); err == nil {
 				err = WatchDir(watcher, ev.Name, initFn)
 				if err != nil {
 					return err
@@ -430,8 +438,6 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				if err != nil {
 					return err
 				}
-				fmt.Printf("Num ratchets: %d\n", len(ratchets))
-				fmt.Printf("Ratchets: %#v\n", ratchets[0])
 
 				message, ratch, err := conf.decryptMessage(envelope, ratchets)
 				if err != nil {
