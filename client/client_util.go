@@ -22,8 +22,9 @@ import (
 	"time"
 )
 
-const MAX_MESSAGE_SIZE = 16 * 1024
 const PROFILE_FIELD_ID = 1984
+const ENCRYPT_ADDED_LEN = 168
+const ENCRYPT_FIRST_ADDED_LEN = 200
 
 func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, error) {
 	response := <-connToServer.ReadReply //TODO: Timeout
@@ -86,8 +87,8 @@ func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *p
 	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
 	conn := CreateTestHomeServerConn(name, denameClient, secretConfig, t)
 
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
+	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	err := CreateAccount(conn, inBuf, outBuf)
 	if err != nil {
@@ -124,7 +125,7 @@ func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, secret
 
 	skp := (*[32]byte)(&secretConfig.TransportSecretKeyForServer)
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +139,7 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 		return nil, err
 	}
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr st
 		return nil, err
 	}
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
 		return nil, err
 	}
@@ -173,13 +174,15 @@ func EncryptAuthFirst(message []byte, skAuth *[32]byte, userKey *[32]byte, denam
 	}
 
 	out := append([]byte{}, (*userKey)[:]...)
-	out = ratch.EncryptFirst(out, message, userKey)
+	paddedMsg := proto.Pad(message, proto.MAX_MESSAGE_SIZE-ENCRYPT_FIRST_ADDED_LEN-len(out))
+	out = ratch.EncryptFirst(out, paddedMsg, userKey)
 
 	return out, ratch, nil
 }
 
 func EncryptAuth(message []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
-	out := ratch.Encrypt(nil, message)
+	paddedMsg := proto.Pad(message, proto.MAX_MESSAGE_SIZE-ENCRYPT_ADDED_LEN)
+	out := ratch.Encrypt(nil, paddedMsg)
 
 	return out, ratch, nil
 }
@@ -201,7 +204,8 @@ func DecryptAuthFirst(in []byte, pkList []*[32]byte, skList []*[32]byte, skAuth 
 		if *pk == pkAuth {
 			msg, err := ratch.DecryptFirst(envelope, skList[i])
 			if err == nil {
-				return ratch, msg, i, nil
+				unpadMsg := proto.Unpad(msg)
+				return ratch, unpadMsg, i, nil
 			}
 		}
 	}
@@ -212,7 +216,8 @@ func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, e
 	if err != nil {
 		return nil, nil, err
 	}
-	return ratch, msg, nil
+	unpadMsg := proto.Unpad(msg)
+	return ratch, unpadMsg, nil
 }
 
 func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageList [][32]byte) error {
@@ -321,11 +326,14 @@ func UploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *
 }
 
 func WriteProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer) error {
-	size, err := message.MarshalTo(outBuf)
+	unpadMsg, err := protobuf.Marshal(message)
 	if err != nil {
 		return err
 	}
-	conn.WriteFrame(outBuf[:size])
+	padMsg := proto.Pad(unpadMsg, proto.SERVER_MESSAGE_SIZE)
+	copy(outBuf, padMsg)
+
+	conn.WriteFrame(outBuf[:proto.SERVER_MESSAGE_SIZE])
 	return nil
 }
 
@@ -336,7 +344,8 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	if err != nil {
 		return nil, err
 	}
-	if err := response.Unmarshal(inBuf[:num]); err != nil {
+	unpadMsg := proto.Unpad(inBuf[:num])
+	if err := response.Unmarshal(unpadMsg); err != nil {
 		return nil, err
 	}
 	if response.Status == nil {
@@ -430,7 +439,8 @@ func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) 
 	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
 		var sharedAuthKey [32]byte
 		message := new(proto.Message)
-		if err := message.Unmarshal(msg); err != nil {
+		unpadMsg := proto.Unpad(msg)
+		if err := message.Unmarshal(unpadMsg); err != nil {
 			return err
 		}
 
