@@ -48,7 +48,7 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte, subject string, participants [][]byte) (*ratchet.Ratchet, error) {
+func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -84,7 +84,7 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte, subject str
 		return nil, err
 	}
 
-	encMsg, ratch, err := util.EncryptAuthFirst(conf.Dename, msg, ourSkAuth, theirKey, conf.denameClient, subject, participants)
+	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, conf.denameClient)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte, subject str
 	return ratch, nil
 }
 
-func (conf *Config) sendMessage(msg []byte, theirDename []byte, subject string, participants [][]byte, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
+func (conf *Config) sendMessage(msg []byte, theirDename []byte, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -132,7 +132,7 @@ func (conf *Config) sendMessage(msg []byte, theirDename []byte, subject string, 
 		return nil, err
 	}
 
-	encMsg, ratch, err := util.EncryptAuth(conf.Dename, msg, msgRatch, subject, participants)
+	encMsg, ratch, err := util.EncryptAuth(msg, msgRatch)
 	if err != nil {
 		return nil, err
 	}
@@ -236,13 +236,13 @@ func processOutboxDir(conf *Config, dirname string) error {
 				return err
 			}
 			if msgRatch, err := LoadRatchet(conf, recipient, fillAuth, checkAuth); err != nil { //First message in this conversation
-				ratch, err := conf.sendFirstMessage(msg, recipient, metadata.Subject, metadata.Participants)
+				ratch, err := conf.sendFirstMessage(msg, recipient)
 				if err != nil {
 					return err
 				}
 				StoreRatchet(conf, recipient, ratch)
 			} else { // Not-first message in this conversation
-				ratch, err := conf.sendMessage(msg, recipient, metadata.Subject, metadata.Participants, msgRatch)
+				ratch, err := conf.sendMessage(msg, recipient, msgRatch)
 				if err != nil {
 					return err
 				}
