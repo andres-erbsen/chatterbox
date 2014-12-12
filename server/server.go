@@ -239,7 +239,6 @@ func (server *Server) deleteKey(uid *[32]byte, key []byte) error {
 }
 
 func (server *Server) getKey(user *[32]byte) ([]byte, error) {
-	//fmt.Printf("SBob: %v\n", *user)
 	prefix := append([]byte{'k'}, user[:]...)
 	server.keyMutex.Lock()
 	defer server.keyMutex.Unlock()
