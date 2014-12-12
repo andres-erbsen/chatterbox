@@ -189,3 +189,25 @@ func TestDrop(t *testing.T) {
 		{sendB, deliver, -1},
 	})
 }
+
+func TestOverhead(t *testing.T) {
+	var preKeyA, preKeyAPrivate [32]byte
+	rand.Read(preKeyAPrivate[:])
+	curve25519.ScalarBaseMult(&preKeyA, &preKeyAPrivate)
+
+	a := &Ratchet{Now: nowFunc, FillAuth: dontFillAuth, CheckAuth: dontCheckAuth}
+	b := &Ratchet{Now: nowFunc, FillAuth: dontFillAuth, CheckAuth: dontCheckAuth}
+	encryptedFirst := b.EncryptFirst(nil, nil, &preKeyA)
+	if len(encryptedFirst) != OverheadFirst {
+		t.Errorf("expected first message overhead overhead %d, got %d", OverheadFirst, len(encryptedFirst))
+	}
+	if _, err := a.DecryptFirst(encryptedFirst, &preKeyAPrivate); err != nil {
+		t.Fatal(err)
+	}
+
+	r, _ := pairedRatchet()
+	encrypted := r.Encrypt(nil, nil)
+	if len(encrypted) != Overhead {
+		t.Errorf("expected subsequent message overhead %d, got %d", Overhead, len(encrypted))
+	}
+}
