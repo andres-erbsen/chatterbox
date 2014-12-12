@@ -150,7 +150,6 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 	incoming := <-bobConnToServer.ReadEnvelope
 
-	fmt.Println("Trying to decrypt message")
 	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming, bobPublicPrekeys, bobSecretPrekeys)
 	if err != nil {
 		t.Fatal(err)
