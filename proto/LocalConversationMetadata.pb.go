@@ -23,6 +23,7 @@ type ConversationMetadata struct {
 	Participants     [][]byte `protobuf:"bytes,1,rep" json:"Participants"`
 	Subject          string   `protobuf:"bytes,2,req" json:"Subject"`
 	Date             int64    `protobuf:"varint,3,req" json:"Date"`
+	InitialSender    []byte   `protobuf:"bytes,4,req" json:"InitialSender"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -111,6 +112,28 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 4:
+			if wireType != 2 {
+				return fmt4.Errorf("proto: wrong wireType = %d for field InitialSender", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io4.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io4.ErrUnexpectedEOF
+			}
+			m.InitialSender = append(m.InitialSender, data[index:postIndex]...)
+			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -146,6 +169,8 @@ func (m *ConversationMetadata) Size() (n int) {
 	l = len(m.Subject)
 	n += 1 + l + sovLocalConversationMetadata(uint64(l))
 	n += 1 + sovLocalConversationMetadata(uint64(m.Date))
+	l = len(m.InitialSender)
+	n += 1 + l + sovLocalConversationMetadata(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -183,8 +208,13 @@ func NewPopulatedConversationMetadata(r randyLocalConversationMetadata, easy boo
 	if r.Intn(2) == 0 {
 		this.Date *= -1
 	}
+	v3 := r.Intn(100)
+	this.InitialSender = make([]byte, v3)
+	for i := 0; i < v3; i++ {
+		this.InitialSender[i] = byte(r.Intn(256))
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedLocalConversationMetadata(r, 4)
+		this.XXX_unrecognized = randUnrecognizedLocalConversationMetadata(r, 5)
 	}
 	return this
 }
@@ -206,9 +236,9 @@ func randUTF8RuneLocalConversationMetadata(r randyLocalConversationMetadata) run
 	return res
 }
 func randStringLocalConversationMetadata(r randyLocalConversationMetadata) string {
-	v3 := r.Intn(100)
-	tmps := make([]rune, v3)
-	for i := 0; i < v3; i++ {
+	v4 := r.Intn(100)
+	tmps := make([]rune, v4)
+	for i := 0; i < v4; i++ {
 		tmps[i] = randUTF8RuneLocalConversationMetadata(r)
 	}
 	return string(tmps)
@@ -230,11 +260,11 @@ func randFieldLocalConversationMetadata(data []byte, r randyLocalConversationMet
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(key))
-		v4 := r.Int63()
+		v5 := r.Int63()
 		if r.Intn(2) == 0 {
-			v4 *= -1
+			v5 *= -1
 		}
-		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(v4))
+		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(v5))
 	case 1:
 		data = encodeVarintPopulateLocalConversationMetadata(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -289,6 +319,10 @@ func (m *ConversationMetadata) MarshalTo(data []byte) (n int, err error) {
 	data[i] = 0x18
 	i++
 	i = encodeVarintLocalConversationMetadata(data, i, uint64(m.Date))
+	data[i] = 0x22
+	i++
+	i = encodeVarintLocalConversationMetadata(data, i, uint64(len(m.InitialSender)))
+	i += copy(data[i:], m.InitialSender)
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -353,6 +387,9 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 		return false
 	}
 	if this.Date != that1.Date {
+		return false
+	}
+	if !bytes4.Equal(this.InitialSender, that1.InitialSender) {
 		return false
 	}
 	if !bytes4.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

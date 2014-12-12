@@ -210,11 +210,13 @@ func processOutboxDir(conf *Config, dirname string) error {
 
 			// make protobuf for message; append it
 			payload := proto.Message{
-				Subject:      metadata.Subject,
-				Participants: metadata.Participants,
-				Dename:       conf.Dename,
-				Contents:     msg,
-				Date:         metadata.Date,
+				Dename:        conf.Dename,
+				Contents:      msg,
+				Subject:       metadata.Subject,
+				Participants:  metadata.Participants,
+				Date:          conf.Now().UTC().UnixNano(),
+				InitialSender: metadata.InitialSender,
+				InitialDate:   metadata.Date,
 			}
 			payloadBytes, err := payload.Marshal()
 			if err != nil {
@@ -232,7 +234,6 @@ func processOutboxDir(conf *Config, dirname string) error {
 			continue
 		}
 		for _, msg := range messages {
-			// replace msg with message+metadata (new protobuf?)
 			fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
 			checkAuth := util.CheckAuthWith(conf.denameClient)
 			if err != nil {
@@ -264,10 +265,9 @@ func processOutboxDir(conf *Config, dirname string) error {
 		return err
 	}
 	convMetadataFile := filepath.Join(convPath, MetadataFileName)
-	_, err = os.Stat(convMetadataFile)
-	if err != nil {
+	if _, err = os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			if err = Copy(filepath.Join(dirname, MetadataFileName), convMetadataFile, 0600); err != nil {
+			if err = MarshalToFile(conf, convMetadataFile, &metadata); err != nil {
 				return err
 			}
 		} else {
@@ -279,7 +279,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
 			messageName := GenerateMessageName(time.Now(), string(conf.Dename)) // TODO: move things as you send them
-			//messageName := GenerateMessageName(time.Unix(0, message.Date), string(message.Dename)) // TODO: move things as you send them
+			//messageName := GenerateMessageName(time.Unix(0, message.Date), string(conf.Dename)) // TODO: move things as you send them
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
 			}
@@ -294,13 +294,14 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 
 	// generate metadata file
 	metadata := proto.ConversationMetadata{
-		Participants: message.Participants,
-		Subject:      message.Subject,
-		Date:         message.Date,
+		Participants:  message.Participants,
+		Subject:       message.Subject,
+		Date:          message.InitialDate,
+		InitialSender: message.InitialSender,
 	}
 
 	// generate conversation name
-	convName := GenerateConversationName(message.Dename, &metadata)
+	convName := GenerateConversationName(message.InitialSender, &metadata)
 
 	// create conversation directory if it doesn't already exist
 	convDir := filepath.Join(conf.ConversationDir(), convName)
@@ -308,7 +309,13 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 		return err
 	}
 
-	// create metadata file if it doesn't already exist
+	// create outbox directory if it doesn't already exist
+	outDir := filepath.Join(conf.OutboxDir(), convName)
+	if err := os.Mkdir(outDir, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// create conversation metadata file if it doesn't already exist
 	convMetadataFile := filepath.Join(convDir, MetadataFileName)
 	if _, err := os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
@@ -318,8 +325,19 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 		}
 	}
 
+	// create outbox metadata file if it doesn't already exist
+	outMetadataFile := filepath.Join(outDir, MetadataFileName)
+	if _, err := os.Stat(outMetadataFile); err != nil {
+		if os.IsNotExist(err) {
+			MarshalToFile(conf, outMetadataFile, &metadata)
+		} else {
+			return err
+		}
+	}
+
 	// generate the message name: date-sender
 	messageName := GenerateMessageName(time.Unix(0, message.Date), string(message.Dename))
+	fmt.Printf("new message name: %s\n", messageName)
 
 	// write the message to the conversation folder
 	if err := ioutil.WriteFile(filepath.Join(convDir, messageName), message.Contents, 0600); err != nil {

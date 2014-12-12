@@ -19,4 +19,6 @@ message Message {
     repeated bytes participants = 3 [(gogoproto.nullable) = false];
     required bytes dename = 4 [(gogoproto.nullable) = false]; 
 	required int64 date = 5 [(gogoproto.nullable) = false];
+	required bytes InitialSender = 6 [(gogoproto.nullable) = false];
+	required int64 InitialDate = 7 [(gogoproto.nullable) = false];
 } 

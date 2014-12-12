@@ -39,6 +39,8 @@ type Message struct {
 	Participants     [][]byte `protobuf:"bytes,3,rep,name=participants" json:"participants"`
 	Dename           []byte   `protobuf:"bytes,4,req,name=dename" json:"dename"`
 	Date             int64    `protobuf:"varint,5,req,name=date" json:"date"`
+	InitialSender    []byte   `protobuf:"bytes,6,req" json:"InitialSender"`
+	InitialDate      int64    `protobuf:"varint,7,req" json:"InitialDate"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -171,6 +173,43 @@ func (m *Message) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InitialSender", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.InitialSender = append(m.InitialSender, data[index:postIndex]...)
+			index = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InitialDate", wireType)
+			}
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				m.InitialDate |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			var sizeOfWire int
 			for {
@@ -210,6 +249,9 @@ func (m *Message) Size() (n int) {
 	l = len(m.Dename)
 	n += 1 + l + sovClientClient(uint64(l))
 	n += 1 + sovClientClient(uint64(m.Date))
+	l = len(m.InitialSender)
+	n += 1 + l + sovClientClient(uint64(l))
+	n += 1 + sovClientClient(uint64(m.InitialDate))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -257,8 +299,17 @@ func NewPopulatedMessage(r randyClientClient, easy bool) *Message {
 	if r.Intn(2) == 0 {
 		this.Date *= -1
 	}
+	v5 := r.Intn(100)
+	this.InitialSender = make([]byte, v5)
+	for i := 0; i < v5; i++ {
+		this.InitialSender[i] = byte(r.Intn(256))
+	}
+	this.InitialDate = r.Int63()
+	if r.Intn(2) == 0 {
+		this.InitialDate *= -1
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedClientClient(r, 6)
+		this.XXX_unrecognized = randUnrecognizedClientClient(r, 8)
 	}
 	return this
 }
@@ -280,9 +331,9 @@ func randUTF8RuneClientClient(r randyClientClient) rune {
 	return res
 }
 func randStringClientClient(r randyClientClient) string {
-	v5 := r.Intn(100)
-	tmps := make([]rune, v5)
-	for i := 0; i < v5; i++ {
+	v6 := r.Intn(100)
+	tmps := make([]rune, v6)
+	for i := 0; i < v6; i++ {
 		tmps[i] = randUTF8RuneClientClient(r)
 	}
 	return string(tmps)
@@ -304,11 +355,11 @@ func randFieldClientClient(data []byte, r randyClientClient, fieldNumber int, wi
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateClientClient(data, uint64(key))
-		v6 := r.Int63()
+		v7 := r.Int63()
 		if r.Intn(2) == 0 {
-			v6 *= -1
+			v7 *= -1
 		}
-		data = encodeVarintPopulateClientClient(data, uint64(v6))
+		data = encodeVarintPopulateClientClient(data, uint64(v7))
 	case 1:
 		data = encodeVarintPopulateClientClient(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -371,6 +422,13 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	data[i] = 0x28
 	i++
 	i = encodeVarintClientClient(data, i, uint64(m.Date))
+	data[i] = 0x32
+	i++
+	i = encodeVarintClientClient(data, i, uint64(len(m.InitialSender)))
+	i += copy(data[i:], m.InitialSender)
+	data[i] = 0x38
+	i++
+	i = encodeVarintClientClient(data, i, uint64(m.InitialDate))
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -441,6 +499,12 @@ func (this *Message) Equal(that interface{}) bool {
 		return false
 	}
 	if this.Date != that1.Date {
+		return false
+	}
+	if !bytes.Equal(this.InitialSender, that1.InitialSender) {
+		return false
+	}
+	if this.InitialDate != that1.InitialDate {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

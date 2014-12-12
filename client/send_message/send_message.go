@@ -27,9 +27,10 @@ func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [
 	// generate metadata
 	recipients = append(recipients, conf.Dename)
 	metadata := &proto.ConversationMetadata{
-		Participants: recipients,
-		Subject:      subject,
-		Date:         conf.Now().UnixNano(),
+		Participants:  recipients,
+		Subject:       subject,
+		Date:          conf.Now().UnixNano(),
+		InitialSender: conf.Dename,
 	}
 
 	// create folder for conversation with the conversation name (or error?)
