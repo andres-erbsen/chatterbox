@@ -1,3 +1,5 @@
 - implement client journaling + recovery
 - ui
 - tests for the client daemon
+- query for messages from the server on daemon start
+- readme
