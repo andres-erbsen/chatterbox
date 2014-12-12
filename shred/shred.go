@@ -14,22 +14,22 @@ import (
 // underlying block device, unrecoverably erase the file and its name.
 // The error is NOT necessarily of type *PathError.
 func Remove(name string) error {
-	f, err := os.OpenFile(name, os.O_WRONLY, 0)
+	finfo, err := os.Stat(name)
 	if err != nil {
 		return err
 	}
-	fi, err := f.Stat()
-	if err != nil {
-		return err
-	}
+	if !finfo.IsDir() {
+		f, err := os.OpenFile(name, os.O_WRONLY, 0)
+		if err != nil {
+			return err
+		}
 
-	if !fi.IsDir() {
-		if _, err := io.CopyN(f, rand.Reader, fi.Size()); err != nil {
+		if _, err := io.CopyN(f, rand.Reader, finfo.Size()); err != nil {
 			return err
 		}
 	}
 
-	l := (len(fi.Name()) + 1) / 2
+	l := (len(finfo.Name()) + 1) / 2
 	newBaseNameBytes := make([]byte, l)
 	if _, err := rand.Read(newBaseNameBytes); err != nil {
 		return err

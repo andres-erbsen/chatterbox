@@ -10,7 +10,6 @@ import (
 	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 )
