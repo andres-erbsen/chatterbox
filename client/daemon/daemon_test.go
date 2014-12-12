@@ -45,8 +45,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 		Now:          time.Now,
 		TempPrefix:   "daemon",
 		denameClient: aliceDnmc,
-		inBuf:        make([]byte, util.MAX_MESSAGE_SIZE),
-		outBuf:       make([]byte, util.MAX_MESSAGE_SIZE),
+		inBuf:        make([]byte, proto.SERVER_MESSAGE_SIZE),
+		outBuf:       make([]byte, proto.SERVER_MESSAGE_SIZE),
 		LocalAccountConfig: proto.LocalAccountConfig{
 			Dename: []byte(alice),
 		},
@@ -57,8 +57,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 		Now:          time.Now,
 		TempPrefix:   "daemon",
 		denameClient: bobDnmc,
-		inBuf:        make([]byte, util.MAX_MESSAGE_SIZE),
-		outBuf:       make([]byte, util.MAX_MESSAGE_SIZE),
+		inBuf:        make([]byte, proto.SERVER_MESSAGE_SIZE),
+		outBuf:       make([]byte, proto.SERVER_MESSAGE_SIZE),
 		LocalAccountConfig: proto.LocalAccountConfig{
 			Dename: []byte(bob),
 		},
@@ -148,7 +148,6 @@ func TestEncryptFirstMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	incoming := <-bobConnToServer.ReadEnvelope
 
 	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming, bobPublicPrekeys, bobSecretPrekeys)
@@ -160,7 +159,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	msg2 := []byte("Envelope2")
 	payload2 := proto.Message{
-		Subject:      "Subject2",
+		Subject:      "Subject3",
 		Participants: participants,
 		Dename:       []byte(bob),
 		Contents:     msg2,

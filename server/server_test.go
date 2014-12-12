@@ -24,9 +24,13 @@ func handleError(err error, t *testing.T) {
 }
 
 func writeProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer, t *testing.T) {
-	size, err := message.MarshalTo(outBuf)
+	unpadMsg, err := protobuf.Marshal(message)
 	handleError(err, t)
-	conn.WriteFrame(outBuf[:size])
+
+	padMsg := proto.Pad(unpadMsg, proto.SERVER_MESSAGE_SIZE)
+	copy(outBuf, padMsg)
+
+	conn.WriteFrame(outBuf[:proto.SERVER_MESSAGE_SIZE])
 }
 
 func receiveProtobuf(conn *transport.Conn, inBuf []byte, t *testing.T) *proto.ServerToClient {
@@ -34,7 +38,8 @@ func receiveProtobuf(conn *transport.Conn, inBuf []byte, t *testing.T) *proto.Se
 	conn.SetDeadline(time.Now().Add(time.Second))
 	num, err := conn.ReadFrame(inBuf)
 	handleError(err, t)
-	if err := response.Unmarshal(inBuf[:num]); err != nil {
+	unpadMsg := proto.Unpad(inBuf[:num])
+	if err := response.Unmarshal(unpadMsg); err != nil {
 		t.Error(err)
 	}
 	if response.Status == nil {
@@ -78,11 +83,11 @@ func setUpServerTest(db *leveldb.DB, t *testing.T) (*Server, *transport.Conn, []
 	pkp, skp, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, proto.SERVER_MESSAGE_SIZE)
 	handleError(err, t)
 
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
+	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	return server, conn, inBuf, outBuf, pkp
 }
@@ -191,13 +196,13 @@ func TestMessageListing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pks, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, pks, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
+	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	envelope1 := []byte("Envelope1")
 	envelope2 := []byte("Envelope2")
@@ -433,11 +438,11 @@ func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
 	pkp, skp, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
 
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, MAX_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(oldConn, pkp, skp, nil, proto.SERVER_MESSAGE_SIZE)
 	handleError(err, t)
 
-	inBuf := make([]byte, MAX_MESSAGE_SIZE)
-	outBuf := make([]byte, MAX_MESSAGE_SIZE)
+	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
+	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	uploadMessageToUser(conn, inBuf, outBuf, t, uid, message)
 }
