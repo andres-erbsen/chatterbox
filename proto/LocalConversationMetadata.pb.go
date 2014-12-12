@@ -22,6 +22,7 @@ var _ = math.Inf
 type ConversationMetadata struct {
 	Participants     [][]byte `protobuf:"bytes,1,rep" json:"Participants"`
 	Subject          string   `protobuf:"bytes,2,req" json:"Subject"`
+	Date             int64    `protobuf:"varint,3,req" json:"Date"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -95,6 +96,21 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			m.Subject = string(data[index:postIndex])
 			index = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt4.Errorf("proto: wrong wireType = %d for field Date", wireType)
+			}
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io4.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				m.Date |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			var sizeOfWire int
 			for {
@@ -129,6 +145,7 @@ func (m *ConversationMetadata) Size() (n int) {
 	}
 	l = len(m.Subject)
 	n += 1 + l + sovLocalConversationMetadata(uint64(l))
+	n += 1 + sovLocalConversationMetadata(uint64(m.Date))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -162,8 +179,12 @@ func NewPopulatedConversationMetadata(r randyLocalConversationMetadata, easy boo
 		}
 	}
 	this.Subject = randStringLocalConversationMetadata(r)
+	this.Date = r.Int63()
+	if r.Intn(2) == 0 {
+		this.Date *= -1
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedLocalConversationMetadata(r, 3)
+		this.XXX_unrecognized = randUnrecognizedLocalConversationMetadata(r, 4)
 	}
 	return this
 }
@@ -265,6 +286,9 @@ func (m *ConversationMetadata) MarshalTo(data []byte) (n int, err error) {
 	i++
 	i = encodeVarintLocalConversationMetadata(data, i, uint64(len(m.Subject)))
 	i += copy(data[i:], m.Subject)
+	data[i] = 0x18
+	i++
+	i = encodeVarintLocalConversationMetadata(data, i, uint64(m.Date))
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -326,6 +350,9 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 		}
 	}
 	if this.Subject != that1.Subject {
+		return false
+	}
+	if this.Date != that1.Date {
 		return false
 	}
 	if !bytes4.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

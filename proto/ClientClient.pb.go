@@ -11,7 +11,6 @@
 		DenameChatProfile.proto
 		LocalAccountConfig.proto
 		LocalConversationMetadata.proto
-		MessagePayload.proto
 		Prekeys.proto
 
 	It has these top-level messages:
@@ -39,6 +38,7 @@ type Message struct {
 	Subject          string   `protobuf:"bytes,2,req,name=subject" json:"subject"`
 	Participants     [][]byte `protobuf:"bytes,3,rep,name=participants" json:"participants"`
 	Dename           []byte   `protobuf:"bytes,4,req,name=dename" json:"dename"`
+	Date             int64    `protobuf:"varint,5,req,name=date" json:"date"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -156,6 +156,21 @@ func (m *Message) Unmarshal(data []byte) error {
 			}
 			m.Dename = append(m.Dename, data[index:postIndex]...)
 			index = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Date", wireType)
+			}
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				m.Date |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			var sizeOfWire int
 			for {
@@ -194,6 +209,7 @@ func (m *Message) Size() (n int) {
 	}
 	l = len(m.Dename)
 	n += 1 + l + sovClientClient(uint64(l))
+	n += 1 + sovClientClient(uint64(m.Date))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -237,8 +253,12 @@ func NewPopulatedMessage(r randyClientClient, easy bool) *Message {
 	for i := 0; i < v4; i++ {
 		this.Dename[i] = byte(r.Intn(256))
 	}
+	this.Date = r.Int63()
+	if r.Intn(2) == 0 {
+		this.Date *= -1
+	}
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedClientClient(r, 5)
+		this.XXX_unrecognized = randUnrecognizedClientClient(r, 6)
 	}
 	return this
 }
@@ -348,6 +368,9 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	i++
 	i = encodeVarintClientClient(data, i, uint64(len(m.Dename)))
 	i += copy(data[i:], m.Dename)
+	data[i] = 0x28
+	i++
+	i = encodeVarintClientClient(data, i, uint64(m.Date))
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -415,6 +438,9 @@ func (this *Message) Equal(that interface{}) bool {
 		}
 	}
 	if !bytes.Equal(this.Dename, that1.Dename) {
+		return false
+	}
+	if this.Date != that1.Date {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

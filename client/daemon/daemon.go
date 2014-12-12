@@ -4,6 +4,7 @@
 package daemon
 
 import (
+	"bytes"
 	"code.google.com/p/go.exp/fsnotify"
 	"errors"
 	"fmt"
@@ -193,9 +194,6 @@ func processOutboxDir(conf *Config, dirname string) error {
 		return err
 	}
 
-	// add ourselves to the participants list
-	allParticipants := append(metadata.Participants, conf.Dename)
-
 	// load messages
 	potentialMessages, err := ioutil.ReadDir(dirname)
 	if err != nil {
@@ -212,9 +210,10 @@ func processOutboxDir(conf *Config, dirname string) error {
 			// make protobuf for message; append it
 			payload := proto.Message{
 				Subject:      metadata.Subject,
-				Participants: allParticipants,
+				Participants: metadata.Participants,
 				Dename:       conf.Dename,
 				Contents:     msg,
+				Date:         metadata.Date,
 			}
 			payloadBytes, err := payload.Marshal()
 			if err != nil {
@@ -228,6 +227,9 @@ func processOutboxDir(conf *Config, dirname string) error {
 	}
 
 	for _, recipient := range metadata.Participants {
+		if bytes.Equal(recipient, conf.Dename) {
+			continue
+		}
 		for _, msg := range messages {
 			// replace msg with message+metadata (new protobuf?)
 			fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
@@ -280,6 +282,45 @@ func processOutboxDir(conf *Config, dirname string) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func receiveMessage(conf *Config, message *proto.Message) error {
+	fmt.Printf("%s\n", message)
+
+	// generate metadata file
+	metadata := proto.ConversationMetadata{
+		Participants: message.Participants,
+		Subject:      message.Subject,
+		Date:         message.Date,
+	}
+
+	// generate conversation name
+	convName := GenerateConversationName(conf, &metadata)
+
+	// create conversation directory if it doesn't already exist
+	if err := os.Mkdir(filepath.Join(conf.ConversationDir(), convName), 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// create metadata file if it doesn't already exist
+	convMetadataFile := filepath.Join(convName, MetadataFileName)
+	if _, err := os.Stat(convMetadataFile); err != nil {
+		if os.IsNotExist(err) {
+			MarshalToFile(conf, convMetadataFile, &metadata)
+		} else {
+			return err
+		}
+	}
+
+	// generate the message name: date-sender
+	messageName := GenerateMessageName(time.Unix(0, message.Date), string(message.Dename))
+
+	// write the message to the conversation folder
+	if err := ioutil.WriteFile(messageName, message.Contents, 0600); err != nil {
+		return err
 	}
 
 	return nil
@@ -377,7 +418,9 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				StoreRatchet(conf, message.Dename, ratch)
 
 				//TODO: Update prekeys by removing index, store
-				fmt.Printf("%s\n", message)
+				if err = receiveMessage(conf, message); err != nil {
+					return err
+				}
 				index = index //Take out
 				//TODO: Take out metadata + converastion from msg, Store the decrypted message
 			} else { // try decrypting with a ratchet
@@ -394,7 +437,9 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				if err != nil {
 					return err
 				}
-				fmt.Printf("%s\n", message)
+				if err = receiveMessage(conf, message); err != nil {
+					return err
+				}
 
 				//TODO: Take out metadata + conversation from msg, then store
 				StoreRatchet(conf, message.Dename, ratch)

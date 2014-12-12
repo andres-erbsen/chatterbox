@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"bytes"
 	"code.google.com/p/go.exp/fsnotify"
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
@@ -61,17 +62,25 @@ const (
 	ProfileFileName            = "profile.pb"
 )
 
-func GenerateConversationName(conf *Config, recipients [][]byte) string {
+func GenerateConversationName(conf *Config, metadata *proto.ConversationMetadata) string {
 	//dirName := "date-sender-recipient-recipient"
 	dateStr := conf.Now().Format(time.RFC3339)
-	recipientStrings := make([]string, len(recipients))
-	for i := 0; i < len(recipients); i++ {
-		recipientStrings[i] = string(recipients[i])
+	recipientStrings := make([]string, 0, len(metadata.Participants))
+	for i := 0; i < len(metadata.Participants); i++ {
+		if !bytes.Equal(metadata.Participants[i], conf.Dename) {
+			recipientStrings = append(recipientStrings, string(metadata.Participants[i]))
+		}
 	}
 	sort.Strings(recipientStrings)
 	recipientsStr := strings.Join(recipientStrings, "-")
 	dirName := fmt.Sprintf("%s-%s-%s", dateStr, conf.Dename, recipientsStr)
 	return dirName
+}
+
+func GenerateMessageName(date time.Time, sender string) string {
+	//messageName := "date-sender"
+	dateStr := date.Format(time.RFC3339)
+	return fmt.Sprintf("%s-%s", dateStr, sender)
 }
 
 func Copy(source string, dest string, perm os.FileMode) error {

@@ -18,4 +18,5 @@ message Message {
     required string subject = 2 [(gogoproto.nullable) = false];
     repeated bytes participants = 3 [(gogoproto.nullable) = false];
     required bytes dename = 4 [(gogoproto.nullable) = false]; 
+	required int64 date = 5 [(gogoproto.nullable) = false];
 } 
