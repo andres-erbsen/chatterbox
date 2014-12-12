@@ -25,22 +25,6 @@ import (
 const MAX_MESSAGE_SIZE = 16 * 1024
 const PROFILE_FIELD_ID = 1984
 
-func ToProtoByte32List(list [][32]byte) []proto.Byte32 {
-	newList := make([]proto.Byte32, 0)
-	for _, element := range list {
-		newList = append(newList, (proto.Byte32)(element))
-	}
-	return newList
-}
-
-func To32ByteList(list []proto.Byte32) [][32]byte {
-	newList := make([][32]byte, 0, 0)
-	for _, element := range list {
-		newList = append(newList, ([32]byte)(element))
-	}
-	return newList
-}
-
 func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, error) {
 	response := <-connToServer.ReadReply //TODO: Timeout
 	return response, nil
@@ -74,7 +58,7 @@ func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, ou
 		return nil, err
 	}
 
-	return To32ByteList(response.MessageList), nil
+	return proto.To32ByteList(response.MessageList), nil
 }
 
 func RequestMessage(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) error {
@@ -182,7 +166,7 @@ func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr st
 	return conn, nil
 }
 
-func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client, subject string, participants [][]byte) ([]byte, *ratchet.Ratchet, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
 		CheckAuth: CheckAuthWith(denameClient),
@@ -190,9 +174,10 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 
 	//TODO; Actually fill in the right subject. Like, actually.
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  "",
-		Contents: msg,
-		Dename:   sender,
+		Subject:      subject,
+		Contents:     msg,
+		Dename:       sender,
+		Participants: participants,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -204,11 +189,12 @@ func EncryptAuthFirst(sender []byte, msg []byte, skAuth *[32]byte, userKey *[32]
 	return out, ratch, nil
 }
 
-func EncryptAuth(sender []byte, msg []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuth(sender []byte, msg []byte, ratch *ratchet.Ratchet, subject string, participants [][]byte) ([]byte, *ratchet.Ratchet, error) {
 	message, err := protobuf.Marshal(&proto.Message{
-		Subject:  "",
-		Contents: msg,
-		Dename:   sender,
+		Subject:      subject,
+		Contents:     msg,
+		Dename:       sender,
+		Participants: participants,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -252,7 +238,7 @@ func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, e
 
 func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageList [][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
-		DeleteMessages: ToProtoByte32List(messageList),
+		DeleteMessages: proto.ToProtoByte32List(messageList),
 	}
 	if err := WriteProtobuf(conn, outBuf, deleteMessages); err != nil {
 		return err

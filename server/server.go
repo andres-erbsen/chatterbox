@@ -124,22 +124,6 @@ func (server *Server) readClientNotifications(notificationsIn chan []byte, notif
 	}
 }
 
-func toProtoByte32List(list *[][32]byte) *[]proto.Byte32 {
-	newList := make([]proto.Byte32, 0)
-	for _, element := range *list {
-		newList = append(newList, (proto.Byte32)(element))
-	}
-	return &newList
-}
-
-func to32ByteList(list *[]proto.Byte32) *[][32]byte {
-	newList := make([][32]byte, 0, 0)
-	for _, element := range *list {
-		newList = append(newList, ([32]byte)(element))
-	}
-	return &newList
-}
-
 //for each client, listen for commands
 func (server *Server) handleClient(connection net.Conn) error {
 	defer server.wg.Done()
@@ -175,14 +159,14 @@ func (server *Server) handleClient(connection net.Conn) error {
 				err = server.newMessage((*[32]byte)(cmd.DeliverEnvelope.User),
 					cmd.DeliverEnvelope.Envelope)
 			} else if cmd.ListMessages != nil && *cmd.ListMessages {
-				var messageList *[][32]byte
+				var messageList [][32]byte
 				messageList, err = server.getMessageList(uid)
-				response.MessageList = *toProtoByte32List(messageList)
+				response.MessageList = proto.ToProtoByte32List(messageList)
 			} else if cmd.DownloadEnvelope != nil {
 				response.Envelope, err = server.getEnvelope(uid, (*[32]byte)(cmd.DownloadEnvelope))
 			} else if cmd.DeleteMessages != nil {
 				messageList := cmd.DeleteMessages
-				err = server.deleteMessages(uid, to32ByteList(&messageList))
+				err = server.deleteMessages(uid, proto.To32ByteList(messageList))
 			} else if cmd.UploadSignedKeys != nil {
 				err = server.newKeys(uid, cmd.UploadSignedKeys)
 			} else if cmd.GetSignedKey != nil {
@@ -284,9 +268,9 @@ func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 	}
 	return server.database.Write(batch, WO_sync)
 }
-func (server *Server) deleteMessages(uid *[32]byte, messageList *[][32]byte) error {
+func (server *Server) deleteMessages(uid *[32]byte, messageList [][32]byte) error {
 	batch := new(leveldb.Batch)
-	for _, messageHash := range *messageList {
+	for _, messageHash := range messageList {
 		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
 		batch.Delete(key)
 	}
@@ -308,7 +292,7 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 	return nil
 }
 
-func (server *Server) getMessageList(user *[32]byte) (*[][32]byte, error) {
+func (server *Server) getMessageList(user *[32]byte) ([][32]byte, error) {
 	messages := make([][32]byte, 0)
 	prefix := append([]byte{'m'}, (*user)[:]...)
 	messageRange := util.BytesPrefix(prefix)
@@ -325,7 +309,7 @@ func (server *Server) getMessageList(user *[32]byte) (*[][32]byte, error) {
 		messages = append(messages, message)
 	}
 	err = iter.Error()
-	return &messages, err
+	return messages, err
 }
 
 func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {

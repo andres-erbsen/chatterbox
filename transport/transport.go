@@ -1,9 +1,9 @@
-// Package transport implements an encrypted and authenticated bytestream
-// connection. The key-exchange is like SIGMA-I, with the exception that
-// instead of unvirersally verifiable signatures, nacl/box between one party's
-// ephemeral key and the other's long-term key is used for authentication (this
-// provides deniability). Subsequent messages are encrypted using nacl/box with
-// the message counter as an implicit nonce.
+// Package transport implements an encrypted and authenticated connection for
+// transferring byte slices over a network. The key-exchange is like SIGMA-I,
+// with the exception that instead of unvirersally verifiable signatures,
+// nacl/box between one party's ephemeral key and the other's long-term key is
+// used for authentication (this provides deniability). Subsequent messages are
+// encrypted using nacl/box with the message counter as an implicit nonce.
 package transport
 
 import (
