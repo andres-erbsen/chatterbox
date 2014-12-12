@@ -2,6 +2,12 @@ package server
 
 import "sync"
 
+// Notifier implements a simple publish-subscribe pattern for delivering push
+// notifications to connected users. When a user connects and requests push
+// notifications, the goroutine handling the connection should call
+// StartWaiting and select on the channel for notifications. When a new message
+// is received, calling Notify will check whether the recipient is connected
+// and propogate the push notification to its thread.
 type Notifier struct {
 	sync.RWMutex
 	waiters map[[32]byte][]chan []byte
