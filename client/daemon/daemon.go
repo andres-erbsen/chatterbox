@@ -446,8 +446,11 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 				if err = receiveMessage(conf, message); err != nil {
 					return err
 				}
-				index = index //Take out
-				//TODO: Take out metadata + converastion from msg, Store the decrypted message
+				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
+				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
+				if err = StorePrekeys(conf, newPrekeyPublics, newPrekeySecrets); err != nil {
+					return err
+				}
 			} else { // try decrypting with a ratchet
 				fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
 				checkAuth := util.CheckAuthWith(conf.denameClient)
@@ -464,7 +467,6 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 					return err
 				}
 
-				//TODO: Take out metadata + conversation from msg, then store
 				StoreRatchet(conf, message.Dename, ratch)
 			}
 		case err := <-watcher.Error:
