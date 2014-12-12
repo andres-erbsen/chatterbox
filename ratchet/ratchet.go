@@ -122,6 +122,7 @@ func (r *Ratchet) EncryptFirst(out, msg []byte, theirRatchetPublic *[32]byte) []
 	r.ratchet = true
 	r.randBytes(r.ourRatchetPrivate[:])
 	copy(r.theirRatchetPublic[:], theirRatchetPublic[:])
+	copy(r.theirAuthPublic[:], theirRatchetPublic[:])
 
 	var sharedKey [32]byte
 	curve25519.ScalarMult(&sharedKey, &r.ourRatchetPrivate, &r.theirRatchetPublic)
