@@ -24,15 +24,20 @@ func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [
 		return err
 	}
 
+	// generate metadata
+	recipients = append(recipients, conf.Dename)
+	metadata := &proto.ConversationMetadata{
+		Participants:  recipients,
+		Subject:       subject,
+		Date:          conf.Now().UnixNano(),
+		InitialSender: conf.Dename,
+	}
+
 	// create folder for conversation with the conversation name (or error?)
-	dirName := daemon.GenerateConversationName(conf, recipients)
+	dirName := daemon.GenerateConversationName(conf.Dename, metadata)
 	os.MkdirAll(filepath.Join(tmpDir, dirName), 0700)
 
-	// create metadata file or error
-	metadata := &proto.ConversationMetadata{
-		Participants: recipients,
-		Subject:      subject,
-	}
+	// write metadata file
 	metadataFile := filepath.Join(tmpDir, dirName, daemon.MetadataFileName)
 	metadataBytes, err := metadata.Marshal()
 	if err != nil {

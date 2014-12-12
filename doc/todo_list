@@ -1,3 +1,5 @@
 - make server enforce message size
 - implement client journaling + recovery
 - ui
+- delete used prekeys
+- shred files before deleting them

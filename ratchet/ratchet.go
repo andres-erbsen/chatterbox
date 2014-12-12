@@ -109,6 +109,9 @@ const (
 		24 /* nonce for message */
 	// sealedHeader is the size, in bytes, of an encrypted header.
 	sealedHeaderSize = 24 /* nonce */ + headerSize + secretbox.Overhead
+	// Overhead is the total difference between the encrypted and decrypted length
+	Overhead      = authSize + sealedHeaderSize + secretbox.Overhead
+	OverheadFirst = authSize + handshakePreHeaderSize + sealedHeaderSize + secretbox.Overhead
 	// nonceInHeaderOffset is the offset of the message nonce in the
 	// header's plaintext.
 	nonceInHeaderOffset = 4 + 4 + 32 + 32
@@ -145,7 +148,7 @@ func (r *Ratchet) EncryptFirst(out, msg []byte, theirRatchetPublic *[32]byte) []
 
 func (r *Ratchet) DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte) ([]byte, error) {
 	r.saved = make(map[[32]byte]map[uint32]savedKey)
-	if len(ciphertext) < authSize+handshakePreHeaderSize+headerSize {
+	if len(ciphertext) < OverheadFirst {
 		return nil, errors.New("first message too short")
 	}
 	copy(r.ourRatchetPrivate[:], ourRatchetPrivate[:])
@@ -464,8 +467,6 @@ func (r *Ratchet) Decrypt(ciphertext []byte) ([]byte, error) {
 	return r.decryptAndCheckAuth(ciphertext[:authSize], ciphertext[authSize:], ciphertext[authSize:])
 }
 
-// mergeSavedKeys takes a map of saved message keys from saveKeys and merges it
-// into r.saved.
 func (r *Ratchet) FlushSavedKeys(now time.Time, lifetime time.Duration) {
 	for headerKey, messageKeys := range r.saved {
 		for messageNum, savedKey := range messageKeys {
