@@ -42,7 +42,14 @@ func Remove(name string) error {
 	return os.Remove(newName)
 }
 
+// RemoveAll removes path and any children it contains. It removes everything
+// it can but returns the first error it encounters.  If the path does not
+// exist, RemoveAll returns nil (no error).
 func RemoveAll(path string) error {
+	// Copyright 2009 The Go Authors. All rights reserved.
+	// Use of this source code is governed by a BSD-style
+	// license that can be found in the LICENSE file.
+
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
 	if err == nil || os.IsNotExist(err) {
