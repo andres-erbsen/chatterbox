@@ -127,12 +127,24 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	envelope := []byte("Envelope")
-
 	participants := make([][]byte, 0)
 	participants = append(participants, []byte(alice))
 	participants = append(participants, []byte(bob))
-	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob), "subject", participants)
+
+	msg1 := []byte("Envelope")
+
+	payload := proto.Message{
+		Subject:      "Subject1",
+		Participants: participants,
+		Dename:       []byte(alice),
+		Contents:     msg1,
+	}
+	envelope, err := payload.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,8 +158,19 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	fmt.Printf("Bob hears: %s\n", out)
 
-	envelope2 := []byte("Envelope2")
-	bobRatch, err = bobConf.sendMessage(envelope2, []byte(alice), "subject", participants, bobRatch)
+	msg2 := []byte("Envelope2")
+	payload2 := proto.Message{
+		Subject:      "Subject2",
+		Participants: participants,
+		Dename:       []byte(bob),
+		Contents:     msg2,
+	}
+	envelope2, err := payload2.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bobRatch, err = bobConf.sendMessage(envelope2, []byte(alice), bobRatch)
 	if err != nil {
 		t.Fatal(err)
 	}
