@@ -1,5 +1,13 @@
 #!/bin/sh
 
+if [ "$#" -ne 2 ]; then
+     echo "Usage: $0 <ROOTDIR> <CONV>" >&2
+	 exit 2
+fi
+
+ROOTDIR=$1
+CONV=$2
+
 cd "$ROOTDIR/conversations/$CONV"
 
 while true; do

@@ -1,5 +1,13 @@
 #!/bin/sh
 
+if [ "$#" -ne 2 ]; then
+     echo "Usage: $0 <ROOTDIR> <CONV>" >&2
+	 exit 2
+fi
+
+ROOTDIR=$1
+CONV=$2
+
 if [[ ! -x "$(which $EDITOR)" ]]; then
 	EDITOR=vim
 fi
