@@ -93,7 +93,7 @@ func main() {
 	}
 
 	fmt.Printf("You may use the following command to link this account with your dename profile:.\n"+
-		"dnmgr set '%s' 1984 - < %s\n", *dename, profileFilePath)
+		"dnmgr set '%s' 1984 < %s\n", *dename, profileFilePath)
 
 	// TODO: use TOR
 	fmt.Printf("Registering with the server...\n")
