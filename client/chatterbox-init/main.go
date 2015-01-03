@@ -99,7 +99,7 @@ func main() {
 	fmt.Printf("Registering with the server...\n")
 	plainConn, err := net.Dial("tcp", net.JoinHostPort(*serverAddress, fmt.Sprint(*serverPort)))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
+		fmt.Fprintf(os.Stderr, "failed to connect to server at %s:%d: %s\n",
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}
@@ -108,7 +108,7 @@ func main() {
 		(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
 		&serverTransportPubkey, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
+		fmt.Fprintf(os.Stderr, "failed to connect to server at %s:%d: %s\n",
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}
