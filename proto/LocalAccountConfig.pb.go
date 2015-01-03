@@ -26,7 +26,7 @@ type LocalAccountConfig struct {
 	TransportSecretKeyForServer Byte32 `protobuf:"bytes,4,req,customtype=Byte32" json:"TransportSecretKeyForServer"`
 	KeySigningSecretKey         []byte `protobuf:"bytes,5,req" json:"KeySigningSecretKey"`
 	MessageAuthSecretKey        Byte32 `protobuf:"bytes,6,req,customtype=Byte32" json:"MessageAuthSecretKey"`
-	Dename                      []byte `protobuf:"bytes,7,req" json:"Dename"`
+	Dename                      string `protobuf:"bytes,7,req" json:"Dename"`
 	XXX_unrecognized            []byte `json:"-"`
 }
 
@@ -190,23 +190,23 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			if wireType != 2 {
 				return fmt3.Errorf("proto: wrong wireType = %d for field Dename", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io3.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				byteLen |= (int(b) & 0x7F) << shift
+				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
+			postIndex := index + int(stringLen)
 			if postIndex > l {
 				return io3.ErrUnexpectedEOF
 			}
-			m.Dename = append(m.Dename, data[index:postIndex]...)
+			m.Dename = string(data[index:postIndex])
 			index = postIndex
 		default:
 			var sizeOfWire int
@@ -284,11 +284,7 @@ func NewPopulatedLocalAccountConfig(r randyLocalAccountConfig, easy bool) *Local
 	}
 	v4 := NewPopulatedByte32(r)
 	this.MessageAuthSecretKey = *v4
-	v5 := r.Intn(100)
-	this.Dename = make([]byte, v5)
-	for i := 0; i < v5; i++ {
-		this.Dename[i] = byte(r.Intn(256))
-	}
+	this.Dename = randStringLocalAccountConfig(r)
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedLocalAccountConfig(r, 8)
 	}
@@ -312,9 +308,9 @@ func randUTF8RuneLocalAccountConfig(r randyLocalAccountConfig) rune {
 	return res
 }
 func randStringLocalAccountConfig(r randyLocalAccountConfig) string {
-	v6 := r.Intn(100)
-	tmps := make([]rune, v6)
-	for i := 0; i < v6; i++ {
+	v5 := r.Intn(100)
+	tmps := make([]rune, v5)
+	for i := 0; i < v5; i++ {
 		tmps[i] = randUTF8RuneLocalAccountConfig(r)
 	}
 	return string(tmps)
@@ -336,11 +332,11 @@ func randFieldLocalAccountConfig(data []byte, r randyLocalAccountConfig, fieldNu
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateLocalAccountConfig(data, uint64(key))
-		v7 := r.Int63()
+		v6 := r.Int63()
 		if r.Intn(2) == 0 {
-			v7 *= -1
+			v6 *= -1
 		}
-		data = encodeVarintPopulateLocalAccountConfig(data, uint64(v7))
+		data = encodeVarintPopulateLocalAccountConfig(data, uint64(v6))
 	case 1:
 		data = encodeVarintPopulateLocalAccountConfig(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -489,7 +485,7 @@ func (this *LocalAccountConfig) Equal(that interface{}) bool {
 	if !this.MessageAuthSecretKey.Equal(that1.MessageAuthSecretKey) {
 		return false
 	}
-	if !bytes3.Equal(this.Dename, that1.Dename) {
+	if this.Dename != that1.Dename {
 		return false
 	}
 	if !bytes3.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

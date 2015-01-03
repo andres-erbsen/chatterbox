@@ -52,7 +52,7 @@ func main() {
 		ServerAddressTCP:  *serverAddress,
 		ServerPortTCP:     int32(*serverPort),
 		ServerTransportPK: serverTransportPubkey,
-		Dename:            []byte(*dename),
+		Dename:            *dename,
 	}
 	publicProfile := &proto.Profile{
 		ServerAddressTCP:  *serverAddress,
