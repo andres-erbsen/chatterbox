@@ -5,12 +5,11 @@ import (
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
-	//protobuf "code.google.com/p/gogoprotobuf/proto"
 	"github.com/andres-erbsen/chatterbox/server"
+	"github.com/andres-erbsen/chatterbox/shred"
 	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 )
@@ -38,7 +37,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
+	defer shred.RemoveAll(dir)
 
 	aliceConf := &Config{
 		RootDir:      dir,
@@ -48,7 +47,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		inBuf:        make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:       make([]byte, proto.SERVER_MESSAGE_SIZE),
 		LocalAccountConfig: proto.LocalAccountConfig{
-			Dename: []byte(alice),
+			Dename: alice,
 		},
 	}
 
@@ -60,12 +59,12 @@ func TestEncryptFirstMessage(t *testing.T) {
 		inBuf:        make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:       make([]byte, proto.SERVER_MESSAGE_SIZE),
 		LocalAccountConfig: proto.LocalAccountConfig{
-			Dename: []byte(bob),
+			Dename: bob,
 		},
 	}
 
-	aliceHomeConn := util.CreateTestAccount([]byte(alice), aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-	bobHomeConn := util.CreateTestAccount([]byte(bob), bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	aliceHomeConn := util.CreateTestAccount(alice, aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	bobHomeConn := util.CreateTestAccount(bob, bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
 
 	//fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
 	aliceNotifies := make(chan []byte)
@@ -127,16 +126,16 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	participants := make([][]byte, 0)
-	participants = append(participants, []byte(alice))
-	participants = append(participants, []byte(bob))
+	participants := make([]string, 0, 2)
+	participants = append(participants, alice)
+	participants = append(participants, bob)
 
 	msg1 := []byte("Envelope")
 
 	payload := proto.Message{
 		Subject:      "Subject1",
 		Participants: participants,
-		Dename:       []byte(alice),
+		Dename:       alice,
 		Contents:     msg1,
 	}
 	envelope, err := payload.Marshal()
@@ -144,7 +143,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	aliceRatch, err := aliceConf.sendFirstMessage(envelope, []byte(bob))
+	aliceRatch, err := aliceConf.sendFirstMessage(envelope, bob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +160,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	payload2 := proto.Message{
 		Subject:      "Subject3",
 		Participants: participants,
-		Dename:       []byte(bob),
+		Dename:       bob,
 		Contents:     msg2,
 	}
 	envelope2, err := payload2.Marshal()
@@ -169,7 +168,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bobRatch, err = bobConf.sendMessage(envelope2, []byte(alice), bobRatch)
+	bobRatch, err = bobConf.sendMessage(envelope2, alice, bobRatch)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -82,7 +82,7 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
-func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) *transport.Conn {
+func CreateTestAccount(name string, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) *transport.Conn {
 
 	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
 	conn := CreateTestHomeServerConn(name, denameClient, secretConfig, t)
@@ -97,7 +97,7 @@ func CreateTestAccount(name []byte, denameClient *client.Client, secretConfig *p
 	return conn
 }
 
-func CreateTestHomeServerConn(dename []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, t *testing.T) *transport.Conn {
+func CreateTestHomeServerConn(dename string, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, t *testing.T) *transport.Conn {
 	profile, err := denameClient.Lookup(dename)
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +147,7 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 	return conn, nil
 }
 
-func CreateForeignServerConn(dename []byte, denameClient *client.Client, addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
+func CreateForeignServerConn(dename string, denameClient *client.Client, addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
 
 	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
@@ -250,7 +250,7 @@ func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return nil
 }
 
-func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename []byte, pkSig *[32]byte) (*[32]byte, error) {
+func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename string, pkSig *[32]byte) (*[32]byte, error) {
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
@@ -357,7 +357,7 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	return response, nil
 }
 
-func CreateTestDenameAccount(name []byte, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) {
+func CreateTestDenameAccount(name string, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) {
 	//TODO: move this to test?
 	//TODO: All these names are horrible, please change them
 	addr, portStr, err := net.SplitHostPort(serverAddr)

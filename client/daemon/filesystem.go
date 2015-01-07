@@ -3,11 +3,11 @@
 package daemon
 
 import (
-	"bytes"
 	"code.google.com/p/go.exp/fsnotify"
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"io"
 	"io/ioutil"
 	"os"
@@ -62,12 +62,12 @@ const (
 	ProfileFileName            = "profile.pb"
 )
 
-func GenerateConversationName(sender []byte, metadata *proto.ConversationMetadata) string {
+func GenerateConversationName(sender string, metadata *proto.ConversationMetadata) string {
 	//dirName := "date-sender-recipient-recipient"
 	dateStr := time.Unix(0, metadata.Date).UTC().Format(time.RFC3339)
 	recipientStrings := make([]string, 0, len(metadata.Participants))
 	for i := 0; i < len(metadata.Participants); i++ {
-		if !bytes.Equal(metadata.Participants[i], sender) {
+		if metadata.Participants[i] != sender {
 			recipientStrings = append(recipientStrings, string(metadata.Participants[i]))
 		}
 	}
@@ -128,7 +128,7 @@ func MarshalToFile(conf *Config, path string, in interface {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpDir)
+	defer shred.RemoveAll(tmpDir)
 
 	tmpFile := filepath.Join(tmpDir, filepath.Base(path))
 	err = ioutil.WriteFile(tmpFile, inBytes, 0600)
@@ -205,7 +205,7 @@ func StorePublicProfile(conf *Config, publicProfile *proto.Profile) error {
 	return MarshalToFile(conf, filepath.Join(conf.RootDir, ProfileFileName), publicProfile)
 }
 
-func LoadRatchet(conf *Config, name []byte, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
+func LoadRatchet(conf *Config, name string, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
 	nameStr := string(name)
 	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(nameStr); err != nil {
@@ -220,7 +220,7 @@ func LoadRatchet(conf *Config, name []byte, fillAuth func(tag, data []byte, thei
 	return ratch, nil
 }
 
-func StoreRatchet(conf *Config, name []byte, ratch *ratchet.Ratchet) error {
+func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
 	nameStr := string(name)
 
 	// TODO: move name validation to the first place where we encoiunter a name
@@ -240,7 +240,7 @@ func AllRatchets(conf *Config, fillAuth func(tag, data []byte, theirAuthPublic *
 		if file.IsDir() {
 			continue
 		}
-		ratch, err := LoadRatchet(conf, []byte(file.Name()), fillAuth, checkAuth)
+		ratch, err := LoadRatchet(conf, file.Name(), fillAuth, checkAuth)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ratchet for \"%s\": %s", file.Name(), err)
 		}
@@ -277,7 +277,7 @@ func InitFs(conf *Config) error {
 				if err != nil {
 					return err
 				}
-				defer os.RemoveAll(tmpDir)
+				defer shred.RemoveAll(tmpDir)
 				conversationInfo, err := os.Stat(cPath)
 				if err != nil {
 					return err

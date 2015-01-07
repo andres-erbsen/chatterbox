@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/client/daemon"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func handleError(err error, t *testing.T) {
 func TestSpawnConversationInOutbox(t *testing.T) {
 	// init the file system + configuration structure
 	rootDir, err := ioutil.TempDir("", "")
-	defer os.RemoveAll(rootDir)
+	defer shred.RemoveAll(rootDir)
 	handleError(err, t)
 
 	conf := &daemon.Config{
@@ -28,7 +29,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 		Now:        func() time.Time { return time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC) },
 		TempPrefix: "some_ui",
 		LocalAccountConfig: proto.LocalAccountConfig{
-			Dename: []byte("user_dename"),
+			Dename: "user_dename",
 		},
 	}
 
@@ -36,7 +37,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 	handleError(err, t)
 
 	subject := "test subject"
-	recipients := [][]byte{[]byte("recipient_dename_b"), []byte("recipient_dename_a")}
+	recipients := []string{"recipient_dename_b", "recipient_dename_a"}
 	messages := [][]byte{[]byte("message1"), []byte("message2")}
 	err = SpawnConversationInOutbox(conf, subject, recipients, messages)
 	handleError(err, t)

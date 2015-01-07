@@ -67,7 +67,6 @@ func (server *Server) RunServer() error {
 		server.wg.Add(1)
 		go server.handleClient(conn)
 	}
-	return nil
 }
 
 func (server *Server) handleClientShutdown(connection *transport.Conn) {
@@ -212,7 +211,6 @@ func (server *Server) handleClient(connection net.Conn) error {
 		}
 		response.Reset()
 	}
-	return nil
 }
 
 func (server *Server) getNumKeys(user *[32]byte) (*int64, error) { //TODO: Batch read of some kind?

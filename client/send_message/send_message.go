@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/client/daemon"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,10 +17,10 @@ import (
 // subject = subject of the new conversation
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
-func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients [][]byte, messages [][]byte) error {
+func SpawnConversationInOutbox(conf *daemon.Config, subject string, recipients []string, messages [][]byte) error {
 	// create temp directory or error
 	tmpDir, err := conf.UniqueTmpDir()
-	defer os.RemoveAll(tmpDir)
+	defer shred.RemoveAll(tmpDir)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func main() {
 	}
 
 	rootDir := args[0]
-	recipient := []byte(args[1])
+	recipient := args[1]
 	subject := args[2]
 	message := args[3]
 
@@ -83,5 +84,5 @@ func main() {
 		TempPrefix: "some_ui",
 	})
 
-	SpawnConversationInOutbox(conf, subject, [][]byte{recipient}, [][]byte{([]byte)(message)})
+	SpawnConversationInOutbox(conf, subject, []string{recipient}, [][]byte{([]byte)(message)})
 }

@@ -4,7 +4,6 @@
 package daemon
 
 import (
-	"bytes"
 	"code.google.com/p/go.exp/fsnotify"
 	"errors"
 	"fmt"
@@ -49,7 +48,7 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.Ratchet, error) {
+func (conf *Config) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -95,7 +94,7 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename []byte) (*ratchet.R
 	return ratch, nil
 }
 
-func (conf *Config) sendMessage(msg []byte, theirDename []byte, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
+func (conf *Config) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
 	profile, err := conf.denameClient.Lookup(theirDename)
 	if err != nil {
@@ -250,7 +249,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 	}
 
 	for _, recipient := range metadata.Participants {
-		if bytes.Equal(recipient, conf.Dename) {
+		if recipient == conf.Dename {
 			continue
 		}
 		for _, msg := range messages {

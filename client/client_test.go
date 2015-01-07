@@ -26,8 +26,8 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	defer f()
 	time.Sleep(100)
 
-	ska, dnmca := createNewUser([]byte("Alice"), t, config)
-	skb, dnmcb := createNewUser([]byte("Bob"), t, config)
+	ska, dnmca := createNewUser("Alice", t, config)
+	skb, dnmcb := createNewUser("Bob", t, config)
 
 	ratchA := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(ska),
@@ -52,7 +52,7 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	msg, err := protobuf.Marshal(&proto.Message{
 		Subject:  "",
 		Contents: []byte("Message"),
-		Dename:   []byte("Alice"),
+		Dename:   "Alice",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +70,7 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 	}
 }
 
-func createNewUser(name []byte, t *testing.T, config *client.Config) (*[32]byte, *client.Client) {
+func createNewUser(name string, t *testing.T, config *client.Config) (*[32]byte, *client.Client) {
 	newClient, err := client.NewClient(config, nil, nil)
 	if err != nil {
 		t.Fatal(err)

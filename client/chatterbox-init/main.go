@@ -52,7 +52,7 @@ func main() {
 		ServerAddressTCP:  *serverAddress,
 		ServerPortTCP:     int32(*serverPort),
 		ServerTransportPK: serverTransportPubkey,
-		Dename:            []byte(*dename),
+		Dename:            *dename,
 	}
 	publicProfile := &proto.Profile{
 		ServerAddressTCP:  *serverAddress,
@@ -93,13 +93,13 @@ func main() {
 	}
 
 	fmt.Printf("You may use the following command to link this account with your dename profile:.\n"+
-		"dnmgr set '%s' 1984 - < %s\n", *dename, profileFilePath)
+		"dnmgr set '%s' 1984 < %s\n", *dename, profileFilePath)
 
 	// TODO: use TOR
 	fmt.Printf("Registering with the server...\n")
 	plainConn, err := net.Dial("tcp", net.JoinHostPort(*serverAddress, fmt.Sprint(*serverPort)))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
+		fmt.Fprintf(os.Stderr, "failed to connect to server at %s:%d: %s\n",
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}
@@ -108,7 +108,7 @@ func main() {
 		(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
 		&serverTransportPubkey, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to server at %s%s: %s\n",
+		fmt.Fprintf(os.Stderr, "failed to connect to server at %s:%d: %s\n",
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}

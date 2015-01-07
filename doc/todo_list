@@ -9,3 +9,6 @@
 
 - spend an hour looking at the flaky test
 - account setup system
+- tests for the client daemon
+- query for messages from the server on daemon start
+- readme

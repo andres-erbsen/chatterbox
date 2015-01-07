@@ -36,10 +36,10 @@ var _ = math.Inf
 type Message struct {
 	Contents         []byte   `protobuf:"bytes,1,req,name=contents" json:"contents"`
 	Subject          string   `protobuf:"bytes,2,req,name=subject" json:"subject"`
-	Participants     [][]byte `protobuf:"bytes,3,rep,name=participants" json:"participants"`
-	Dename           []byte   `protobuf:"bytes,4,req,name=dename" json:"dename"`
+	Participants     []string `protobuf:"bytes,3,rep,name=participants" json:"participants"`
+	Dename           string   `protobuf:"bytes,4,req,name=dename" json:"dename"`
 	Date             int64    `protobuf:"varint,5,req,name=date" json:"date"`
-	InitialSender    []byte   `protobuf:"bytes,6,req" json:"InitialSender"`
+	InitialSender    string   `protobuf:"bytes,6,req" json:"InitialSender"`
 	InitialDate      int64    `protobuf:"varint,7,req" json:"InitialDate"`
 	XXX_unrecognized []byte   `json:"-"`
 }
@@ -117,46 +117,45 @@ func (m *Message) Unmarshal(data []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Participants", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				byteLen |= (int(b) & 0x7F) << shift
+				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
+			postIndex := index + int(stringLen)
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Participants = append(m.Participants, make([]byte, postIndex-index))
-			copy(m.Participants[len(m.Participants)-1], data[index:postIndex])
+			m.Participants = append(m.Participants, string(data[index:postIndex]))
 			index = postIndex
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Dename", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				byteLen |= (int(b) & 0x7F) << shift
+				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
+			postIndex := index + int(stringLen)
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Dename = append(m.Dename, data[index:postIndex]...)
+			m.Dename = string(data[index:postIndex])
 			index = postIndex
 		case 5:
 			if wireType != 0 {
@@ -177,23 +176,23 @@ func (m *Message) Unmarshal(data []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InitialSender", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				byteLen |= (int(b) & 0x7F) << shift
+				stringLen |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
+			postIndex := index + int(stringLen)
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.InitialSender = append(m.InitialSender, data[index:postIndex]...)
+			m.InitialSender = string(data[index:postIndex])
 			index = postIndex
 		case 7:
 			if wireType != 0 {
@@ -241,8 +240,8 @@ func (m *Message) Size() (n int) {
 	l = len(m.Subject)
 	n += 1 + l + sovClientClient(uint64(l))
 	if len(m.Participants) > 0 {
-		for _, b := range m.Participants {
-			l = len(b)
+		for _, s := range m.Participants {
+			l = len(s)
 			n += 1 + l + sovClientClient(uint64(l))
 		}
 	}
@@ -280,30 +279,18 @@ func NewPopulatedMessage(r randyClientClient, easy bool) *Message {
 	}
 	this.Subject = randStringClientClient(r)
 	if r.Intn(10) != 0 {
-		v2 := r.Intn(100)
-		this.Participants = make([][]byte, v2)
+		v2 := r.Intn(10)
+		this.Participants = make([]string, v2)
 		for i := 0; i < v2; i++ {
-			v3 := r.Intn(100)
-			this.Participants[i] = make([]byte, v3)
-			for j := 0; j < v3; j++ {
-				this.Participants[i][j] = byte(r.Intn(256))
-			}
+			this.Participants[i] = randStringClientClient(r)
 		}
 	}
-	v4 := r.Intn(100)
-	this.Dename = make([]byte, v4)
-	for i := 0; i < v4; i++ {
-		this.Dename[i] = byte(r.Intn(256))
-	}
+	this.Dename = randStringClientClient(r)
 	this.Date = r.Int63()
 	if r.Intn(2) == 0 {
 		this.Date *= -1
 	}
-	v5 := r.Intn(100)
-	this.InitialSender = make([]byte, v5)
-	for i := 0; i < v5; i++ {
-		this.InitialSender[i] = byte(r.Intn(256))
-	}
+	this.InitialSender = randStringClientClient(r)
 	this.InitialDate = r.Int63()
 	if r.Intn(2) == 0 {
 		this.InitialDate *= -1
@@ -331,9 +318,9 @@ func randUTF8RuneClientClient(r randyClientClient) rune {
 	return res
 }
 func randStringClientClient(r randyClientClient) string {
-	v6 := r.Intn(100)
-	tmps := make([]rune, v6)
-	for i := 0; i < v6; i++ {
+	v3 := r.Intn(100)
+	tmps := make([]rune, v3)
+	for i := 0; i < v3; i++ {
 		tmps[i] = randUTF8RuneClientClient(r)
 	}
 	return string(tmps)
@@ -355,11 +342,11 @@ func randFieldClientClient(data []byte, r randyClientClient, fieldNumber int, wi
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateClientClient(data, uint64(key))
-		v7 := r.Int63()
+		v4 := r.Int63()
 		if r.Intn(2) == 0 {
-			v7 *= -1
+			v4 *= -1
 		}
-		data = encodeVarintPopulateClientClient(data, uint64(v7))
+		data = encodeVarintPopulateClientClient(data, uint64(v4))
 	case 1:
 		data = encodeVarintPopulateClientClient(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -408,11 +395,18 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	i = encodeVarintClientClient(data, i, uint64(len(m.Subject)))
 	i += copy(data[i:], m.Subject)
 	if len(m.Participants) > 0 {
-		for _, b := range m.Participants {
+		for _, s := range m.Participants {
 			data[i] = 0x1a
 			i++
-			i = encodeVarintClientClient(data, i, uint64(len(b)))
-			i += copy(data[i:], b)
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
 		}
 	}
 	data[i] = 0x22
@@ -491,17 +485,17 @@ func (this *Message) Equal(that interface{}) bool {
 		return false
 	}
 	for i := range this.Participants {
-		if !bytes.Equal(this.Participants[i], that1.Participants[i]) {
+		if this.Participants[i] != that1.Participants[i] {
 			return false
 		}
 	}
-	if !bytes.Equal(this.Dename, that1.Dename) {
+	if this.Dename != that1.Dename {
 		return false
 	}
 	if this.Date != that1.Date {
 		return false
 	}
-	if !bytes.Equal(this.InitialSender, that1.InitialSender) {
+	if this.InitialSender != that1.InitialSender {
 		return false
 	}
 	if this.InitialDate != that1.InitialDate {
