@@ -1,3 +1,11 @@
-- implement client journaling + recovery
+- refactoring
+- error handling
+- client: delete messages from server as soon as received
+- store conversations with random number, not date
+- cache dename information to not put load on servers
 - ui
-- shred files before deleting them
+- implement client journaling + recovery
+- download messages at a constant rate????
+
+- spend an hour looking at the flaky test
+- account setup system
