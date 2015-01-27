@@ -39,13 +39,23 @@ var nullNonce = [24]byte{}
 // this option will result in a deadlock. The public key of the other party is
 // returned along with the wrapped connection.
 func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize int) (*Conn, *[32]byte, error) {
+	// All single-letter symbols in this comment represent public DH keys.
+	// Capital letters represent long-term and others are per-connection
+	// ephemeral. [msg](PK1<>PK2) denotes nacl/box authenticated encryption.
+	//	--> a
+	//	<-- b
+	//	<-- [B,[b,a](B<>a)](a<>b)
+	//	--> [A,[a,b](A<>b)](a<>b)
+	//	--> [data](a<>b)
+	//	<-- [data](a<>b)
+
 	ourEphemeralPublic, ourEphemeralSecret, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
 	var theirEphemeralPublic, theirPK [32]byte
 	var readErr, writeErr error
-	writeDone, readDone := make(chan struct{}), make(chan chan struct{})
+	writeDone, readDone := make(chan struct{}), make(chan struct{})
 	go func() { _, writeErr = unencrypted.Write(ourEphemeralPublic[:]); close(writeDone) }()
 	go func() { _, readErr = io.ReadFull(unencrypted, theirEphemeralPublic[:]); close(readDone) }()
 	if <-writeDone; writeErr != nil {
@@ -65,7 +75,7 @@ func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize 
 	}
 	box.Precompute(&ret.key, &theirEphemeralPublic, ourEphemeralSecret)
 
-	writeDone, readDone = make(chan struct{}), make(chan chan struct{})
+	writeDone, readDone = make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(readDone)
 		var theirHandshake [32 + (box.Overhead + 32 + 32)]byte // theirPK, box(theirEphPK, ourEphPK)
@@ -76,6 +86,10 @@ func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize 
 		hs, ok := box.Open(nil, theirHandshake[32:], &nullNonce, &theirPK, ourEphemeralSecret)
 		if !ok || !bytes.Equal(hs, append(theirEphemeralPublic[:], ourEphemeralPublic[:]...)) {
 			readErr = errors.New("authentication failed (ephemeral pk mismatch)")
+			return
+		}
+		if bytes.Equal(theirPK[:], pk[:]) {
+			readErr = errors.New("we are talking to a mirror")
 			return
 		}
 		if expectedPK != nil && !bytes.Equal(theirPK[:], expectedPK[:]) {
