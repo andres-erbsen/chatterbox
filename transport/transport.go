@@ -39,6 +39,13 @@ var nullNonce = [24]byte{}
 // this option will result in a deadlock. The public key of the other party is
 // returned along with the wrapped connection.
 func Handshake(unencrypted net.Conn, pk, sk, expectedPK *[32]byte, maxFrameSize int) (*Conn, *[32]byte, error) {
+	if sk == nil && pk == nil {
+		var err error
+		pk, sk, err = box.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	// All single-letter symbols in this comment represent public DH keys.
 	// Capital letters represent long-term and others are per-connection
 	// ephemeral. [msg](PK1<>PK2) denotes nacl/box authenticated encryption.
