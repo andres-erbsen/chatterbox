@@ -192,6 +192,7 @@ func TestMessageListing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer oldConn.Close()
 
 	pkp, skp, err := box.GenerateKey(rand.Reader)
 	if err != nil {
@@ -439,7 +440,10 @@ func enablePush(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T)
 
 func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
 	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
-	handleError(err, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer oldConn.Close()
 
 	pkp, skp, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)

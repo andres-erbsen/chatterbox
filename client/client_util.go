@@ -241,14 +241,11 @@ func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 		UploadSignedKeys: keyList,
 	}
 	if err := WriteProtobuf(conn, outBuf, uploadKeys); err != nil {
-		return nil
+		return err
 	}
 
 	_, err := ReceiveReply(connToServer)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename string, pkSig *[32]byte) (*[32]byte, error) {

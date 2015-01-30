@@ -64,7 +64,9 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 
 	aliceHomeConn := util.CreateTestAccount(alice, aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	defer aliceHomeConn.Close()
 	bobHomeConn := util.CreateTestAccount(bob, bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	defer bobHomeConn.Close()
 
 	//fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
 	aliceNotifies := make(chan []byte)
