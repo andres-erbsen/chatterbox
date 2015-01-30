@@ -3,6 +3,7 @@ install:
  - sudo add-apt-repository -y ppa:ubuntu-sdk-team/ppa
  - sudo apt-get update
  - sudo apt-get install qtdeclarative5-dev qtbase5-private-dev qtdeclarative5-private-dev libqt5opengl5-dev qtdeclarative5-qtquick2-plugin
+ - sudo sh -c 'echo 1 > /proc/sys/net/ipv4/tcp_tw_recycle'
  - go get -t -d -v ./...
  - go build -v ./...
 go: 
