@@ -103,6 +103,7 @@ func main() {
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}
+	defer plainConn.Close()
 	conn, _, err := transport.Handshake(plainConn,
 		(*[32]byte)(&publicProfile.UserIDAtServer),
 		(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
