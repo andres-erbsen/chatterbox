@@ -1,0 +1,23 @@
+1. Delay lookup of sender when receiving first message (also delay displaying the message itself)
+2. Bundle dename profiles with all messages, receiver always uses newest profile known for a contact
+
+Implications for the dename server:
+    - Sending first message:
+        A looks up B
+        B looks up A after some delay
+    - Sending subsequent messages:
+        A looks up A
+
+Two cases for the first message:
+    - Recent enough => accept dename profile as valid, don't do lookup (recent enough ~1min)
+    - Not recent => delay, then lookup dename profile
+        - Delay options:
+            - Delayed until next time you're online
+            - No more than 24 hours (imagine using Chatterbox for a class)
+                - Option for power users to overwrite timing
+        - Not actually implementing delay now because anonymity guarantees are already horrible with so few dename users  
+
+Subsequent messages use Option 2 in andreser's email:
+  
+    Each message sent by Alice includes a copy of the dename lookup result asserting that the profile
+is indeed bound to her name. A contact would always use the newest dename profile it has seen (by dename round number as asserted by the dename servers). This is appealing because we could do away with receiver-side lookups for good, which would make deanonymization through traffic analysis harder. The downside is that now Alice would now need to both change her dename key AND trigger the flood of push messages to her contacts to perform a successful revocation. Ideally, there would be a single UI. There is also an annoying race condition when somebody adds Alice as a contact in Chatterbox and sends her a message, but she revokes her Chatterbox profile before receiving that message. As Alice doesn't know about the new contact at the time of revocation, she won't send them an update. (This can be minimized by having a period of time in which messages from new contents are replied to with revocation notifications).
