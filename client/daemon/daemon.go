@@ -359,6 +359,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
+	defer ourConn.Close()
 
 	notifies := make(chan []byte)
 	replies := make(chan *proto.ServerToClient)

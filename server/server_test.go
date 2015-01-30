@@ -113,6 +113,7 @@ func TestAccountCreation(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, _ := setUpServerTest(db, t)
+	defer conn.Close()
 
 	createAccount(conn, inBuf, outBuf, t)
 
@@ -150,6 +151,7 @@ func TestMessageUploading(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope := []byte("Envelope")
 
@@ -249,6 +251,7 @@ func TestEnvelopeDownload(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope1 := []byte("Envelope1")
 	envelope2 := []byte("Envelope2")
@@ -290,6 +293,7 @@ func TestMessageDeletion(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope1 := []byte("Envelope1")
 	envelope2 := []byte("Envelope2")
@@ -351,6 +355,7 @@ func TestGetNumberOfKeys(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	createAccount(conn, inBuf, outBuf, t)
 
@@ -400,6 +405,7 @@ func TestKeyUploadDownload(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	createAccount(conn, inBuf, outBuf, t)
 
@@ -459,6 +465,7 @@ func TestPushNotifications(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope1 := []byte("First")
 	envelope2 := []byte("Second")

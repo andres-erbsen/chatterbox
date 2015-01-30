@@ -141,6 +141,7 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 
 	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
+		conn.Close()
 		return nil, err
 	}
 
