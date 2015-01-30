@@ -113,6 +113,7 @@ func TestAccountCreation(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, _ := setUpServerTest(db, t)
+	defer conn.Close()
 
 	createAccount(conn, inBuf, outBuf, t)
 
@@ -150,6 +151,7 @@ func TestMessageUploading(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope := []byte("Envelope")
 
@@ -190,6 +192,7 @@ func TestMessageListing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer oldConn.Close()
 
 	pkp, skp, err := box.GenerateKey(rand.Reader)
 	if err != nil {
@@ -249,6 +252,7 @@ func TestEnvelopeDownload(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope1 := []byte("Envelope1")
 	envelope2 := []byte("Envelope2")
@@ -290,6 +294,7 @@ func TestMessageDeletion(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope1 := []byte("Envelope1")
 	envelope2 := []byte("Envelope2")
@@ -351,6 +356,7 @@ func TestGetNumberOfKeys(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	createAccount(conn, inBuf, outBuf, t)
 
@@ -400,6 +406,7 @@ func TestKeyUploadDownload(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	createAccount(conn, inBuf, outBuf, t)
 
@@ -433,7 +440,10 @@ func enablePush(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T)
 
 func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
 	oldConn, err := net.Dial("tcp", server.listener.Addr().String())
-	handleError(err, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer oldConn.Close()
 
 	pkp, skp, err := box.GenerateKey(rand.Reader)
 	handleError(err, t)
@@ -459,6 +469,7 @@ func TestPushNotifications(t *testing.T) {
 	defer db.Close()
 
 	server, conn, inBuf, outBuf, pkp := setUpServerTest(db, t)
+	defer conn.Close()
 
 	envelope1 := []byte("First")
 	envelope2 := []byte("Second")

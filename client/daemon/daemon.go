@@ -79,6 +79,8 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename string) (*ratchet.R
 	if err != nil {
 		return nil, err
 	}
+	defer theirConn.Close()
+
 	theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, pkSig)
 	if err != nil {
 		return nil, err
@@ -126,10 +128,10 @@ func (conf *Config) sendMessage(msg []byte, theirDename string, msgRatch *ratche
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
-
 	if err != nil {
 		return nil, err
 	}
+	defer theirConn.Close()
 
 	encMsg, ratch, err := util.EncryptAuth(msg, msgRatch)
 	if err != nil {
@@ -359,6 +361,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
+	defer ourConn.Close()
 
 	notifies := make(chan []byte)
 	replies := make(chan *proto.ServerToClient)

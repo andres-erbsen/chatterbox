@@ -15,7 +15,6 @@ func CreateTestServer(t *testing.T) (*Server, *[32]byte, string, func()) {
 		t.Fatal(err)
 	}
 
-	defer os.RemoveAll(dir)
 	db, err := leveldb.OpenFile(dir, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +33,7 @@ func CreateTestServer(t *testing.T) (*Server, *[32]byte, string, func()) {
 
 	return server, pks, server.listener.Addr().String(), func() {
 		server.StopServer()
-		os.RemoveAll(dir)
 		db.Close()
+		os.RemoveAll(dir)
 	}
 }
