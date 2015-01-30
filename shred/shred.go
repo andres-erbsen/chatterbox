@@ -3,11 +3,24 @@ package shred
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 )
+
+func EmptyDir(path string) error {
+	fd, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	_, err = fd.Readdirnames(1)
+	if err == io.EOF {
+		return nil
+	}
+	return errors.New("not an empty directory")
+}
 
 // Remove removes the named file or directory after overwriting its contents
 // and name. This may or may not, depending on the filesystem and the
@@ -18,7 +31,11 @@ func Remove(name string) error {
 	if err != nil {
 		return err
 	}
-	if !finfo.IsDir() {
+	if finfo.IsDir() {
+		if err := EmptyDir(name); err != nil {
+			return err
+		}
+	} else {
 		f, err := os.OpenFile(name, os.O_WRONLY, 0)
 		if err != nil {
 			return err

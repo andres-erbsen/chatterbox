@@ -31,8 +31,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
 	defer serverTeardown()
-	time.Sleep(1)
 
+	// XXX: should alice and bob have separate directories? or do they already?
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
