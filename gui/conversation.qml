@@ -4,8 +4,8 @@ import QtQuick.Layouts 1.1
 
 ApplicationWindow {
     visible: true
-    title: "New Message"
-    property int margin: 11
+    title: "New Conversation"
+    property int margin: 6
     width: mainLayout.implicitWidth + 2 * margin
     height: mainLayout.implicitHeight + 2 * margin
     minimumWidth: mainLayout.Layout.minimumWidth + 40 * margin
@@ -15,62 +15,61 @@ ApplicationWindow {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: margin
+		RowLayout {
+			Text {text: "To:"}
+				TextField {
+					id: toField
+						focus: true
+						placeholderText: "dename names, comma-separated"
+						Layout.fillWidth: true
+						onAccepted: {subjectField.focus = true}
+				}
+		}
+
+		RowLayout {
+			Text {text: "Subject:"}
+				TextField {
+					id: subjectField
+					Layout.fillWidth: true
+					onAccepted: {messageArea.selectAll(); messageArea.focus = true}
+				}
+		}
+
+
+		TextArea {
+			id: messageArea 
+			text: "Write the message here and press Ctrl+Return to send"
+			Layout.minimumHeight: 10
+			Layout.fillWidth: true
+			Layout.fillHeight: true
+			textFormat: TextEdit.PlainText
+			wrapMode: TextEdit.Wrap
+			/* andreser: the following works for me
+			keys.onreturnpressed: {
+				console.log("return pressed in main textarea");
+			}
+			*/
+		}
+
+		Action {
+			id: sendMessage
+			text: "Send &Message"
+			shortcut: "Ctrl+Return"
+			onTriggered: {
+				console.log("sendMessage")
+			}
+		}
+
+		/*
         GroupBox {
-            id: toBox
-            title: "To:"
-            Layout.fillWidth: true
-
-            RowLayout {
-                id: toLayout
-                anchors.fill: parent
-                TextField {
-                    placeholderText: "Comma delimited denames"
-                    Layout.fillWidth: true
-                }
-            }
-        }
-
-        GroupBox {
-            id: subjectBox
-            title: "Subject:"
-            Layout.fillWidth: true
-
-            RowLayout {
-                id: subjectLayout
-                anchors.fill: parent
-                TextField {
-                    Layout.fillWidth: true
-                }
-            }
-        }
-
-        GroupBox {
-            id: messageBox
-            title: "Message Contents:"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            RowLayout {
-                id: textLayout
-                anchors.fill: parent
-                TextArea {
-                    id: messageContents 
-                    Layout.minimumHeight: 30
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                }
-            }
-        }
-
-        GroupBox {
-            id: sendMessage
+            id: sendMessageButton
             Layout.alignment: Qt.AlignRight
             flat: true
-            Row {
-                Button {
-                    text: "Send Message"
-                }
-            }
+			Button {
+				text: "Send Message"
+				onClicked: {sendMessage.trigger()}
+			}
         }
+		*/
     }
 }
