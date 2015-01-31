@@ -3,13 +3,25 @@ import QtQuick.Controls 1.1
 import QtQuick.Layouts 1.1
 
 ApplicationWindow {
+	id: newConversationWindow
+	signal sendMessage(string to, string subject, string message)
+
     visible: true
     title: "New Conversation"
-    property int margin: 6
+    property int margin: 5
     width: mainLayout.implicitWidth + 2 * margin
     height: mainLayout.implicitHeight + 2 * margin
     minimumWidth: mainLayout.Layout.minimumWidth + 40 * margin
     minimumHeight: mainLayout.Layout.minimumHeight + 12 * margin
+
+	Action {
+		id: sendMessage
+		text: "Send &Message"
+		shortcut: "Ctrl+Return"
+		onTriggered: {
+			newConversationWindow.sendMessage(toField.text, subjectField.text, messageArea.text)
+		}
+	}
 
     ColumnLayout {
         id: mainLayout
@@ -49,15 +61,6 @@ ApplicationWindow {
 				console.log("return pressed in main textarea");
 			}
 			*/
-		}
-
-		Action {
-			id: sendMessage
-			text: "Send &Message"
-			shortcut: "Ctrl+Return"
-			onTriggered: {
-				console.log("sendMessage")
-			}
 		}
 
 		/*
