@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	util "github.com/andres-erbsen/chatterbox/client"
+	//"github.com/andres-erbsen/chatterbox/client/profilesyncd"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/dename/client"
@@ -22,8 +23,8 @@ const (
 	MIN_PREKEYS = 50
 )
 
-func Start(rootDir string) (*Config, error) {
-	conf := LoadConfig(&Config{
+func New(rootDir string) (*Daemon, error) {
+	conf := LoadConfig(&Daemon{
 		RootDir:    rootDir,
 		Now:        time.Now,
 		TempPrefix: "daemon",
@@ -48,9 +49,9 @@ func Start(rootDir string) (*Config, error) {
 	return conf, nil
 }
 
-func (conf *Config) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
+func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
-	profile, err := conf.denameClient.Lookup(theirDename)
+	profile, err := d.denameClient.Lookup(theirDename)
 	if err != nil {
 		return nil, err
 	}
@@ -71,34 +72,34 @@ func (conf *Config) sendFirstMessage(msg []byte, theirDename string) (*ratchet.R
 	pkTransport := (*[32]byte)(&chatProfile.ServerTransportPK)
 	theirPk := (*[32]byte)(&chatProfile.UserIDAtServer)
 
-	ourSkAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
+	ourSkAuth := (*[32]byte)(&d.MessageAuthSecretKey)
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
+	theirConn, err := util.CreateForeignServerConn(theirDename, d.denameClient, addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}
 	defer theirConn.Close()
 
-	theirKey, err := util.GetKey(theirConn, theirInBuf, conf.outBuf, theirPk, theirDename, pkSig)
+	theirKey, err := util.GetKey(theirConn, theirInBuf, d.outBuf, theirPk, theirDename, pkSig)
 	if err != nil {
 		return nil, err
 	}
-	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, conf.denameClient)
+	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, d.denameClient)
 	if err != nil {
 		return nil, err
 	}
-	err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
+	err = util.UploadMessageToUser(theirConn, theirInBuf, d.outBuf, theirPk, encMsg)
 	if err != nil {
 		return nil, err
 	}
 	return ratch, nil
 }
 
-func (conf *Config) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
+func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
 	//If using TOR, dename client is fresh TOR connection
-	profile, err := conf.denameClient.Lookup(theirDename)
+	profile, err := d.denameClient.Lookup(theirDename)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (conf *Config) sendMessage(msg []byte, theirDename string, msgRatch *ratche
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(theirDename, conf.denameClient, addr, port, pkTransport)
+	theirConn, err := util.CreateForeignServerConn(theirDename, d.denameClient, addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}
@@ -137,16 +138,16 @@ func (conf *Config) sendMessage(msg []byte, theirDename string, msgRatch *ratche
 	if err != nil {
 		return nil, err
 	}
-	err = util.UploadMessageToUser(theirConn, theirInBuf, conf.outBuf, theirPk, encMsg)
+	err = util.UploadMessageToUser(theirConn, theirInBuf, d.outBuf, theirPk, encMsg)
 	if err != nil {
 		return nil, err
 	}
 	return ratch, nil
 }
 
-func (conf *Config) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) (*proto.Message, *ratchet.Ratchet, int, error) {
-	skAuth := (*[32]byte)(&conf.MessageAuthSecretKey)
-	ratch, msg, index, err := util.DecryptAuthFirst(envelope, pkList, skList, skAuth, conf.denameClient)
+func (d *Daemon) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) (*proto.Message, *ratchet.Ratchet, int, error) {
+	skAuth := (*[32]byte)(&d.MessageAuthSecretKey)
+	ratch, msg, index, err := util.DecryptAuthFirst(envelope, pkList, skList, skAuth, d.denameClient)
 
 	if err != nil {
 		return nil, nil, -1, err
@@ -159,7 +160,7 @@ func (conf *Config) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skL
 	return message, ratch, index, nil
 }
 
-func (conf *Config) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*proto.Message, *ratchet.Ratchet, error) {
+func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*proto.Message, *ratchet.Ratchet, error) {
 	var ratch *ratchet.Ratchet
 	var msg []byte
 	for _, msgRatch := range ratchets {
@@ -179,7 +180,7 @@ func (conf *Config) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet)
 	return message, ratch, nil
 }
 
-func processOutboxDir(conf *Config, dirname string) error {
+func (d *Daemon) processOutboxDir(dirname string) error {
 	fmt.Printf("processing outbox dir: %s\n", dirname)
 	// parse metadata
 	metadataFile := filepath.Join(dirname, MetadataFileName)
@@ -199,7 +200,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 		return err
 	}
 	messages := make([][]byte, 0, len(potentialMessages))
-	sendTime := conf.Now().UTC()
+	sendTime := d.Now().UTC()
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
 			msg, err := ioutil.ReadFile(filepath.Join(dirname, finfo.Name()))
@@ -209,7 +210,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 
 			// make protobuf for message; append it
 			payload := proto.Message{
-				Dename:        conf.Dename,
+				Dename:        d.Dename,
 				Contents:      msg,
 				Subject:       metadata.Subject,
 				Participants:  metadata.Participants,
@@ -229,11 +230,11 @@ func processOutboxDir(conf *Config, dirname string) error {
 	}
 
 	// ensure the conversation directory exists
-	convName, err := filepath.Rel(conf.OutboxDir(), dirname)
+	convName, err := filepath.Rel(d.OutboxDir(), dirname)
 	if err != nil {
 		return err
 	}
-	convPath := filepath.Join(conf.ConversationDir(), convName)
+	convPath := filepath.Join(d.ConversationDir(), convName)
 	if os.Mkdir(convPath, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -242,7 +243,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 	convMetadataFile := filepath.Join(convPath, MetadataFileName)
 	if _, err = os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			if err = MarshalToFile(conf, convMetadataFile, &metadata); err != nil {
+			if err = MarshalToFile(d, convMetadataFile, &metadata); err != nil {
 				return err
 			}
 		} else {
@@ -251,27 +252,27 @@ func processOutboxDir(conf *Config, dirname string) error {
 	}
 
 	for _, recipient := range metadata.Participants {
-		if recipient == conf.Dename {
+		if recipient == d.Dename {
 			continue
 		}
 		for _, msg := range messages {
-			fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
-			checkAuth := util.CheckAuthWith(conf.denameClient)
+			fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
+			checkAuth := util.CheckAuthWith(d.denameClient)
 			if err != nil {
 				return err
 			}
-			if msgRatch, err := LoadRatchet(conf, recipient, fillAuth, checkAuth); err != nil { //First message in this conversation
-				ratch, err := conf.sendFirstMessage(msg, recipient)
+			if msgRatch, err := LoadRatchet(d, recipient, fillAuth, checkAuth); err != nil { //First message in this conversation
+				ratch, err := d.sendFirstMessage(msg, recipient)
 				if err != nil {
 					return err
 				}
-				StoreRatchet(conf, recipient, ratch)
+				StoreRatchet(d, recipient, ratch)
 			} else { // Not-first message in this conversation
-				ratch, err := conf.sendMessage(msg, recipient, msgRatch)
+				ratch, err := d.sendMessage(msg, recipient, msgRatch)
 				if err != nil {
 					return err
 				}
-				StoreRatchet(conf, recipient, ratch)
+				StoreRatchet(d, recipient, ratch)
 			}
 		}
 	}
@@ -279,7 +280,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 	// move the sent messages to the conversation folder
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
-			messageName := GenerateMessageName(sendTime, string(conf.Dename))
+			messageName := GenerateMessageName(sendTime, string(d.Dename))
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
 			}
@@ -289,7 +290,7 @@ func processOutboxDir(conf *Config, dirname string) error {
 	return nil
 }
 
-func receiveMessage(conf *Config, message *proto.Message) error {
+func (d *Daemon) receiveMessage(message *proto.Message) error {
 	fmt.Printf("%s\n", message)
 
 	// generate metadata file
@@ -304,13 +305,13 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 	convName := GenerateConversationName(message.InitialSender, &metadata)
 
 	// create conversation directory if it doesn't already exist
-	convDir := filepath.Join(conf.ConversationDir(), convName)
+	convDir := filepath.Join(d.ConversationDir(), convName)
 	if err := os.Mkdir(convDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 
 	// create outbox directory if it doesn't already exist
-	outDir := filepath.Join(conf.OutboxDir(), convName)
+	outDir := filepath.Join(d.OutboxDir(), convName)
 	if err := os.Mkdir(outDir, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -319,7 +320,7 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 	convMetadataFile := filepath.Join(convDir, MetadataFileName)
 	if _, err := os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			MarshalToFile(conf, convMetadataFile, &metadata)
+			MarshalToFile(d, convMetadataFile, &metadata)
 		} else {
 			return err
 		}
@@ -329,7 +330,7 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 	outMetadataFile := filepath.Join(outDir, MetadataFileName)
 	if _, err := os.Stat(outMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			MarshalToFile(conf, outMetadataFile, &metadata)
+			MarshalToFile(d, outMetadataFile, &metadata)
 		} else {
 			return err
 		}
@@ -347,17 +348,16 @@ func receiveMessage(conf *Config, message *proto.Message) error {
 	return nil
 }
 
-func Run(conf *Config, shutdown <-chan struct{}) error {
-
-	profile, err := LoadPublicProfile(conf)
+func (d *Daemon) Run(shutdown <-chan struct{}) error {
+	profile, err := LoadPublicProfile(d)
 	if err != nil {
 		return err
 	}
 
 	ourConn, err := util.CreateHomeServerConn(
-		conf.ServerAddressTCP, (*[32]byte)(&profile.UserIDAtServer),
-		(*[32]byte)(&conf.TransportSecretKeyForServer),
-		(*[32]byte)(&conf.ServerTransportPK))
+		d.ServerAddressTCP, (*[32]byte)(&profile.UserIDAtServer),
+		(*[32]byte)(&d.TransportSecretKeyForServer),
+		(*[32]byte)(&d.ServerTransportPK))
 	if err != nil {
 		return err
 	}
@@ -367,7 +367,7 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	replies := make(chan *proto.ServerToClient)
 
 	connToServer := &util.ConnectionToServer{
-		Buf:          conf.inBuf,
+		Buf:          d.inBuf,
 		Conn:         ourConn,
 		ReadReply:    replies,
 		ReadEnvelope: notifies,
@@ -376,11 +376,11 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	go connToServer.ReceiveMessages()
 
 	// load prekeys and ensure that we have enough of them
-	prekeyPublics, prekeySecrets, err := LoadPrekeys(conf)
+	prekeyPublics, prekeySecrets, err := LoadPrekeys(d)
 	if err != nil {
 		return err
 	}
-	numKeys, err := util.GetNumKeys(ourConn, connToServer, conf.outBuf)
+	numKeys, err := util.GetNumKeys(ourConn, connToServer, d.outBuf)
 	if err != nil {
 		return err
 	}
@@ -388,12 +388,12 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
 		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
 		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
-		if err = StorePrekeys(conf, prekeyPublics, prekeySecrets); err != nil {
+		if err = StorePrekeys(d, prekeyPublics, prekeySecrets); err != nil {
 			return err
 		}
 		var signingKey [64]byte
-		copy(signingKey[:], conf.KeySigningSecretKey[:64])
-		err = util.UploadKeys(ourConn, connToServer, conf.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
+		copy(signingKey[:], d.KeySigningSecretKey[:64])
+		err = util.UploadKeys(ourConn, connToServer, d.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
 		if err != nil {
 			return err // TODO handle this nicely
 		}
@@ -401,9 +401,9 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 
 	initFn := func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
-			return processOutboxDir(conf, path)
+			return d.processOutboxDir(path)
 		} else {
-			return processOutboxDir(conf, filepath.Dir(path))
+			return d.processOutboxDir(filepath.Dir(path))
 		}
 	}
 
@@ -413,12 +413,12 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 	}
 	defer watcher.Close()
 
-	err = WatchDir(watcher, conf.OutboxDir(), initFn)
+	err = WatchDir(watcher, d.OutboxDir(), initFn)
 	if err != nil {
 		return err
 	}
 
-	if err = util.EnablePush(ourConn, connToServer, conf.outBuf); err != nil {
+	if err = util.EnablePush(ourConn, connToServer, d.outBuf); err != nil {
 		return err
 	}
 
@@ -435,41 +435,41 @@ func Run(conf *Config, shutdown <-chan struct{}) error {
 					return err
 				}
 
-				processOutboxDir(conf, ev.Name)
+				d.processOutboxDir(ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
 			// assume it's the first message we're receiving from the person; try to decrypt
-			message, ratch, index, err := conf.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
+			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
 			if err == nil {
 				// assumption was correct, found a prekey that matched
-				StoreRatchet(conf, message.Dename, ratch)
+				StoreRatchet(d, message.Dename, ratch)
 
 				//TODO: Update prekeys by removing index, store
-				if err = receiveMessage(conf, message); err != nil {
+				if err = d.receiveMessage(message); err != nil {
 					return err
 				}
 				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
 				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
-				if err = StorePrekeys(conf, newPrekeyPublics, newPrekeySecrets); err != nil {
+				if err = StorePrekeys(d, newPrekeyPublics, newPrekeySecrets); err != nil {
 					return err
 				}
 			} else { // try decrypting with a ratchet
-				fillAuth := util.FillAuthWith((*[32]byte)(&conf.MessageAuthSecretKey))
-				checkAuth := util.CheckAuthWith(conf.denameClient)
-				ratchets, err := AllRatchets(conf, fillAuth, checkAuth)
+				fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
+				checkAuth := util.CheckAuthWith(d.denameClient)
+				ratchets, err := AllRatchets(d, fillAuth, checkAuth)
 				if err != nil {
 					return err
 				}
 
-				message, ratch, err := conf.decryptMessage(envelope, ratchets)
+				message, ratch, err := d.decryptMessage(envelope, ratchets)
 				if err != nil {
 					return err
 				}
-				if err = receiveMessage(conf, message); err != nil {
+				if err = d.receiveMessage(message); err != nil {
 					return err
 				}
 
-				StoreRatchet(conf, message.Dename, ratch)
+				StoreRatchet(d, message.Dename, ratch)
 			}
 		case err := <-watcher.Error:
 			if err != nil {

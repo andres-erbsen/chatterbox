@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	daemonCfg, err := daemon.Start(os.Args[1])
+	daemon, err := daemon.New(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -22,7 +22,7 @@ func main() {
 		close(shutdown)
 	}()
 	//TODO read the directory as an argument
-	err = daemon.Run(daemonCfg, shutdown)
+	err = daemon.Run(shutdown)
 	if err != nil {
 		log.Fatal(err)
 		return

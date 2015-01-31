@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type Config struct {
+type Daemon struct {
 	// The root directory where the user's files are stored
 	RootDir string
 
@@ -23,7 +23,7 @@ type Config struct {
 	outBuf       []byte
 }
 
-func LoadConfig(conf *Config) *Config {
+func LoadConfig(conf *Daemon) *Daemon {
 	UnmarshalFromFile(conf.ConfigFile(), &conf.LocalAccountConfig)
 	return conf
 }

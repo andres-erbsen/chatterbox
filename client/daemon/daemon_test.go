@@ -40,7 +40,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 	defer shred.RemoveAll(dir)
 
-	aliceConf := &Config{
+	aliceConf := &Daemon{
 		RootDir:      dir,
 		Now:          time.Now,
 		TempPrefix:   "daemon",
@@ -52,7 +52,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		},
 	}
 
-	bobConf := &Config{
+	bobConf := &Daemon{
 		RootDir:      dir,
 		Now:          time.Now,
 		TempPrefix:   "daemon",

@@ -19,39 +19,39 @@ import (
 	"time"
 )
 
-func (conf *Config) ConfigFile() string {
+func (conf *Daemon) ConfigFile() string {
 	return filepath.Join(conf.RootDir, "config.pb")
 }
 
-func (conf *Config) ConversationDir() string {
+func (conf *Daemon) ConversationDir() string {
 	return filepath.Join(conf.RootDir, "conversations")
 }
 
-func (conf *Config) OutboxDir() string {
+func (conf *Daemon) OutboxDir() string {
 	return filepath.Join(conf.RootDir, "outbox")
 }
 
-func (conf *Config) TmpDir() string {
+func (conf *Daemon) TmpDir() string {
 	return filepath.Join(conf.RootDir, "tmp")
 }
 
-func (conf *Config) JournalDir() string {
+func (conf *Daemon) JournalDir() string {
 	return filepath.Join(conf.RootDir, "journal")
 }
 
-func (conf *Config) KeysDir() string {
+func (conf *Daemon) KeysDir() string {
 	return filepath.Join(conf.RootDir, "keys")
 }
 
-func (conf *Config) RatchetKeysDir() string {
+func (conf *Daemon) RatchetKeysDir() string {
 	return filepath.Join(conf.RootDir, "keys", "ratchet")
 }
 
-func (conf *Config) UiInfoDir() string {
+func (conf *Daemon) UiInfoDir() string {
 	return filepath.Join(conf.RootDir, "ui_info")
 }
 
-func (conf *Config) UniqueTmpDir() (string, error) {
+func (conf *Daemon) UniqueTmpDir() (string, error) {
 	return ioutil.TempDir(conf.TmpDir(), conf.TempPrefix)
 }
 
@@ -60,6 +60,7 @@ const (
 	PrekeysFileName            = "prekeys.pb"
 	LocalAccountConfigFileName = "config.pb"
 	ProfileFileName            = "profile.pb"
+	DenameProfileFileName      = "profile.pb"
 )
 
 func GenerateConversationName(sender string, metadata *proto.ConversationMetadata) string {
@@ -116,7 +117,7 @@ func UnmarshalFromFile(path string, out interface {
 	return out.Unmarshal(fileContents)
 }
 
-func MarshalToFile(conf *Config, path string, in interface {
+func MarshalToFile(conf *Daemon, path string, in interface {
 	Marshal() ([]byte, error)
 }) error {
 	inBytes, err := in.Marshal()
@@ -148,7 +149,7 @@ func MarshalToFile(conf *Config, path string, in interface {
 	return nil
 }
 
-func LoadPrekeys(conf *Config) ([]*[32]byte, []*[32]byte, error) {
+func LoadPrekeys(conf *Daemon) ([]*[32]byte, []*[32]byte, error) {
 	prekeysProto := new(proto.Prekeys)
 	err := UnmarshalFromFile(filepath.Join((*conf).KeysDir(), PrekeysFileName), prekeysProto)
 	if err != nil {
@@ -171,7 +172,7 @@ func LoadPrekeys(conf *Config) ([]*[32]byte, []*[32]byte, error) {
 	return prekeyPublics, prekeySecrets, nil
 }
 
-func StorePrekeys(conf *Config, prekeyPublics, prekeySecrets []*[32]byte) error {
+func StorePrekeys(conf *Daemon, prekeyPublics, prekeySecrets []*[32]byte) error {
 	if len(prekeyPublics) != len(prekeySecrets) {
 		panic("len(prekeysPublics) != len(prekeySecrets)")
 	}
@@ -187,25 +188,25 @@ func StorePrekeys(conf *Config, prekeyPublics, prekeySecrets []*[32]byte) error 
 	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), &prekeysProto)
 }
 
-func LoadLocalAccountConfig(conf *Config) (*proto.LocalAccountConfig, error) {
+func LoadLocalAccountConfig(conf *Daemon) (*proto.LocalAccountConfig, error) {
 	localAccountProto := new(proto.LocalAccountConfig)
 	return localAccountProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), LocalAccountConfigFileName), localAccountProto)
 }
 
-func StoreLocalAccountConfig(conf *Config, localAccountConfig *proto.LocalAccountConfig) error {
+func StoreLocalAccountConfig(conf *Daemon, localAccountConfig *proto.LocalAccountConfig) error {
 	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), LocalAccountConfigFileName), localAccountConfig)
 }
 
-func LoadPublicProfile(conf *Config) (*proto.Profile, error) {
+func LoadPublicProfile(conf *Daemon) (*proto.Profile, error) {
 	profileProto := new(proto.Profile)
 	return profileProto, UnmarshalFromFile(filepath.Join(conf.RootDir, ProfileFileName), profileProto)
 }
 
-func StorePublicProfile(conf *Config, publicProfile *proto.Profile) error {
+func StorePublicProfile(conf *Daemon, publicProfile *proto.Profile) error {
 	return MarshalToFile(conf, filepath.Join(conf.RootDir, ProfileFileName), publicProfile)
 }
 
-func LoadRatchet(conf *Config, name string, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
+func LoadRatchet(conf *Daemon, name string, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
 	nameStr := string(name)
 	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(nameStr); err != nil {
@@ -220,7 +221,7 @@ func LoadRatchet(conf *Config, name string, fillAuth func(tag, data []byte, thei
 	return ratch, nil
 }
 
-func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
+func StoreRatchet(conf *Daemon, name string, ratch *ratchet.Ratchet) error {
 	nameStr := string(name)
 
 	// TODO: move name validation to the first place where we encoiunter a name
@@ -230,7 +231,7 @@ func StoreRatchet(conf *Config, name string, ratch *ratchet.Ratchet) error {
 	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), nameStr), ratch)
 }
 
-func AllRatchets(conf *Config, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) ([]*ratchet.Ratchet, error) {
+func AllRatchets(conf *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) ([]*ratchet.Ratchet, error) {
 	files, err := ioutil.ReadDir(conf.RatchetKeysDir())
 	if err != nil {
 		return nil, err
@@ -249,7 +250,7 @@ func AllRatchets(conf *Config, fillAuth func(tag, data []byte, theirAuthPublic *
 	return ret, nil
 }
 
-func InitFs(conf *Config) error {
+func InitFs(conf *Daemon) error {
 	// create root directory and immediate sub directories
 	os.MkdirAll(conf.RootDir, 0700)
 	subdirs := []string{
