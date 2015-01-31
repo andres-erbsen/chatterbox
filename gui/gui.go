@@ -18,7 +18,7 @@ func main() {
 func run() error {
 	engine := qml.NewEngine()
 
-	controls, err := engine.LoadFile("qrc:///qml/conversation.qml")
+	controls, err := engine.LoadFile("qrc:///qml/new-conversation.qml")
 	if err != nil {
 		return err
 	}
