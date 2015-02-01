@@ -4,8 +4,12 @@
 *.swo
 
 chatterbox
+client/chatterbox-init/chatterbox-init
+client/chatterboxd/chatterboxd
 client/client
 server/server/server
+shred/shred/shred
+transport/transport-keygen/transport-keygen
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
