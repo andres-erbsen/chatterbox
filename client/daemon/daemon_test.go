@@ -102,7 +102,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	//Bob uploads keys
-	bobPublicPrekeys, bobSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS)
+	bobPublicPrekeys, bobSecretPrekeys, err := GeneratePrekeys(maxPrekeys)
 	var bobSigningKey [64]byte
 	copy(bobSigningKey[:], bobConf.KeySigningSecretKey[:64])
 	err = util.UploadKeys(bobHomeConn, bobConnToServer, bobConf.outBuf, util.SignKeys(bobPublicPrekeys, &bobSigningKey))
@@ -116,7 +116,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 
 	//Alice uploads keys
-	alicePublicPrekeys, _, err := GeneratePrekeys(MAX_PREKEYS)
+	alicePublicPrekeys, _, err := GeneratePrekeys(maxPrekeys)
 	var aliceSigningKey [64]byte
 	copy(aliceSigningKey[:], aliceConf.KeySigningSecretKey[:64])
 	err = util.UploadKeys(aliceHomeConn, aliceConnToServer, aliceConf.outBuf, util.SignKeys(alicePublicPrekeys, &aliceSigningKey))

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Spawns a new conversation in a user's outbox
+// SpawnConversationInOutbox Spawns a new conversation in a user's outbox
 //
 // conf = configuration structure
 // subject = subject of the new conversation
@@ -78,11 +78,12 @@ func main() {
 	subject := args[2]
 	message := args[3]
 
-	conf := daemon.LoadConfig(&daemon.Daemon{
+	conf := &daemon.Daemon{
 		RootDir:    rootDir,
 		Now:        time.Now,
 		TempPrefix: "some_ui",
-	})
+	}
+	daemon.UnmarshalFromFile(conf.ConfigFile(), &conf.LocalAccountConfig)
 
 	SpawnConversationInOutbox(conf, subject, []string{recipient}, [][]byte{([]byte)(message)})
 }

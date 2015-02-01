@@ -1,38 +1,66 @@
-// client daemon
+// Package daemon long-running client-side chatterbox functionality
 //   watches the file system for new messages --> sends them
 //   communicates with the server --> receive new messages
 package daemon
 
 import (
-	"code.google.com/p/go.exp/fsnotify"
 	"errors"
 	"fmt"
-	util "github.com/andres-erbsen/chatterbox/client"
-	//"github.com/andres-erbsen/chatterbox/client/profilesyncd"
-	"github.com/andres-erbsen/chatterbox/proto"
-	"github.com/andres-erbsen/chatterbox/ratchet"
-	"github.com/andres-erbsen/dename/client"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
+
+	"code.google.com/p/go.exp/fsnotify"
+	util "github.com/andres-erbsen/chatterbox/client"
+	"github.com/andres-erbsen/chatterbox/client/profilesyncd"
+	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/ratchet"
+	"github.com/andres-erbsen/dename/client"
+	dename "github.com/andres-erbsen/dename/protocol"
 )
 
 const (
-	MAX_PREKEYS = 100 //TODO make this configurable
-	MIN_PREKEYS = 50
+	// How many prekeys should the daemon try to keep at the server?
+	maxPrekeys = 100 //TODO make this configurable
+	minPrekeys = 50
 )
 
+// Daemon encapsulates long-running client-side chatterbox functionality
+type Daemon struct {
+	// The root directory where the user's files are stored
+	RootDir string
+
+	// Gets the current time
+	Now func() time.Time
+
+	// Prefix used in the temp folder
+	TempPrefix string
+
+	proto.LocalAccountConfig
+
+	denameClient *client.Client
+	inBuf        []byte
+	outBuf       []byte
+
+	stop chan struct{}
+	wg   sync.WaitGroup
+	psd  *profilesyncd.ProfileSyncd
+}
+
+// New initializes a chatterbox daemon by loading condiguration from rootDir
 func New(rootDir string) (*Daemon, error) {
-	conf := LoadConfig(&Daemon{
+	d := &Daemon{
 		RootDir:    rootDir,
 		Now:        time.Now,
 		TempPrefix: "daemon",
-	})
+	}
+	UnmarshalFromFile(d.ConfigFile(), &d.LocalAccountConfig)
 
 	// ensure that we have a correct directory structure
 	// including a correctly-populated outbox
-	if err := InitFs(conf); err != nil {
+	if err := InitFs(d); err != nil {
 		return nil, err
 	}
 	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
@@ -42,11 +70,168 @@ func New(rootDir string) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	conf.denameClient = denameClient
-	conf.inBuf = inBuf
-	conf.outBuf = outBuf
+	d.denameClient = denameClient
+	d.inBuf = inBuf
+	d.outBuf = outBuf
+	d.psd, err = profilesyncd.New(d.denameClient, 10*time.Minute, d.Dename, d.onOurDenameProfileDownload, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	return conf, nil
+	return d, nil
+}
+
+// Start activates the already initialized chatterbox daemon
+func (d *Daemon) Start() {
+	d.stop = make(chan struct{})
+	d.psd.Start()
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+		d.run()
+	}()
+}
+
+// Stop stops the daemon and returns when it has completely shut down
+func (d *Daemon) Stop() {
+	close(d.stop)
+	d.psd.Stop()
+	d.wg.Wait()
+}
+
+// run executes the main loop of the chatterbox daemon
+func (d *Daemon) run() error {
+	profile, err := LoadPublicProfile(d)
+	if err != nil {
+		return err
+	}
+
+	ourConn, err := util.CreateHomeServerConn(
+		d.ServerAddressTCP, (*[32]byte)(&profile.UserIDAtServer),
+		(*[32]byte)(&d.TransportSecretKeyForServer),
+		(*[32]byte)(&d.ServerTransportPK))
+	if err != nil {
+		return err
+	}
+	defer ourConn.Close()
+
+	notifies := make(chan []byte)
+	replies := make(chan *proto.ServerToClient)
+
+	connToServer := &util.ConnectionToServer{
+		Buf:          d.inBuf,
+		Conn:         ourConn,
+		ReadReply:    replies,
+		ReadEnvelope: notifies,
+	}
+
+	go connToServer.ReceiveMessages()
+
+	// load prekeys and ensure that we have enough of them
+	prekeyPublics, prekeySecrets, err := LoadPrekeys(d)
+	if err != nil {
+		return err
+	}
+	numKeys, err := util.GetNumKeys(ourConn, connToServer, d.outBuf)
+	if err != nil {
+		return err
+	}
+	if numKeys < minPrekeys {
+		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(maxPrekeys - int(numKeys))
+		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
+		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
+		if err = StorePrekeys(d, prekeyPublics, prekeySecrets); err != nil {
+			return err
+		}
+		var signingKey [64]byte
+		copy(signingKey[:], d.KeySigningSecretKey[:64])
+		err = util.UploadKeys(ourConn, connToServer, d.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
+		if err != nil {
+			return err // TODO handle this nicely
+		}
+	}
+
+	initFn := func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return d.processOutboxDir(path)
+		}
+		return d.processOutboxDir(filepath.Dir(path))
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	err = WatchDir(watcher, d.OutboxDir(), initFn)
+	if err != nil {
+		return err
+	}
+
+	if err = util.EnablePush(ourConn, connToServer, d.outBuf); err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case <-d.stop:
+			return nil
+		case ev := <-watcher.Event:
+			fmt.Printf("event: %v\n", ev)
+			// event in the directory structure; watch any new directories
+			if _, err = os.Stat(ev.Name); err == nil {
+				err = WatchDir(watcher, ev.Name, initFn)
+				if err != nil {
+					return err
+				}
+
+				d.processOutboxDir(ev.Name)
+			}
+		case envelope := <-connToServer.ReadEnvelope:
+			// assume it's the first message we're receiving from the person; try to decrypt
+			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
+			if err == nil {
+				// assumption was correct, found a prekey that matched
+				StoreRatchet(d, message.Dename, ratch)
+
+				//TODO: Update prekeys by removing index, store
+				if err = d.receiveMessage(message); err != nil {
+					return err
+				}
+				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
+				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
+				if err = StorePrekeys(d, newPrekeyPublics, newPrekeySecrets); err != nil {
+					return err
+				}
+			} else { // try decrypting with a ratchet
+				fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
+				checkAuth := util.CheckAuthWith(d.denameClient)
+				ratchets, err := AllRatchets(d, fillAuth, checkAuth)
+				if err != nil {
+					return err
+				}
+
+				message, ratch, err := d.decryptMessage(envelope, ratchets)
+				if err != nil {
+					return err
+				}
+				if err = d.receiveMessage(message); err != nil {
+					return err
+				}
+
+				StoreRatchet(d, message.Dename, ratch)
+			}
+		case err := <-watcher.Error:
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+}
+
+func (d *Daemon) onOurDenameProfileDownload(*dename.Profile, *dename.ClientReply, error) {
 }
 
 func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
@@ -346,136 +531,4 @@ func (d *Daemon) receiveMessage(message *proto.Message) error {
 	}
 
 	return nil
-}
-
-func (d *Daemon) Run(shutdown <-chan struct{}) error {
-	profile, err := LoadPublicProfile(d)
-	if err != nil {
-		return err
-	}
-
-	ourConn, err := util.CreateHomeServerConn(
-		d.ServerAddressTCP, (*[32]byte)(&profile.UserIDAtServer),
-		(*[32]byte)(&d.TransportSecretKeyForServer),
-		(*[32]byte)(&d.ServerTransportPK))
-	if err != nil {
-		return err
-	}
-	defer ourConn.Close()
-
-	notifies := make(chan []byte)
-	replies := make(chan *proto.ServerToClient)
-
-	connToServer := &util.ConnectionToServer{
-		Buf:          d.inBuf,
-		Conn:         ourConn,
-		ReadReply:    replies,
-		ReadEnvelope: notifies,
-	}
-
-	go connToServer.ReceiveMessages()
-
-	// load prekeys and ensure that we have enough of them
-	prekeyPublics, prekeySecrets, err := LoadPrekeys(d)
-	if err != nil {
-		return err
-	}
-	numKeys, err := util.GetNumKeys(ourConn, connToServer, d.outBuf)
-	if err != nil {
-		return err
-	}
-	if numKeys < MIN_PREKEYS {
-		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(MAX_PREKEYS - int(numKeys))
-		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
-		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
-		if err = StorePrekeys(d, prekeyPublics, prekeySecrets); err != nil {
-			return err
-		}
-		var signingKey [64]byte
-		copy(signingKey[:], d.KeySigningSecretKey[:64])
-		err = util.UploadKeys(ourConn, connToServer, d.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
-		if err != nil {
-			return err // TODO handle this nicely
-		}
-	}
-
-	initFn := func(path string, f os.FileInfo, err error) error {
-		if f.IsDir() {
-			return d.processOutboxDir(path)
-		} else {
-			return d.processOutboxDir(filepath.Dir(path))
-		}
-	}
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	defer watcher.Close()
-
-	err = WatchDir(watcher, d.OutboxDir(), initFn)
-	if err != nil {
-		return err
-	}
-
-	if err = util.EnablePush(ourConn, connToServer, d.outBuf); err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case <-shutdown:
-			return nil
-		case ev := <-watcher.Event:
-			fmt.Printf("event: %v\n", ev)
-			// event in the directory structure; watch any new directories
-			if _, err = os.Stat(ev.Name); err == nil {
-				err = WatchDir(watcher, ev.Name, initFn)
-				if err != nil {
-					return err
-				}
-
-				d.processOutboxDir(ev.Name)
-			}
-		case envelope := <-connToServer.ReadEnvelope:
-			// assume it's the first message we're receiving from the person; try to decrypt
-			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
-			if err == nil {
-				// assumption was correct, found a prekey that matched
-				StoreRatchet(d, message.Dename, ratch)
-
-				//TODO: Update prekeys by removing index, store
-				if err = d.receiveMessage(message); err != nil {
-					return err
-				}
-				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
-				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
-				if err = StorePrekeys(d, newPrekeyPublics, newPrekeySecrets); err != nil {
-					return err
-				}
-			} else { // try decrypting with a ratchet
-				fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
-				checkAuth := util.CheckAuthWith(d.denameClient)
-				ratchets, err := AllRatchets(d, fillAuth, checkAuth)
-				if err != nil {
-					return err
-				}
-
-				message, ratch, err := d.decryptMessage(envelope, ratchets)
-				if err != nil {
-					return err
-				}
-				if err = d.receiveMessage(message); err != nil {
-					return err
-				}
-
-				StoreRatchet(d, message.Dename, ratch)
-			}
-		case err := <-watcher.Error:
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -14,17 +15,10 @@ func main() {
 		return
 	}
 
-	shutdown := make(chan struct{})
-	go func() {
-		ch := make(chan os.Signal)
-		signal.Notify(ch, os.Kill, os.Interrupt)
-		<-ch
-		close(shutdown)
-	}()
-	//TODO read the directory as an argument
-	err = daemon.Run(shutdown)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	daemon.Start()
+
+	s := make(chan os.Signal)
+	signal.Notify(s, os.Kill, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
+	<-s
+	daemon.Stop()
 }
