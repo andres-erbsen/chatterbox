@@ -2,16 +2,18 @@ package daemon
 
 import (
 	"fmt"
+	"io/ioutil"
+	"testing"
+	"time"
+
 	util "github.com/andres-erbsen/chatterbox/client"
+	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/server"
 	"github.com/andres-erbsen/chatterbox/shred"
 	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
-	"io/ioutil"
-	"testing"
-	"time"
 )
 
 func TestEncryptFirstMessage(t *testing.T) {
@@ -33,17 +35,23 @@ func TestEncryptFirstMessage(t *testing.T) {
 	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
 	defer serverTeardown()
 
-	// XXX: should alice and bob have separate directories? or do they already?
-	dir, err := ioutil.TempDir("", "")
+	aliceDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer shred.RemoveAll(dir)
+	defer shred.RemoveAll(aliceDir)
+	bobDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(bobDir)
 
 	aliceConf := &Daemon{
-		RootDir:      dir,
+		Paths: persistence.Paths{
+			RootDir:     aliceDir,
+			Application: "daemon",
+		},
 		Now:          time.Now,
-		TempPrefix:   "daemon",
 		denameClient: aliceDnmc,
 		inBuf:        make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:       make([]byte, proto.SERVER_MESSAGE_SIZE),
@@ -53,9 +61,11 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 
 	bobConf := &Daemon{
-		RootDir:      dir,
+		Paths: persistence.Paths{
+			RootDir:     bobDir,
+			Application: "daemon",
+		},
 		Now:          time.Now,
-		TempPrefix:   "daemon",
 		denameClient: bobDnmc,
 		inBuf:        make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:       make([]byte, proto.SERVER_MESSAGE_SIZE),

@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/andres-erbsen/chatterbox/client/daemon"
+	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/shred"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // SpawnConversationInOutbox Spawns a new conversation in a user's outbox
@@ -17,29 +16,26 @@ import (
 // subject = subject of the new conversation
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
-func SpawnConversationInOutbox(conf *daemon.Daemon, subject string, recipients []string, messages [][]byte) error {
+func SpawnConversationInOutbox(conf *persistence.Paths, subject string, recipients []string, messages [][]byte) error {
 	// create temp directory or error
-	tmpDir, err := conf.UniqueTmpDir()
+	tmpDir, err := conf.MkdirInTemp()
 	defer shred.RemoveAll(tmpDir)
 	if err != nil {
 		return err
 	}
 
 	// generate metadata
-	recipients = append(recipients, conf.Dename)
 	metadata := &proto.ConversationMetadata{
-		Participants:  recipients,
-		Subject:       subject,
-		Date:          conf.Now().UnixNano(),
-		InitialSender: conf.Dename,
+		Participants: recipients,
+		Subject:      subject,
 	}
 
 	// create folder for conversation with the conversation name (or error?)
-	dirName := daemon.GenerateConversationName(conf.Dename, metadata)
+	dirName := persistence.ConversationName(metadata)
 	os.MkdirAll(filepath.Join(tmpDir, dirName), 0700)
 
 	// write metadata file
-	metadataFile := filepath.Join(tmpDir, dirName, daemon.MetadataFileName)
+	metadataFile := filepath.Join(tmpDir, dirName, persistence.MetadataFileName)
 	metadataBytes, err := metadata.Marshal()
 	if err != nil {
 		return err
@@ -78,12 +74,10 @@ func main() {
 	subject := args[2]
 	message := args[3]
 
-	conf := &daemon.Daemon{
-		RootDir:    rootDir,
-		Now:        time.Now,
-		TempPrefix: "some_ui",
+	conf := &persistence.Paths{
+		RootDir:     rootDir,
+		Application: "some_ui",
 	}
-	daemon.UnmarshalFromFile(conf.ConfigFile(), &conf.LocalAccountConfig)
 
 	SpawnConversationInOutbox(conf, subject, []string{recipient}, [][]byte{([]byte)(message)})
 }

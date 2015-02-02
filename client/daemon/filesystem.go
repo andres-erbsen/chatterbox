@@ -5,6 +5,7 @@ package daemon
 import (
 	"code.google.com/p/go.exp/fsnotify"
 	"fmt"
+	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/shred"
@@ -13,77 +14,24 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
-	"strings"
 	"syscall"
-	"time"
 )
-
-func (conf *Daemon) ConfigFile() string {
-	return filepath.Join(conf.RootDir, "config.pb")
-}
-
-func (conf *Daemon) ConversationDir() string {
-	return filepath.Join(conf.RootDir, "conversations")
-}
-
-func (conf *Daemon) OutboxDir() string {
-	return filepath.Join(conf.RootDir, "outbox")
-}
-
-func (conf *Daemon) TmpDir() string {
-	return filepath.Join(conf.RootDir, "tmp")
-}
-
-func (conf *Daemon) JournalDir() string {
-	return filepath.Join(conf.RootDir, "journal")
-}
-
-func (conf *Daemon) KeysDir() string {
-	return filepath.Join(conf.RootDir, "keys")
-}
-
-func (conf *Daemon) RatchetKeysDir() string {
-	return filepath.Join(conf.RootDir, "keys", "ratchet")
-}
-
-func (conf *Daemon) UiInfoDir() string {
-	return filepath.Join(conf.RootDir, "ui_info")
-}
-
-func (conf *Daemon) UniqueTmpDir() (string, error) {
-	return ioutil.TempDir(conf.TmpDir(), conf.TempPrefix)
-}
 
 const (
-	MetadataFileName           = "metadata.pb"
-	PrekeysFileName            = "prekeys.pb"
-	LocalAccountConfigFileName = "config.pb"
-	ProfileFileName            = "profile.pb"
-	DenameProfileFileName      = "profile.pb"
+	prekeysFileName       = "prekeys.pb"
+	profileFileName       = "profile.pb"
+	denameProfileFileName = "dename-profile.pb"
+	configFileName        = "config.pb"
 )
 
-func GenerateConversationName(sender string, metadata *proto.ConversationMetadata) string {
-	//dirName := "date-sender-recipient-recipient"
-	dateStr := time.Unix(0, metadata.Date).UTC().Format(time.RFC3339)
-	recipientStrings := make([]string, 0, len(metadata.Participants))
-	for i := 0; i < len(metadata.Participants); i++ {
-		if metadata.Participants[i] != sender {
-			recipientStrings = append(recipientStrings, string(metadata.Participants[i]))
-		}
-	}
-	sort.Strings(recipientStrings)
-	recipientsStr := strings.Join(recipientStrings, "-")
-	dirName := fmt.Sprintf("%s-%s-%s", dateStr, sender, recipientsStr)
-	return dirName
-}
+func (d *Daemon) keysDir() string                { return filepath.Join(d.RootDir, "keys") }
+func (d *Daemon) prekeysPath() string            { return filepath.Join(d.keysDir(), prekeysFileName) }
+func (d *Daemon) profilePath() string            { return filepath.Join(d.keysDir(), profileFileName) }
+func (d *Daemon) ratchetKeysDir() string         { return filepath.Join(d.keysDir(), "ratchet") }
+func (d *Daemon) ratchetPath(name string) string { return filepath.Join(d.ratchetKeysDir(), name) }
+func (d *Daemon) configPath() string             { return filepath.Join(d.keysDir(), configFileName) }
 
-func GenerateMessageName(date time.Time, sender string) string {
-	//messageName := "date-sender"
-	dateStr := date.UTC().Format(time.RFC3339)
-	return fmt.Sprintf("%s-%s", dateStr, sender)
-}
-
+// Copy copyes the contents of file source to dest. NOT atomic.
 func Copy(source string, dest string, perm os.FileMode) error {
 	in, err := os.Open(source)
 	if err != nil {
@@ -107,51 +55,9 @@ func Copy(source string, dest string, perm os.FileMode) error {
 	return cerr
 }
 
-func UnmarshalFromFile(path string, out interface {
-	Unmarshal([]byte) error
-}) error {
-	fileContents, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return out.Unmarshal(fileContents)
-}
-
-func MarshalToFile(conf *Daemon, path string, in interface {
-	Marshal() ([]byte, error)
-}) error {
-	inBytes, err := in.Marshal()
-	if err != nil {
-		return err
-	}
-
-	tmpDir, err := conf.UniqueTmpDir()
-	if err != nil {
-		return err
-	}
-	defer shred.RemoveAll(tmpDir)
-
-	tmpFile := filepath.Join(tmpDir, filepath.Base(path))
-	err = ioutil.WriteFile(tmpFile, inBytes, 0600)
-	if err != nil {
-		return err
-	}
-
-	err = os.Rename(path, tmpFile+".old")
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	err = os.Rename(tmpFile, path)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func LoadPrekeys(conf *Daemon) ([]*[32]byte, []*[32]byte, error) {
+func LoadPrekeys(d *Daemon) ([]*[32]byte, []*[32]byte, error) {
 	prekeysProto := new(proto.Prekeys)
-	err := UnmarshalFromFile(filepath.Join((*conf).KeysDir(), PrekeysFileName), prekeysProto)
+	err := persistence.UnmarshalFromFile(d.prekeysPath(), prekeysProto)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil, nil
@@ -172,7 +78,7 @@ func LoadPrekeys(conf *Daemon) ([]*[32]byte, []*[32]byte, error) {
 	return prekeyPublics, prekeySecrets, nil
 }
 
-func StorePrekeys(conf *Daemon, prekeyPublics, prekeySecrets []*[32]byte) error {
+func StorePrekeys(d *Daemon, prekeyPublics, prekeySecrets []*[32]byte) error {
 	if len(prekeyPublics) != len(prekeySecrets) {
 		panic("len(prekeysPublics) != len(prekeySecrets)")
 	}
@@ -185,35 +91,21 @@ func StorePrekeys(conf *Daemon, prekeyPublics, prekeySecrets []*[32]byte) error 
 		prekeysProto.PrekeySecrets[i] = (proto.Byte32)(*prekeySecrets[i])
 		prekeysProto.PrekeyPublics[i] = (proto.Byte32)(*prekeyPublics[i])
 	}
-	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), PrekeysFileName), &prekeysProto)
+	return d.MarshalToFile(d.prekeysPath(), &prekeysProto)
 }
 
-func LoadLocalAccountConfig(conf *Daemon) (*proto.LocalAccountConfig, error) {
-	localAccountProto := new(proto.LocalAccountConfig)
-	return localAccountProto, UnmarshalFromFile(filepath.Join(conf.KeysDir(), LocalAccountConfigFileName), localAccountProto)
+func StoreLocalAccountConfig(d *Daemon, localAccountConfig *proto.LocalAccountConfig) error {
+	return d.MarshalToFile(d.configPath(), localAccountConfig)
 }
 
-func StoreLocalAccountConfig(conf *Daemon, localAccountConfig *proto.LocalAccountConfig) error {
-	return MarshalToFile(conf, filepath.Join(conf.KeysDir(), LocalAccountConfigFileName), localAccountConfig)
-}
-
-func LoadPublicProfile(conf *Daemon) (*proto.Profile, error) {
-	profileProto := new(proto.Profile)
-	return profileProto, UnmarshalFromFile(filepath.Join(conf.RootDir, ProfileFileName), profileProto)
-}
-
-func StorePublicProfile(conf *Daemon, publicProfile *proto.Profile) error {
-	return MarshalToFile(conf, filepath.Join(conf.RootDir, ProfileFileName), publicProfile)
-}
-
-func LoadRatchet(conf *Daemon, name string, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
+func LoadRatchet(d *Daemon, name string, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
 	nameStr := string(name)
 	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(nameStr); err != nil {
 		return nil, err
 	}
 	ratch := new(ratchet.Ratchet)
-	if err := UnmarshalFromFile(filepath.Join(conf.RatchetKeysDir(), nameStr), ratch); err != nil {
+	if err := persistence.UnmarshalFromFile(d.ratchetPath(nameStr), ratch); err != nil {
 		return nil, err
 	}
 	ratch.FillAuth = fillAuth
@@ -221,18 +113,18 @@ func LoadRatchet(conf *Daemon, name string, fillAuth func(tag, data []byte, thei
 	return ratch, nil
 }
 
-func StoreRatchet(conf *Daemon, name string, ratch *ratchet.Ratchet) error {
+func StoreRatchet(d *Daemon, name string, ratch *ratchet.Ratchet) error {
 	nameStr := string(name)
 
 	// TODO: move name validation to the first place where we encoiunter a name
 	if err := ValidateName(nameStr); err != nil {
 		return err
 	}
-	return MarshalToFile(conf, filepath.Join(conf.RatchetKeysDir(), nameStr), ratch)
+	return d.MarshalToFile(d.ratchetPath(nameStr), ratch)
 }
 
-func AllRatchets(conf *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) ([]*ratchet.Ratchet, error) {
-	files, err := ioutil.ReadDir(conf.RatchetKeysDir())
+func AllRatchets(d *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) ([]*ratchet.Ratchet, error) {
+	files, err := ioutil.ReadDir(d.ratchetKeysDir())
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +133,7 @@ func AllRatchets(conf *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *
 		if file.IsDir() {
 			continue
 		}
-		ratch, err := LoadRatchet(conf, file.Name(), fillAuth, checkAuth)
+		ratch, err := LoadRatchet(d, file.Name(), fillAuth, checkAuth)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ratchet for \"%s\": %s", file.Name(), err)
 		}
@@ -250,20 +142,18 @@ func AllRatchets(conf *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *
 	return ret, nil
 }
 
-func InitFs(conf *Daemon) error {
+func InitFs(d *Daemon) error {
 	// create root directory and immediate sub directories
-	os.MkdirAll(conf.RootDir, 0700)
+	os.MkdirAll(d.RootDir, 0700)
 	subdirs := []string{
-		conf.ConversationDir(),
-		conf.OutboxDir(),
-		conf.TmpDir(),
-		conf.JournalDir(),
-		conf.KeysDir(),
-		conf.RatchetKeysDir(),
-		conf.UiInfoDir(),
+		d.ConversationDir(),
+		d.OutboxDir(),
+		d.TempDir(),
+		d.keysDir(),
+		d.ratchetKeysDir(),
 	}
 	for _, dir := range subdirs {
-		os.Mkdir(dir, 0700)
+		os.Mkdir(dir, 0700) // TODO: handle error? comment if not necessary
 	}
 
 	// for each existing conversation, create a folder in the outbox
@@ -271,10 +161,10 @@ func InitFs(conf *Daemon) error {
 		if err != nil {
 			return err
 		}
-		if cPath != conf.ConversationDir() {
+		if cPath != d.ConversationDir() {
 			if f.IsDir() {
 				// create the outbox directory in tmp, then (atomically) move it to outbox
-				tmpDir, err := conf.UniqueTmpDir()
+				tmpDir, err := d.MkdirInTemp()
 				if err != nil {
 					return err
 				}
@@ -284,7 +174,7 @@ func InitFs(conf *Daemon) error {
 					return err
 				}
 				var c_perm = conversationInfo.Mode()
-				metadataFile := filepath.Join(cPath, MetadataFileName)
+				metadataFile := filepath.Join(cPath, persistence.MetadataFileName)
 				metadataInfo, err := os.Stat(metadataFile)
 				if err != nil {
 					return err
@@ -293,11 +183,11 @@ func InitFs(conf *Daemon) error {
 				oldUmask := syscall.Umask(0000)
 				defer syscall.Umask(oldUmask)
 				os.Mkdir(filepath.Join(tmpDir, path.Base(cPath)), c_perm)
-				err = Copy(metadataFile, filepath.Join(tmpDir, path.Base(cPath), MetadataFileName), m_perm)
+				err = Copy(metadataFile, filepath.Join(tmpDir, path.Base(cPath), persistence.MetadataFileName), m_perm)
 				if err != nil {
 					return err
 				}
-				err = os.Rename(filepath.Join(tmpDir, path.Base(cPath)), filepath.Join(conf.OutboxDir(), path.Base(cPath)))
+				err = os.Rename(filepath.Join(tmpDir, path.Base(cPath)), filepath.Join(d.OutboxDir(), path.Base(cPath)))
 				if err != nil {
 					// skip this conversation; this probably means it already exists in the outbox
 					return nil
@@ -306,7 +196,7 @@ func InitFs(conf *Daemon) error {
 		}
 		return nil
 	}
-	err := filepath.Walk(conf.ConversationDir(), copyToOutbox)
+	err := filepath.Walk(d.ConversationDir(), copyToOutbox)
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,7 @@ import (
 
 	"code.google.com/p/go.exp/fsnotify"
 	util "github.com/andres-erbsen/chatterbox/client"
+	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/client/profilesyncd"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
@@ -23,20 +24,17 @@ import (
 
 const (
 	// How many prekeys should the daemon try to keep at the server?
-	maxPrekeys = 100 //TODO make this configurable
-	minPrekeys = 50
+	maxPrekeys  = 100 //TODO make this configurable
+	minPrekeys  = 50
+	daemonAppID = "daemon"
 )
 
 // Daemon encapsulates long-running client-side chatterbox functionality
 type Daemon struct {
-	// The root directory where the user's files are stored
-	RootDir string
+	persistence.Paths
 
 	// Gets the current time
 	Now func() time.Time
-
-	// Prefix used in the temp folder
-	TempPrefix string
 
 	proto.LocalAccountConfig
 
@@ -52,11 +50,13 @@ type Daemon struct {
 // New initializes a chatterbox daemon by loading condiguration from rootDir
 func New(rootDir string) (*Daemon, error) {
 	d := &Daemon{
-		RootDir:    rootDir,
-		Now:        time.Now,
-		TempPrefix: "daemon",
+		Paths: persistence.Paths{
+			RootDir:     rootDir,
+			Application: "daemon",
+		},
+		Now: time.Now,
 	}
-	UnmarshalFromFile(d.ConfigFile(), &d.LocalAccountConfig)
+	persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig)
 
 	// ensure that we have a correct directory structure
 	// including a correctly-populated outbox
@@ -101,8 +101,8 @@ func (d *Daemon) Stop() {
 
 // run executes the main loop of the chatterbox daemon
 func (d *Daemon) run() error {
-	profile, err := LoadPublicProfile(d)
-	if err != nil {
+	profile := new(proto.Profile)
+	if err := persistence.UnmarshalFromFile(d.profilePath(), profile); err != nil {
 		return err
 	}
 
@@ -368,13 +368,13 @@ func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*
 func (d *Daemon) processOutboxDir(dirname string) error {
 	fmt.Printf("processing outbox dir: %s\n", dirname)
 	// parse metadata
-	metadataFile := filepath.Join(dirname, MetadataFileName)
+	metadataFile := filepath.Join(dirname, persistence.MetadataFileName)
 	if _, err := os.Stat(metadataFile); err != nil {
 		return nil // no metadata --> not an outgoing message
 	}
 
 	metadata := proto.ConversationMetadata{}
-	err := UnmarshalFromFile(metadataFile, &metadata)
+	err := persistence.UnmarshalFromFile(metadataFile, &metadata)
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	messages := make([][]byte, 0, len(potentialMessages))
 	sendTime := d.Now().UTC()
 	for _, finfo := range potentialMessages {
-		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
+		if !finfo.IsDir() && finfo.Name() != persistence.MetadataFileName {
 			msg, err := ioutil.ReadFile(filepath.Join(dirname, finfo.Name()))
 			if err != nil {
 				return err
@@ -395,13 +395,11 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 
 			// make protobuf for message; append it
 			payload := proto.Message{
-				Dename:        d.Dename,
-				Contents:      msg,
-				Subject:       metadata.Subject,
-				Participants:  metadata.Participants,
-				Date:          sendTime.UnixNano(),
-				InitialSender: metadata.InitialSender,
-				InitialDate:   metadata.Date,
+				Dename:       d.Dename,
+				Contents:     msg,
+				Subject:      metadata.Subject,
+				Participants: metadata.Participants,
+				Date:         sendTime.UnixNano(),
 			}
 			payloadBytes, err := payload.Marshal()
 			if err != nil {
@@ -425,10 +423,10 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	}
 
 	// copy the metadata file to the conversation directory if it isn't already there
-	convMetadataFile := filepath.Join(convPath, MetadataFileName)
+	convMetadataFile := filepath.Join(convPath, persistence.MetadataFileName)
 	if _, err = os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			if err = MarshalToFile(d, convMetadataFile, &metadata); err != nil {
+			if err = d.MarshalToFile(convMetadataFile, &metadata); err != nil {
 				return err
 			}
 		} else {
@@ -464,8 +462,8 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 
 	// move the sent messages to the conversation folder
 	for _, finfo := range potentialMessages {
-		if !finfo.IsDir() && finfo.Name() != MetadataFileName {
-			messageName := GenerateMessageName(sendTime, string(d.Dename))
+		if !finfo.IsDir() && finfo.Name() != persistence.MetadataFileName {
+			messageName := persistence.MessageName(sendTime, string(d.Dename))
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
 			}
@@ -480,14 +478,12 @@ func (d *Daemon) receiveMessage(message *proto.Message) error {
 
 	// generate metadata file
 	metadata := proto.ConversationMetadata{
-		Participants:  message.Participants,
-		Subject:       message.Subject,
-		Date:          message.InitialDate,
-		InitialSender: message.InitialSender,
+		Participants: message.Participants,
+		Subject:      message.Subject,
 	}
 
 	// generate conversation name
-	convName := GenerateConversationName(message.InitialSender, &metadata)
+	convName := persistence.ConversationName(&metadata)
 
 	// create conversation directory if it doesn't already exist
 	convDir := filepath.Join(d.ConversationDir(), convName)
@@ -502,27 +498,27 @@ func (d *Daemon) receiveMessage(message *proto.Message) error {
 	}
 
 	// create conversation metadata file if it doesn't already exist
-	convMetadataFile := filepath.Join(convDir, MetadataFileName)
+	convMetadataFile := filepath.Join(convDir, persistence.MetadataFileName)
 	if _, err := os.Stat(convMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			MarshalToFile(d, convMetadataFile, &metadata)
+			d.MarshalToFile(convMetadataFile, &metadata)
 		} else {
 			return err
 		}
 	}
 
 	// create outbox metadata file if it doesn't already exist
-	outMetadataFile := filepath.Join(outDir, MetadataFileName)
+	outMetadataFile := filepath.Join(outDir, persistence.MetadataFileName)
 	if _, err := os.Stat(outMetadataFile); err != nil {
 		if os.IsNotExist(err) {
-			MarshalToFile(d, outMetadataFile, &metadata)
+			d.MarshalToFile(outMetadataFile, &metadata)
 		} else {
 			return err
 		}
 	}
 
 	// generate the message name: date-sender
-	messageName := GenerateMessageName(time.Unix(0, message.Date), string(message.Dename))
+	messageName := persistence.MessageName(time.Unix(0, message.Date), string(message.Dename))
 	fmt.Printf("new message name: %s\n", messageName)
 
 	// write the message to the conversation folder

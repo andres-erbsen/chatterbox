@@ -4,14 +4,14 @@
 
 package proto
 
-import proto1 "github.com/gogo/protobuf/proto"
+import proto1 "code.google.com/p/gogoprotobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
 import io4 "io"
 import fmt4 "fmt"
-import github_com_gogo_protobuf_proto4 "github.com/gogo/protobuf/proto"
+import code_google_com_p_gogoprotobuf_proto4 "code.google.com/p/gogoprotobuf/proto"
 
 import bytes4 "bytes"
 
@@ -22,8 +22,6 @@ var _ = math.Inf
 type ConversationMetadata struct {
 	Participants     []string `protobuf:"bytes,1,rep" json:"Participants"`
 	Subject          string   `protobuf:"bytes,2,req" json:"Subject"`
-	Date             int64    `protobuf:"varint,3,req" json:"Date"`
-	InitialSender    string   `protobuf:"bytes,4,req" json:"InitialSender"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -96,43 +94,6 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			m.Subject = string(data[index:postIndex])
 			index = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt4.Errorf("proto: wrong wireType = %d for field Date", wireType)
-			}
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io4.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				m.Date |= (int64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 2 {
-				return fmt4.Errorf("proto: wrong wireType = %d for field InitialSender", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io4.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				stringLen |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			postIndex := index + int(stringLen)
-			if postIndex > l {
-				return io4.ErrUnexpectedEOF
-			}
-			m.InitialSender = string(data[index:postIndex])
-			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -143,7 +104,7 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := github_com_gogo_protobuf_proto4.Skip(data[index:])
+			skippy, err := code_google_com_p_gogoprotobuf_proto4.Skip(data[index:])
 			if err != nil {
 				return err
 			}
@@ -166,9 +127,6 @@ func (m *ConversationMetadata) Size() (n int) {
 		}
 	}
 	l = len(m.Subject)
-	n += 1 + l + sovLocalConversationMetadata(uint64(l))
-	n += 1 + sovLocalConversationMetadata(uint64(m.Date))
-	l = len(m.InitialSender)
 	n += 1 + l + sovLocalConversationMetadata(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -199,13 +157,8 @@ func NewPopulatedConversationMetadata(r randyLocalConversationMetadata, easy boo
 		}
 	}
 	this.Subject = randStringLocalConversationMetadata(r)
-	this.Date = r.Int63()
-	if r.Intn(2) == 0 {
-		this.Date *= -1
-	}
-	this.InitialSender = randStringLocalConversationMetadata(r)
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedLocalConversationMetadata(r, 5)
+		this.XXX_unrecognized = randUnrecognizedLocalConversationMetadata(r, 3)
 	}
 	return this
 }
@@ -314,13 +267,6 @@ func (m *ConversationMetadata) MarshalTo(data []byte) (n int, err error) {
 	i++
 	i = encodeVarintLocalConversationMetadata(data, i, uint64(len(m.Subject)))
 	i += copy(data[i:], m.Subject)
-	data[i] = 0x18
-	i++
-	i = encodeVarintLocalConversationMetadata(data, i, uint64(m.Date))
-	data[i] = 0x22
-	i++
-	i = encodeVarintLocalConversationMetadata(data, i, uint64(len(m.InitialSender)))
-	i += copy(data[i:], m.InitialSender)
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -382,12 +328,6 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 		}
 	}
 	if this.Subject != that1.Subject {
-		return false
-	}
-	if this.Date != that1.Date {
-		return false
-	}
-	if this.InitialSender != that1.InitialSender {
 		return false
 	}
 	if !bytes4.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

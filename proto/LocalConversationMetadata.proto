@@ -16,6 +16,4 @@ option (gogoproto.benchgen_all) = true;
 message ConversationMetadata {
 	repeated string Participants = 1 [(gogoproto.nullable) = false];
 	required string Subject = 2 [(gogoproto.nullable) = false];
-	required int64 Date = 3 [(gogoproto.nullable) = false];
-	required string InitialSender = 4 [(gogoproto.nullable) = false];
 }
