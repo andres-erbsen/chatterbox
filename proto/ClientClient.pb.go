@@ -18,14 +18,16 @@
 */
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
+import github_com_andres_erbsen_dename_protocol "github.com/andres-erbsen/dename/protocol"
+
 import io "io"
 import fmt "fmt"
-import code_google_com_p_gogoprotobuf_proto "code.google.com/p/gogoprotobuf/proto"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
 import bytes "bytes"
 
@@ -34,14 +36,13 @@ var _ = proto1.Marshal
 var _ = math.Inf
 
 type Message struct {
-	Contents         []byte   `protobuf:"bytes,1,req,name=contents" json:"contents"`
-	Subject          string   `protobuf:"bytes,2,req,name=subject" json:"subject"`
-	Participants     []string `protobuf:"bytes,3,rep,name=participants" json:"participants"`
-	Dename           string   `protobuf:"bytes,4,req,name=dename" json:"dename"`
-	Date             int64    `protobuf:"varint,5,req,name=date" json:"date"`
-	InitialSender    string   `protobuf:"bytes,6,req" json:"InitialSender"`
-	InitialDate      int64    `protobuf:"varint,7,req" json:"InitialDate"`
-	XXX_unrecognized []byte   `json:"-"`
+	Contents         []byte                                                `protobuf:"bytes,1,req,name=contents" json:"contents"`
+	Subject          string                                                `protobuf:"bytes,2,req,name=subject" json:"subject"`
+	Participants     []string                                              `protobuf:"bytes,3,rep,name=participants" json:"participants"`
+	Date             int64                                                 `protobuf:"varint,4,req,name=date" json:"date"`
+	Dename           string                                                `protobuf:"bytes,5,req,name=dename" json:"dename"`
+	DenameLookup     *github_com_andres_erbsen_dename_protocol.ClientReply `protobuf:"bytes,6,req,name=dename_lookup,customtype=github.com/andres-erbsen/dename/protocol.ClientReply" json:"dename_lookup,omitempty"`
+	XXX_unrecognized []byte                                                `json:"-"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
@@ -89,7 +90,7 @@ func (m *Message) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Contents = append(m.Contents, data[index:postIndex]...)
+			m.Contents = append([]byte{}, data[index:postIndex]...)
 			index = postIndex
 		case 2:
 			if wireType != 2 {
@@ -136,6 +137,21 @@ func (m *Message) Unmarshal(data []byte) error {
 			m.Participants = append(m.Participants, string(data[index:postIndex]))
 			index = postIndex
 		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Date", wireType)
+			}
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				m.Date |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Dename", wireType)
 			}
@@ -157,58 +173,31 @@ func (m *Message) Unmarshal(data []byte) error {
 			}
 			m.Dename = string(data[index:postIndex])
 			index = postIndex
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Date", wireType)
-			}
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				m.Date |= (int64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 6:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field InitialSender", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field DenameLookup", wireType)
 			}
-			var stringLen uint64
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				byteLen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + int(stringLen)
+			postIndex := index + byteLen
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.InitialSender = string(data[index:postIndex])
+			m.DenameLookup = &github_com_andres_erbsen_dename_protocol.ClientReply{}
+			if err := m.DenameLookup.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
 			index = postIndex
-		case 7:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field InitialDate", wireType)
-			}
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				m.InitialDate |= (int64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		default:
 			var sizeOfWire int
 			for {
@@ -219,7 +208,7 @@ func (m *Message) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
@@ -235,8 +224,10 @@ func (m *Message) Unmarshal(data []byte) error {
 func (m *Message) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Contents)
-	n += 1 + l + sovClientClient(uint64(l))
+	if m.Contents != nil {
+		l = len(m.Contents)
+		n += 1 + l + sovClientClient(uint64(l))
+	}
 	l = len(m.Subject)
 	n += 1 + l + sovClientClient(uint64(l))
 	if len(m.Participants) > 0 {
@@ -245,12 +236,13 @@ func (m *Message) Size() (n int) {
 			n += 1 + l + sovClientClient(uint64(l))
 		}
 	}
+	n += 1 + sovClientClient(uint64(m.Date))
 	l = len(m.Dename)
 	n += 1 + l + sovClientClient(uint64(l))
-	n += 1 + sovClientClient(uint64(m.Date))
-	l = len(m.InitialSender)
-	n += 1 + l + sovClientClient(uint64(l))
-	n += 1 + sovClientClient(uint64(m.InitialDate))
+	if m.DenameLookup != nil {
+		l = m.DenameLookup.Size()
+		n += 1 + l + sovClientClient(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -270,107 +262,6 @@ func sovClientClient(x uint64) (n int) {
 func sozClientClient(x uint64) (n int) {
 	return sovClientClient(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func NewPopulatedMessage(r randyClientClient, easy bool) *Message {
-	this := &Message{}
-	v1 := r.Intn(100)
-	this.Contents = make([]byte, v1)
-	for i := 0; i < v1; i++ {
-		this.Contents[i] = byte(r.Intn(256))
-	}
-	this.Subject = randStringClientClient(r)
-	if r.Intn(10) != 0 {
-		v2 := r.Intn(10)
-		this.Participants = make([]string, v2)
-		for i := 0; i < v2; i++ {
-			this.Participants[i] = randStringClientClient(r)
-		}
-	}
-	this.Dename = randStringClientClient(r)
-	this.Date = r.Int63()
-	if r.Intn(2) == 0 {
-		this.Date *= -1
-	}
-	this.InitialSender = randStringClientClient(r)
-	this.InitialDate = r.Int63()
-	if r.Intn(2) == 0 {
-		this.InitialDate *= -1
-	}
-	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedClientClient(r, 8)
-	}
-	return this
-}
-
-type randyClientClient interface {
-	Float32() float32
-	Float64() float64
-	Int63() int64
-	Int31() int32
-	Uint32() uint32
-	Intn(n int) int
-}
-
-func randUTF8RuneClientClient(r randyClientClient) rune {
-	res := rune(r.Uint32() % 1112064)
-	if 55296 <= res {
-		res += 2047
-	}
-	return res
-}
-func randStringClientClient(r randyClientClient) string {
-	v3 := r.Intn(100)
-	tmps := make([]rune, v3)
-	for i := 0; i < v3; i++ {
-		tmps[i] = randUTF8RuneClientClient(r)
-	}
-	return string(tmps)
-}
-func randUnrecognizedClientClient(r randyClientClient, maxFieldNumber int) (data []byte) {
-	l := r.Intn(5)
-	for i := 0; i < l; i++ {
-		wire := r.Intn(4)
-		if wire == 3 {
-			wire = 5
-		}
-		fieldNumber := maxFieldNumber + r.Intn(100)
-		data = randFieldClientClient(data, r, fieldNumber, wire)
-	}
-	return data
-}
-func randFieldClientClient(data []byte, r randyClientClient, fieldNumber int, wire int) []byte {
-	key := uint32(fieldNumber)<<3 | uint32(wire)
-	switch wire {
-	case 0:
-		data = encodeVarintPopulateClientClient(data, uint64(key))
-		v4 := r.Int63()
-		if r.Intn(2) == 0 {
-			v4 *= -1
-		}
-		data = encodeVarintPopulateClientClient(data, uint64(v4))
-	case 1:
-		data = encodeVarintPopulateClientClient(data, uint64(key))
-		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
-	case 2:
-		data = encodeVarintPopulateClientClient(data, uint64(key))
-		ll := r.Intn(100)
-		data = encodeVarintPopulateClientClient(data, uint64(ll))
-		for j := 0; j < ll; j++ {
-			data = append(data, byte(r.Intn(256)))
-		}
-	default:
-		data = encodeVarintPopulateClientClient(data, uint64(key))
-		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
-	}
-	return data
-}
-func encodeVarintPopulateClientClient(data []byte, v uint64) []byte {
-	for v >= 1<<7 {
-		data = append(data, uint8(uint64(v)&0x7f|0x80))
-		v >>= 7
-	}
-	data = append(data, uint8(v))
-	return data
-}
 func (m *Message) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -386,10 +277,12 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	_ = i
 	var l int
 	_ = l
-	data[i] = 0xa
-	i++
-	i = encodeVarintClientClient(data, i, uint64(len(m.Contents)))
-	i += copy(data[i:], m.Contents)
+	if m.Contents != nil {
+		data[i] = 0xa
+		i++
+		i = encodeVarintClientClient(data, i, uint64(len(m.Contents)))
+		i += copy(data[i:], m.Contents)
+	}
 	data[i] = 0x12
 	i++
 	i = encodeVarintClientClient(data, i, uint64(len(m.Subject)))
@@ -409,25 +302,29 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 			i += copy(data[i:], s)
 		}
 	}
-	data[i] = 0x22
+	data[i] = 0x20
+	i++
+	i = encodeVarintClientClient(data, i, uint64(m.Date))
+	data[i] = 0x2a
 	i++
 	i = encodeVarintClientClient(data, i, uint64(len(m.Dename)))
 	i += copy(data[i:], m.Dename)
-	data[i] = 0x28
-	i++
-	i = encodeVarintClientClient(data, i, uint64(m.Date))
-	data[i] = 0x32
-	i++
-	i = encodeVarintClientClient(data, i, uint64(len(m.InitialSender)))
-	i += copy(data[i:], m.InitialSender)
-	data[i] = 0x38
-	i++
-	i = encodeVarintClientClient(data, i, uint64(m.InitialDate))
+	if m.DenameLookup != nil {
+		data[i] = 0x32
+		i++
+		i = encodeVarintClientClient(data, i, uint64(m.DenameLookup.Size()))
+		n1, err := m.DenameLookup.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
 	return i, nil
 }
+
 func encodeFixed64ClientClient(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -489,16 +386,17 @@ func (this *Message) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if this.Dename != that1.Dename {
-		return false
-	}
 	if this.Date != that1.Date {
 		return false
 	}
-	if this.InitialSender != that1.InitialSender {
+	if this.Dename != that1.Dename {
 		return false
 	}
-	if this.InitialDate != that1.InitialDate {
+	if that1.DenameLookup == nil {
+		if this.DenameLookup != nil {
+			return false
+		}
+	} else if !this.DenameLookup.Equal(*that1.DenameLookup) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

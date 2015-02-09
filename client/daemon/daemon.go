@@ -45,6 +45,8 @@ type Daemon struct {
 	stop chan struct{}
 	wg   sync.WaitGroup
 	psd  *profilesyncd.ProfileSyncd
+
+	ourDenameLookup *dename.ClientReply
 }
 
 // New initializes a chatterbox daemon by loading condiguration from rootDir
@@ -231,7 +233,8 @@ func (d *Daemon) run() error {
 
 }
 
-func (d *Daemon) onOurDenameProfileDownload(*dename.Profile, *dename.ClientReply, error) {
+func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
+	d.ourDenameLookup = r
 }
 
 func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
@@ -366,6 +369,7 @@ func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*
 }
 
 func (d *Daemon) processOutboxDir(dirname string) error {
+	// TODO: refactor: separate message assembly and filesystem access?
 	fmt.Printf("processing outbox dir: %s\n", dirname)
 	// parse metadata
 	metadataFile := filepath.Join(dirname, persistence.MetadataFileName)
@@ -396,6 +400,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 			// make protobuf for message; append it
 			payload := proto.Message{
 				Dename:       d.Dename,
+				DenameLookup: d.ourDenameLookup,
 				Contents:     msg,
 				Subject:      metadata.Subject,
 				Participants: metadata.Participants,

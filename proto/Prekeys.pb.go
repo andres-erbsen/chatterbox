@@ -4,16 +4,16 @@
 
 package proto
 
-import proto1 "code.google.com/p/gogoprotobuf/proto"
+import proto1 "github.com/gogo/protobuf/proto"
 import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import io5 "io"
-import fmt5 "fmt"
-import code_google_com_p_gogoprotobuf_proto5 "code.google.com/p/gogoprotobuf/proto"
+import io "io"
+import fmt "fmt"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
-import bytes5 "bytes"
+import bytes "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -38,7 +38,7 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io5.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -52,12 +52,12 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt5.Errorf("proto: wrong wireType = %d for field PrekeySecrets", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field PrekeySecrets", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io5.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -68,19 +68,19 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io5.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.PrekeySecrets = append(m.PrekeySecrets, Byte32{})
 			m.PrekeySecrets[len(m.PrekeySecrets)-1].Unmarshal(data[index:postIndex])
 			index = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt5.Errorf("proto: wrong wireType = %d for field PrekeyPublics", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field PrekeyPublics", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io5.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -91,7 +91,7 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io5.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.PrekeyPublics = append(m.PrekeyPublics, Byte32{})
 			m.PrekeyPublics[len(m.PrekeyPublics)-1].Unmarshal(data[index:postIndex])
@@ -106,12 +106,12 @@ func (m *Prekeys) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := code_google_com_p_gogoprotobuf_proto5.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io5.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -187,11 +187,7 @@ type randyPrekeys interface {
 }
 
 func randUTF8RunePrekeys(r randyPrekeys) rune {
-	res := rune(r.Uint32() % 1112064)
-	if 55296 <= res {
-		res += 2047
-	}
-	return res
+	return rune(r.Intn(126-43) + 43)
 }
 func randStringPrekeys(r randyPrekeys) string {
 	v5 := r.Intn(100)
@@ -291,6 +287,7 @@ func (m *Prekeys) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
+
 func encodeFixed64Prekeys(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -354,7 +351,7 @@ func (this *Prekeys) Equal(that interface{}) bool {
 			return false
 		}
 	}
-	if !bytes5.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true

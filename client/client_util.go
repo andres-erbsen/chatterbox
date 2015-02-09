@@ -15,6 +15,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
+	dename "github.com/andres-erbsen/dename/protocol"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"io"
 	"net"
@@ -438,15 +439,25 @@ func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) 
 		var sharedAuthKey [32]byte
 		message := new(proto.Message)
 		unpadMsg := proto.Unpad(msg)
-		if err := message.Unmarshal(unpadMsg); err != nil {
-			return err
-		}
-
-		profile, err := dnmc.Lookup(message.Dename)
+		err := message.Unmarshal(unpadMsg)
 		if err != nil {
 			return err
 		}
 
+		var profile *dename.Profile
+		if message.DenameLookup != nil {
+			profile, err = dnmc.LookupFromReply(message.Dename, message.DenameLookup)
+			if err != nil {
+				goto got_profile
+			}
+		}
+
+		profile, err = dnmc.Lookup(message.Dename)
+		if err != nil {
+			return err
+		}
+
+	got_profile:
 		chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
 		if err != nil {
 			return err

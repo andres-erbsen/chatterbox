@@ -9,16 +9,15 @@ option (gogoproto.goproto_getters_all) = false;
 option (gogoproto.stringer_all) = false;
 
 option (gogoproto.equal_all) = true;
-option (gogoproto.populate_all) = true;
-option (gogoproto.testgen_all) = true;
-option (gogoproto.benchgen_all) = true;
+//option (gogoproto.populate_all) = true;
+//option (gogoproto.testgen_all) = true;
+//option (gogoproto.benchgen_all) = true;
 
 message Message {
     required bytes contents = 1 [(gogoproto.nullable) = false];
     required string subject = 2 [(gogoproto.nullable) = false];
     repeated string participants = 3 [(gogoproto.nullable) = false];
-    required string dename = 4 [(gogoproto.nullable) = false]; 
-	required int64 date = 5 [(gogoproto.nullable) = false];
-	required string InitialSender = 6 [(gogoproto.nullable) = false];
-	required int64 InitialDate = 7 [(gogoproto.nullable) = false];
+	required int64 date = 4 [(gogoproto.nullable) = false];
+    required string dename = 5 [(gogoproto.nullable) = false]; 
+    required bytes dename_lookup = 6 [(gogoproto.customtype) = "github.com/andres-erbsen/dename/protocol.ClientReply"]; 
 } 
