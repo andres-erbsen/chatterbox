@@ -12,8 +12,8 @@ import (
 )
 
 type ProfileSyncd struct {
-	stop chan struct{}
-	wg   sync.WaitGroup
+	stop, force, forceDone chan struct{}
+	wg                     sync.WaitGroup
 
 	name     string
 	client   *client.Client
@@ -43,6 +43,11 @@ func (d *ProfileSyncd) Stop() {
 	d.wg.Wait()
 }
 
+func (d *ProfileSyncd) Force() {
+	d.force <- struct{}{}
+	<-d.forceDone
+}
+
 func (d *ProfileSyncd) Run() {
 	delay := time.After(d.pickDelay())
 	for {
@@ -52,6 +57,10 @@ func (d *ProfileSyncd) Run() {
 		case <-delay:
 			delay = time.After(d.pickDelay())
 			d.onUpdate(d.client.LookupReply(d.name))
+		case <-d.force:
+			delay = time.After(d.pickDelay())
+			d.onUpdate(d.client.LookupReply(d.name))
+			d.forceDone <- struct{}{}
 		}
 	}
 }

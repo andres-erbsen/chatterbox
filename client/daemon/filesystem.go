@@ -26,6 +26,10 @@ func (d *Daemon) prekeysPath() string    { return filepath.Join(d.keysDir(), "pr
 func (d *Daemon) ratchetKeysDir() string { return filepath.Join(d.keysDir(), "ratchet") }
 func (d *Daemon) configPath() string     { return filepath.Join(d.keysDir(), "config.pb") }
 
+func (d *Daemon) ourDenameLookupReplyPath() string {
+	return filepath.Join(d.keysDir(), "ourDenameLookupReply.pb")
+}
+
 func (d *Daemon) ourChatterboxProfilePath() string {
 	return filepath.Join(d.keysDir(), "chatterbox-profile.pb")
 }

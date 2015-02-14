@@ -60,7 +60,10 @@ func New(rootDir string) (*Daemon, error) {
 		},
 		Now: time.Now,
 	}
-	persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig)
+	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
+		return nil, err
+	}
+	persistence.UnmarshalFromFile(d.ourDenameLookupReplyPath(), d.ourDenameLookup)
 
 	// ensure that we have a correct directory structure
 	// including a correctly-populated outbox
@@ -99,6 +102,9 @@ func New(rootDir string) (*Daemon, error) {
 func (d *Daemon) Start() {
 	d.stop = make(chan struct{})
 	d.psd.Start()
+	if d.ourDenameLookup == nil {
+		d.psd.Force()
+	}
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
@@ -279,11 +285,15 @@ func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename
 
 func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
 	d.ourDenameLookup = r
+	d.MarshalToFile(d.ourDenameLookupReplyPath(), r)
 }
 
 func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
 	profile, err := d.foreignDenameClient.Lookup(theirDename)
 	if err != nil {
+		return nil, err
+	}
+	if err := d.MarshalToFile(d.profilePath(theirDename), profile); err != nil {
 		return nil, err
 	}
 
@@ -307,7 +317,7 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(theirDename, d.foreignDenameClient, addr, port, pkTransport)
+	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +339,8 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 }
 
 func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
-	profile, err := d.foreignDenameClient.Lookup(theirDename)
+	profile := new(dename.Profile)
+	err := persistence.UnmarshalFromFile(d.profilePath(theirDename), profile)
 	if err != nil {
 		return nil, err
 	}
@@ -358,8 +369,7 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	// TODO: CreateForeignServerConn should NOT perform dename lookups
-	theirConn, err := util.CreateForeignServerConn(theirDename, d.foreignDenameClient, addr, port, pkTransport)
+	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}

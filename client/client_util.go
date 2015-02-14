@@ -151,9 +151,8 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 	return conn, nil
 }
 
-func CreateForeignServerConn(dename string, denameClient *client.Client, addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
-	// TODO: do NOT perform dename lookups here, daemon normally has the other party's profile stored locally
-
+func CreateForeignServerConn(addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
+	// TODO: randomized TOR dialer
 	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
 		return nil, err
