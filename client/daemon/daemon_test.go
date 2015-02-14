@@ -85,7 +85,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	aliceReplies := make(chan *proto.ServerToClient)
 
 	aliceConnToServer := &util.ConnectionToServer{
-		Buf:          aliceConf.inBuf,
+		InBuf:        aliceConf.inBuf,
 		Conn:         aliceHomeConn,
 		ReadReply:    aliceReplies,
 		ReadEnvelope: aliceNotifies,
@@ -97,7 +97,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	bobReplies := make(chan *proto.ServerToClient)
 
 	bobConnToServer := &util.ConnectionToServer{
-		Buf:          bobConf.inBuf,
+		InBuf:        bobConf.inBuf,
 		Conn:         bobHomeConn,
 		ReadReply:    bobReplies,
 		ReadEnvelope: bobNotifies,
@@ -116,13 +116,13 @@ func TestEncryptFirstMessage(t *testing.T) {
 	bobPublicPrekeys, bobSecretPrekeys, err := GeneratePrekeys(maxPrekeys)
 	var bobSigningKey [64]byte
 	copy(bobSigningKey[:], bobConf.KeySigningSecretKey[:64])
-	err = util.UploadKeys(bobHomeConn, bobConnToServer, bobConf.outBuf, util.SignKeys(bobPublicPrekeys, &bobSigningKey))
+	err = util.UploadKeys(bobConnToServer, util.SignKeys(bobPublicPrekeys, &bobSigningKey))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	//Bob enables notifications
-	if err = util.EnablePush(bobHomeConn, bobConnToServer, bobConf.outBuf); err != nil {
+	if err = util.EnablePush(bobConnToServer); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,13 +130,13 @@ func TestEncryptFirstMessage(t *testing.T) {
 	alicePublicPrekeys, _, err := GeneratePrekeys(maxPrekeys)
 	var aliceSigningKey [64]byte
 	copy(aliceSigningKey[:], aliceConf.KeySigningSecretKey[:64])
-	err = util.UploadKeys(aliceHomeConn, aliceConnToServer, aliceConf.outBuf, util.SignKeys(alicePublicPrekeys, &aliceSigningKey))
+	err = util.UploadKeys(aliceConnToServer, util.SignKeys(alicePublicPrekeys, &aliceSigningKey))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	//Alice enables notification
-	if err = util.EnablePush(aliceHomeConn, aliceConnToServer, aliceConf.outBuf); err != nil {
+	if err = util.EnablePush(aliceConnToServer); err != nil {
 		t.Fatal(err)
 	}
 

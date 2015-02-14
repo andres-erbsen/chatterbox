@@ -113,8 +113,7 @@ func main() {
 			*serverAddress, *serverPort, err)
 		os.Exit(1)
 	}
-	if err := client.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE),
-		make([]byte, proto.SERVER_MESSAGE_SIZE)); err != nil {
+	if err := client.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE)); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to connect to serverat %s:%d: %s\n",
 			*serverAddress, *serverPort, err)
 		os.Exit(1)

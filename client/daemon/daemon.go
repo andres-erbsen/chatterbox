@@ -146,7 +146,7 @@ func (d *Daemon) run() error {
 	replies := make(chan *proto.ServerToClient)
 
 	connToServer := &util.ConnectionToServer{
-		Buf:          d.inBuf,
+		InBuf:        d.inBuf,
 		Conn:         ourConn,
 		ReadReply:    replies,
 		ReadEnvelope: notifies,
@@ -154,29 +154,11 @@ func (d *Daemon) run() error {
 
 	go connToServer.ReceiveMessages()
 
-	// load prekeys and ensure that we have enough of them
-	prekeyPublics, prekeySecrets, err := LoadPrekeys(d)
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
-	numKeys, err := util.GetNumKeys(ourConn, connToServer, d.outBuf)
-	if err != nil {
-		return err
-	}
-	if numKeys < minPrekeys {
-		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(maxPrekeys - int(numKeys))
-		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
-		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
-		if err = StorePrekeys(d, prekeyPublics, prekeySecrets); err != nil {
-			return err
-		}
-		var signingKey [64]byte
-		copy(signingKey[:], d.KeySigningSecretKey[:64])
-		err = util.UploadKeys(ourConn, connToServer, d.outBuf, util.SignKeys(newPublicPrekeys, &signingKey))
-		if err != nil {
-			return err // TODO handle this nicely
-		}
-	}
+	defer watcher.Close()
 
 	initFn := func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
@@ -185,20 +167,21 @@ func (d *Daemon) run() error {
 		return d.processOutboxDir(filepath.Dir(path))
 	}
 
-	watcher, err := fsnotify.NewWatcher()
+	prekeyPublics, prekeySecrets, err := d.updatePrekeys(connToServer)
 	if err != nil {
 		return err
 	}
-	defer watcher.Close()
 
 	err = WatchDir(watcher, d.OutboxDir(), initFn)
 	if err != nil {
 		return err
 	}
 
-	if err = util.EnablePush(ourConn, connToServer, d.outBuf); err != nil {
+	if err = util.EnablePush(connToServer); err != nil {
 		return err
 	}
+
+	d.requestAllMessages(connToServer)
 
 	for {
 		select {
@@ -256,6 +239,37 @@ func (d *Daemon) run() error {
 		}
 	}
 
+}
+
+func (d *Daemon) updatePrekeys(connToServer *util.ConnectionToServer) (prekeyPublics, prekeySecrets []*[32]byte, err error) {
+	// load prekeys and ensure that we have enough of them
+	prekeyPublics, prekeySecrets, err = LoadPrekeys(d)
+	if err != nil {
+		return nil, nil, err
+	}
+	numKeys, err := util.GetNumKeys(connToServer)
+	if err != nil {
+		return nil, nil, err
+	}
+	if numKeys < minPrekeys {
+		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(maxPrekeys - int(numKeys))
+		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
+		prekeyPublics = append(prekeyPublics, newPublicPrekeys...)
+		if err = StorePrekeys(d, prekeyPublics, prekeySecrets); err != nil {
+			return nil, nil, err
+		}
+		var signingKey [64]byte
+		copy(signingKey[:], d.KeySigningSecretKey[:64])
+		err = util.UploadKeys(connToServer, util.SignKeys(newPublicPrekeys, &signingKey))
+		if err != nil {
+			return nil, nil, err // TODO handle this nicely
+		}
+	}
+	err = nil
+	return
+}
+
+func (d *Daemon) requestAllMessages(connToServer *util.ConnectionToServer) {
 }
 
 func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename.Profile, error) {
@@ -324,15 +338,14 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 
 	ourSkAuth := (*[32]byte)(&d.MessageAuthSecretKey)
 
-	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
-
 	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}
 	defer theirConn.Close()
 
-	theirKey, err := util.GetKey(theirConn, theirInBuf, d.outBuf, theirPk, theirDename, pkSig)
+	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
+	theirKey, err := util.GetKey(theirConn, theirInBuf, theirPk, theirDename, pkSig)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +353,7 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 	if err != nil {
 		return nil, err
 	}
-	err = util.UploadMessageToUser(theirConn, theirInBuf, d.outBuf, theirPk, encMsg)
+	err = util.UploadMessageToUser(theirConn, theirInBuf, theirPk, encMsg)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +401,7 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 	if err != nil {
 		return nil, err
 	}
-	err = util.UploadMessageToUser(theirConn, theirInBuf, d.outBuf, theirPk, encMsg)
+	err = util.UploadMessageToUser(theirConn, theirInBuf, theirPk, encMsg)
 	if err != nil {
 		return nil, err
 	}

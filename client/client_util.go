@@ -34,11 +34,11 @@ func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, erro
 	return response, nil
 }
 
-func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
+func CreateAccount(conn *transport.Conn, inBuf []byte) error {
 	command := &proto.ClientToServer{
 		CreateAccount: protobuf.Bool(true),
 	}
-	if err := WriteProtobuf(conn, outBuf, command); err != nil {
+	if err := WriteProtobuf(conn, command); err != nil {
 		return err
 	}
 
@@ -49,11 +49,11 @@ func CreateAccount(conn *transport.Conn, inBuf []byte, outBuf []byte) error {
 	return nil
 }
 
-func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) ([][32]byte, error) {
+func ListUserMessages(connToServer *ConnectionToServer) ([][32]byte, error) {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
-	if err := WriteProtobuf(conn, outBuf, listMessages); err != nil {
+	if err := WriteProtobuf(connToServer.Conn, listMessages); err != nil {
 		return nil, err
 	}
 
@@ -65,11 +65,11 @@ func ListUserMessages(conn *transport.Conn, connToServer *ConnectionToServer, ou
 	return proto.To32ByteList(response.MessageList), nil
 }
 
-func RequestMessage(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageHash *[32]byte) error {
+func RequestMessage(connToServer *ConnectionToServer, messageHash *[32]byte) error {
 	getEnvelope := &proto.ClientToServer{
 		DownloadEnvelope: (*proto.Byte32)(messageHash),
 	}
-	if err := WriteProtobuf(conn, outBuf, getEnvelope); err != nil {
+	if err := WriteProtobuf(connToServer.Conn, getEnvelope); err != nil {
 		return err
 	}
 	return nil
@@ -91,9 +91,8 @@ func CreateTestAccount(name string, denameClient *client.Client, secretConfig *p
 	conn := CreateTestHomeServerConn(name, denameClient, secretConfig, t)
 
 	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
-	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	err := CreateAccount(conn, inBuf, outBuf)
+	err := CreateAccount(conn, inBuf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,11 +223,11 @@ func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, e
 	return ratch, unpadMsg, nil
 }
 
-func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, messageList [][32]byte) error {
+func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, messageList [][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
 		DeleteMessages: proto.ToProtoByte32List(messageList),
 	}
-	if err := WriteProtobuf(conn, outBuf, deleteMessages); err != nil {
+	if err := WriteProtobuf(conn, deleteMessages); err != nil {
 		return err
 	}
 
@@ -239,11 +238,11 @@ func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, outB
 	return nil
 }
 
-func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte, keyList [][]byte) error {
+func UploadKeys(connToServer *ConnectionToServer, keyList [][]byte) error {
 	uploadKeys := &proto.ClientToServer{
 		UploadSignedKeys: keyList,
 	}
-	if err := WriteProtobuf(conn, outBuf, uploadKeys); err != nil {
+	if err := WriteProtobuf(connToServer.Conn, uploadKeys); err != nil {
 		return err
 	}
 
@@ -251,11 +250,11 @@ func UploadKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return err
 }
 
-func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, dename string, pkSig *[32]byte) (*[32]byte, error) {
+func GetKey(conn *transport.Conn, inBuf []byte, pk *[32]byte, dename string, pkSig *[32]byte) (*[32]byte, error) {
 	getKey := &proto.ClientToServer{
 		GetSignedKey: (*proto.Byte32)(pk),
 	}
-	if err := WriteProtobuf(conn, outBuf, getKey); err != nil {
+	if err := WriteProtobuf(conn, getKey); err != nil {
 		return nil, err
 	}
 
@@ -277,11 +276,11 @@ func GetKey(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, den
 	return &userKey, nil
 }
 
-func GetNumKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) (int64, error) {
+func GetNumKeys(connToServer *ConnectionToServer) (int64, error) {
 	getNumKeys := &proto.ClientToServer{
 		GetNumKeys: protobuf.Bool(true),
 	}
-	if err := WriteProtobuf(conn, outBuf, getNumKeys); err != nil {
+	if err := WriteProtobuf(connToServer.Conn, getNumKeys); err != nil {
 		return 0, err
 	}
 
@@ -292,12 +291,12 @@ func GetNumKeys(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return *response.NumKeys, nil
 }
 
-func EnablePush(conn *transport.Conn, connToServer *ConnectionToServer, outBuf []byte) error {
+func EnablePush(connToServer *ConnectionToServer) error {
 	true_ := true
 	command := &proto.ClientToServer{
 		ReceiveEnvelopes: &true_,
 	}
-	if err := WriteProtobuf(conn, outBuf, command); err != nil {
+	if err := WriteProtobuf(connToServer.Conn, command); err != nil {
 		return err
 	}
 	_, err := ReceiveReply(connToServer)
@@ -307,7 +306,7 @@ func EnablePush(conn *transport.Conn, connToServer *ConnectionToServer, outBuf [
 	return nil
 }
 
-func UploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *[32]byte, envelope []byte) error {
+func UploadMessageToUser(conn *transport.Conn, inBuf []byte, pk *[32]byte, envelope []byte) error {
 	message := &proto.ClientToServer_DeliverEnvelope{
 		User:     (*proto.Byte32)(pk),
 		Envelope: envelope,
@@ -315,7 +314,7 @@ func UploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *
 	deliverCommand := &proto.ClientToServer{
 		DeliverEnvelope: message,
 	}
-	if err := WriteProtobuf(conn, outBuf, deliverCommand); err != nil {
+	if err := WriteProtobuf(conn, deliverCommand); err != nil {
 		return err
 	}
 
@@ -326,16 +325,13 @@ func UploadMessageToUser(conn *transport.Conn, inBuf []byte, outBuf []byte, pk *
 	return nil
 }
 
-func WriteProtobuf(conn *transport.Conn, outBuf []byte, message *proto.ClientToServer) error {
+func WriteProtobuf(conn *transport.Conn, message *proto.ClientToServer) error {
 	unpadMsg, err := protobuf.Marshal(message)
 	if err != nil {
 		return err
 	}
-	padMsg := proto.Pad(unpadMsg, proto.SERVER_MESSAGE_SIZE)
-	copy(outBuf, padMsg)
-
-	conn.WriteFrame(outBuf[:proto.SERVER_MESSAGE_SIZE])
-	return nil
+	_, err = conn.WriteFrame(proto.Pad(unpadMsg, proto.SERVER_MESSAGE_SIZE))
+	return err
 }
 
 func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 type ConnectionToServer struct {
-	Buf          []byte
+	InBuf        []byte
 	Conn         *transport.Conn
 	ReadReply    chan *proto.ServerToClient // TODO: do we want to return an error?
 	ReadEnvelope chan []byte
@@ -24,7 +24,7 @@ func (c *ConnectionToServer) ReceiveMessages() error {
 		c.Conn.Close()
 	}()
 	for {
-		msg, err := ReceiveProtobuf(c.Conn, c.Buf)
+		msg, err := ReceiveProtobuf(c.Conn, c.InBuf)
 		select {
 		case <-c.Shutdown:
 			return nil
@@ -39,4 +39,8 @@ func (c *ConnectionToServer) ReceiveMessages() error {
 			c.ReadReply <- msg
 		}
 	}
+}
+
+func (conn *ConnectionToServer) WriteProtobuf(msg *proto.ClientToServer) error {
+	return WriteProtobuf(conn.Conn, msg)
 }
