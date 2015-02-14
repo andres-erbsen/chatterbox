@@ -9,6 +9,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/dename/client"
+	dename "github.com/andres-erbsen/dename/protocol"
 	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
 	"github.com/andres-erbsen/dename/testutil"
 	"testing"
@@ -18,6 +19,17 @@ import (
 func handleError(err error, t *testing.T) {
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func noProfileRatchet(c *client.Client) func(name string, reply *dename.ClientReply) (*dename.Profile, error) {
+	return func(name string, reply *dename.ClientReply) (*dename.Profile, error) {
+		if reply != nil {
+			if profile, err := c.LookupFromReply(name, reply); err == nil {
+				return profile, nil
+			}
+		}
+		return c.Lookup(name)
 	}
 }
 
@@ -32,13 +44,13 @@ func TestMessageEncryptionAuthentication(t *testing.T) {
 
 	ratchA := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(ska),
-		CheckAuth: CheckAuthWith(dnmca),
+		CheckAuth: CheckAuthWith(noProfileRatchet(dnmca)),
 		Rand:      nil,
 		Now:       nil,
 	}
 	ratchB := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skb),
-		CheckAuth: CheckAuthWith(dnmcb),
+		CheckAuth: CheckAuthWith(noProfileRatchet(dnmcb)),
 		Rand:      nil,
 		Now:       nil,
 	}
