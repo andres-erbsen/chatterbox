@@ -5,8 +5,8 @@ if [ "$#" -ne 2 ]; then
 	 exit 2
 fi
 
-ROOTDIR=$1
-CONV=$2
+ROOTDIR="$1"
+CONV="$2"
 
 if [[ ! -x "$(which $EDITOR)" ]]; then
 	EDITOR=vim

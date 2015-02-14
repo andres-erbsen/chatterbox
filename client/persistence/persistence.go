@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -32,7 +33,16 @@ func (p *Paths) TempDir() string {
 }
 
 func ConversationName(metadata *proto.ConversationMetadata) string {
-	return encoding.EscapeFilename(metadata.Subject) + " %between " + strings.Join(encoding.EscapeFilenames(metadata.Participants), " %and ")
+	names := make([]string, 0, len(metadata.Participants))
+	already := make(map[string]struct{})
+	for _, s := range metadata.Participants {
+		if _, ok := already[s]; !ok {
+			names = append(names, encoding.EscapeFilename(s))
+			already[s] = struct{}{}
+		}
+	}
+	sort.Strings(names)
+	return encoding.EscapeFilename(metadata.Subject) + " %between " + strings.Join(names, " %and ")
 }
 
 func MessageName(date time.Time, sender string) string {

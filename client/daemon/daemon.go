@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/client/profilesyncd"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
+	"github.com/andres-erbsen/chatterbox/shred"
 	"github.com/andres-erbsen/dename/client"
 	dename "github.com/andres-erbsen/dename/protocol"
 )
@@ -428,9 +430,22 @@ func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*
 	return message, ratch, nil
 }
 
+func undupStrings(ss []string) []string {
+	ret := []string{}
+	seen := make(map[string]struct{})
+	for _, s := range ss {
+		if _, ok := seen[s]; !ok {
+			ret = append(ret, s)
+			seen[s] = struct{}{}
+		}
+	}
+	return ret
+}
+
 func (d *Daemon) processOutboxDir(dirname string) error {
 	// TODO: refactor: separate message assembly and filesystem access?
 	fmt.Printf("processing outbox dir: %s\n", dirname)
+	defer fmt.Printf("DONE processing outbox dir: %s\n", dirname)
 	// parse metadata
 	metadataFile := filepath.Join(dirname, persistence.MetadataFileName)
 	if _, err := os.Stat(metadataFile); err != nil {
@@ -442,6 +457,11 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	if err != nil {
 		return err
 	}
+
+	metadata.Participants = append(metadata.Participants, d.Dename)
+	undupStrings(metadata.Participants)
+	sort.Strings(metadata.Participants)
+	convName := persistence.ConversationName(&metadata)
 
 	// load messages
 	potentialMessages, err := ioutil.ReadDir(dirname)
@@ -477,11 +497,6 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 		return nil // no messages to send, just the metadata file
 	}
 
-	// ensure the conversation directory exists
-	convName, err := filepath.Rel(d.OutboxDir(), dirname)
-	if err != nil {
-		return err
-	}
 	convPath := filepath.Join(d.ConversationDir(), convName)
 	if os.Mkdir(convPath, 0700); err != nil && !os.IsExist(err) {
 		return err
@@ -531,6 +546,20 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 			messageName := persistence.MessageName(sendTime, string(d.Dename))
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
+			}
+		}
+	}
+
+	// canonicalize the outbox folder name
+	if dirname != filepath.Join(d.OutboxDir(), convName) {
+		if err := os.Rename(dirname, filepath.Join(d.OutboxDir(), convName)); err != nil {
+			// target dir already exists...
+			outQueue, err := ioutil.ReadDir(dirname)
+			if err != nil {
+				return nil
+			}
+			if len(outQueue) == 0 {
+				shred.Remove(dirname)
 			}
 		}
 	}

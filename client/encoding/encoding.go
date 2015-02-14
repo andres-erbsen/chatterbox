@@ -210,11 +210,3 @@ func decodeHexUtf8Rune(s string) (r rune, size int, short bool) {
 	// error
 	return utf8.RuneError, 2, false
 }
-
-func EscapeFilenames(ss []string) []string {
-	ret := make([]string, 0, len(ss))
-	for _, s := range ss {
-		ret = append(ret, EscapeFilename(s))
-	}
-	return ret
-}

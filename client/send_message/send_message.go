@@ -6,6 +6,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/shred"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -17,6 +18,9 @@ import (
 // recipients = dename names of the recipients
 // messages = list of messages (each is a byte array) to put in the outbox
 func SpawnConversationInOutbox(conf *persistence.Paths, subject string, recipients []string, messages [][]byte) error {
+	if err := os.Mkdir(conf.TempDir(), 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
 	// create temp directory or error
 	tmpDir, err := conf.MkdirInTemp()
 	defer shred.RemoveAll(tmpDir)
@@ -79,5 +83,7 @@ func main() {
 		Application: "some_ui",
 	}
 
-	SpawnConversationInOutbox(conf, subject, []string{recipient}, [][]byte{([]byte)(message)})
+	if err := SpawnConversationInOutbox(conf, subject, []string{recipient}, [][]byte{([]byte)(message)}); err != nil {
+		log.Fatal(err)
+	}
 }
