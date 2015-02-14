@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -63,6 +64,7 @@ func New(rootDir string) (*Daemon, error) {
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return nil, err
 	}
+	d.ourDenameLookup = new(dename.ClientReply)
 	persistence.UnmarshalFromFile(d.ourDenameLookupReplyPath(), d.ourDenameLookup)
 
 	// ensure that we have a correct directory structure
@@ -83,7 +85,7 @@ func New(rootDir string) (*Daemon, error) {
 		return nil, err
 	}
 	timelessCfg := client.DefaultConfig
-	timelessCfg.Freshness.Threshold = fmt.Sprintf("%dy", 365*100)
+	timelessCfg.Freshness.Threshold = fmt.Sprintf("%dh", 100*365*24)
 	d.timelessDenameClient, err = client.NewClient(&timelessCfg, nil, nil)
 	if err != nil {
 		return nil, err
@@ -108,7 +110,10 @@ func (d *Daemon) Start() {
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		d.run()
+		err := d.run()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}()
 }
 
@@ -285,7 +290,9 @@ func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename
 
 func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
 	d.ourDenameLookup = r
-	d.MarshalToFile(d.ourDenameLookupReplyPath(), r)
+	if err := d.MarshalToFile(d.ourDenameLookupReplyPath(), r); err != nil {
+		log.Print(err)
+	}
 }
 
 func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {

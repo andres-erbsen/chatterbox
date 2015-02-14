@@ -31,6 +31,8 @@ func New(client *client.Client, meanRate time.Duration, name string, onUpdate fu
 
 func (d *ProfileSyncd) Start() {
 	d.stop = make(chan struct{})
+	d.force = make(chan struct{})
+	d.forceDone = make(chan struct{})
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
