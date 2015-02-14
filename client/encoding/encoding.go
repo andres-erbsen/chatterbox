@@ -22,9 +22,8 @@ var replace = map[rune]string{
 }
 
 // EscapeFilename computes an invertible, human readable mapping between
-// arbitrary strings and (longer) strings that do not contain
-// - \/:*?"<>|
-// - non-printable charactes, as defined by strconv.IsPrint
+// arbitrary strings and (longer) strings that do not contain \/:*?"<>| and
+// non-printable charactes, as defined by unicode.IsPrint
 func EscapeFilename(s string) string {
 	const hextable = "0123456789abcdef"
 	ret := ""

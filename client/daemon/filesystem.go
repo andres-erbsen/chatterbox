@@ -3,33 +3,39 @@
 package daemon
 
 import (
-	"code.google.com/p/go.exp/fsnotify"
 	"fmt"
-	"github.com/andres-erbsen/chatterbox/client/persistence"
-	"github.com/andres-erbsen/chatterbox/proto"
-	"github.com/andres-erbsen/chatterbox/ratchet"
-	"github.com/andres-erbsen/chatterbox/shred"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"syscall"
+
+	"code.google.com/p/go.exp/fsnotify"
+	"github.com/andres-erbsen/chatterbox/client/encoding"
+	"github.com/andres-erbsen/chatterbox/client/persistence"
+	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/ratchet"
+	"github.com/andres-erbsen/chatterbox/shred"
+	dename "github.com/andres-erbsen/dename/protocol"
 )
 
-const (
-	prekeysFileName       = "prekeys.pb"
-	profileFileName       = "profile.pb"
-	denameProfileFileName = "dename-profile.pb"
-	configFileName        = "config.pb"
-)
+func (d *Daemon) keysDir() string        { return filepath.Join(d.RootDir, "keys") }
+func (d *Daemon) profilesDir() string    { return filepath.Join(d.RootDir, "profile") }
+func (d *Daemon) prekeysPath() string    { return filepath.Join(d.keysDir(), "prekeys.pb") }
+func (d *Daemon) ratchetKeysDir() string { return filepath.Join(d.keysDir(), "ratchet") }
+func (d *Daemon) configPath() string     { return filepath.Join(d.keysDir(), "config.pb") }
 
-func (d *Daemon) keysDir() string                { return filepath.Join(d.RootDir, "keys") }
-func (d *Daemon) prekeysPath() string            { return filepath.Join(d.keysDir(), prekeysFileName) }
-func (d *Daemon) profilePath() string            { return filepath.Join(d.keysDir(), profileFileName) }
-func (d *Daemon) ratchetKeysDir() string         { return filepath.Join(d.keysDir(), "ratchet") }
-func (d *Daemon) ratchetPath(name string) string { return filepath.Join(d.ratchetKeysDir(), name) }
-func (d *Daemon) configPath() string             { return filepath.Join(d.keysDir(), configFileName) }
+func (d *Daemon) ourChatterboxProfilePath() string {
+	return filepath.Join(d.keysDir(), "chatterbox-profile.pb")
+}
+
+func (d *Daemon) ratchetPath(name string) string {
+	return filepath.Join(d.ratchetKeysDir(), encoding.EscapeFilename(name))
+}
+func (d *Daemon) profilePath(name string) string {
+	return filepath.Join(d.profilesDir(), encoding.EscapeFilename(name))
+}
 
 // Copy copyes the contents of file source to dest. NOT atomic.
 func Copy(source string, dest string, perm os.FileMode) error {
@@ -99,13 +105,8 @@ func StoreLocalAccountConfig(d *Daemon, localAccountConfig *proto.LocalAccountCo
 }
 
 func LoadRatchet(d *Daemon, name string, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) (*ratchet.Ratchet, error) {
-	nameStr := string(name)
-	// TODO: move name validation to the first place where we encoiunter a name
-	if err := ValidateName(nameStr); err != nil {
-		return nil, err
-	}
 	ratch := new(ratchet.Ratchet)
-	if err := persistence.UnmarshalFromFile(d.ratchetPath(nameStr), ratch); err != nil {
+	if err := persistence.UnmarshalFromFile(d.ratchetPath(name), ratch); err != nil {
 		return nil, err
 	}
 	ratch.FillAuth = fillAuth
@@ -114,13 +115,16 @@ func LoadRatchet(d *Daemon, name string, fillAuth func(tag, data []byte, theirAu
 }
 
 func StoreRatchet(d *Daemon, name string, ratch *ratchet.Ratchet) error {
-	nameStr := string(name)
+	return d.MarshalToFile(d.ratchetPath(name), ratch)
+}
 
-	// TODO: move name validation to the first place where we encoiunter a name
-	if err := ValidateName(nameStr); err != nil {
-		return err
+func (d *Daemon) LatestProfile(name string, received *dename.Profile) (*dename.Profile, error) {
+	stored := new(dename.Profile)
+	err := persistence.UnmarshalFromFile(d.profilePath(name), stored)
+	if err != nil || *received.Version > *stored.Version {
+		return received, d.MarshalToFile(d.profilePath(name), received)
 	}
-	return d.MarshalToFile(d.ratchetPath(nameStr), ratch)
+	return stored, nil
 }
 
 func AllRatchets(d *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *[32]byte), checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error) ([]*ratchet.Ratchet, error) {
@@ -133,10 +137,13 @@ func AllRatchets(d *Daemon, fillAuth func(tag, data []byte, theirAuthPublic *[32
 		if file.IsDir() {
 			continue
 		}
-		ratch, err := LoadRatchet(d, file.Name(), fillAuth, checkAuth)
+		ratch := new(ratchet.Ratchet)
+		err := persistence.UnmarshalFromFile(filepath.Join(d.ratchetKeysDir(), file.Name()), ratch)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ratchet for \"%s\": %s", file.Name(), err)
 		}
+		ratch.FillAuth = fillAuth
+		ratch.CheckAuth = checkAuth
 		ret = append(ret, ratch)
 	}
 	return ret, nil
@@ -150,10 +157,11 @@ func InitFs(d *Daemon) error {
 		d.OutboxDir(),
 		d.TempDir(),
 		d.keysDir(),
+		d.profilesDir(),
 		d.ratchetKeysDir(),
 	}
 	for _, dir := range subdirs {
-		os.Mkdir(dir, 0700) // TODO: handle error? comment if not necessary
+		os.MkdirAll(dir, 0700) // FIXME: handle error
 	}
 
 	// for each existing conversation, create a folder in the outbox

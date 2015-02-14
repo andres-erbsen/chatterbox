@@ -27,6 +27,8 @@ const PROFILE_FIELD_ID = 1984
 const ENCRYPT_ADDED_LEN = 168
 const ENCRYPT_FIRST_ADDED_LEN = 200
 
+type ProfileRatchet func(string, *dename.ClientReply) (*dename.Profile, error)
+
 func ReceiveReply(connToServer *ConnectionToServer) (*proto.ServerToClient, error) {
 	response := <-connToServer.ReadReply //TODO: Timeout
 	return response, nil
@@ -150,6 +152,7 @@ func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transp
 }
 
 func CreateForeignServerConn(dename string, denameClient *client.Client, addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
+	// TODO: do NOT perform dename lookups here, daemon normally has the other party's profile stored locally
 
 	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
 	if err != nil {
@@ -169,10 +172,10 @@ func CreateForeignServerConn(dename string, denameClient *client.Client, addr st
 	return conn, nil
 }
 
-func EncryptAuthFirst(message []byte, skAuth *[32]byte, userKey *[32]byte, denameClient *client.Client) ([]byte, *ratchet.Ratchet, error) {
+func EncryptAuthFirst(message []byte, skAuth *[32]byte, userKey *[32]byte, prt ProfileRatchet) ([]byte, *ratchet.Ratchet, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
-		CheckAuth: CheckAuthWith(denameClient),
+		CheckAuth: CheckAuthWith(prt),
 	}
 
 	out := append([]byte{}, (*userKey)[:]...)
@@ -189,10 +192,10 @@ func EncryptAuth(message []byte, ratch *ratchet.Ratchet) ([]byte, *ratchet.Ratch
 	return out, ratch, nil
 }
 
-func DecryptAuthFirst(in []byte, pkList []*[32]byte, skList []*[32]byte, skAuth *[32]byte, denameClient *client.Client) (*ratchet.Ratchet, []byte, int, error) {
+func DecryptAuthFirst(in []byte, pkList []*[32]byte, skList []*[32]byte, skAuth *[32]byte, prt ProfileRatchet) (*ratchet.Ratchet, []byte, int, error) {
 	ratch := &ratchet.Ratchet{
 		FillAuth:  FillAuthWith(skAuth),
-		CheckAuth: CheckAuthWith(denameClient),
+		CheckAuth: CheckAuthWith(prt),
 	}
 
 	if len(in) < 32 {
@@ -434,7 +437,7 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 	}
 }
 
-func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) error {
+func CheckAuthWith(prt ProfileRatchet) func([]byte, []byte, []byte, *[32]byte) error {
 	return func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error {
 		var sharedAuthKey [32]byte
 		message := new(proto.Message)
@@ -444,20 +447,11 @@ func CheckAuthWith(dnmc *client.Client) func([]byte, []byte, []byte, *[32]byte) 
 			return err
 		}
 
-		var profile *dename.Profile
-		if message.DenameLookup != nil {
-			profile, err = dnmc.LookupFromReply(message.Dename, message.DenameLookup)
-			if err != nil {
-				goto got_profile
-			}
-		}
-
-		profile, err = dnmc.Lookup(message.Dename)
+		profile, err := prt(message.Dename, message.DenameLookup)
 		if err != nil {
 			return err
 		}
 
-	got_profile:
 		chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
 		if err != nil {
 			return err

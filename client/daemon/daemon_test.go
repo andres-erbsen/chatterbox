@@ -34,12 +34,12 @@ func TestEncryptFirstMessage(t *testing.T) {
 	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
 	defer serverTeardown()
 
-	aliceDir, err := ioutil.TempDir("", "")
+	aliceDir, err := ioutil.TempDir("", "daemon-alice")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer shred.RemoveAll(aliceDir)
-	bobDir, err := ioutil.TempDir("", "")
+	bobDir, err := ioutil.TempDir("", "daemon-alice")
 	if err != nil {
 		t.Fatal(err)
 	}

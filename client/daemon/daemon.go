@@ -104,7 +104,7 @@ func (d *Daemon) Stop() {
 // run executes the main loop of the chatterbox daemon
 func (d *Daemon) run() error {
 	profile := new(proto.Profile)
-	if err := persistence.UnmarshalFromFile(d.profilePath(), profile); err != nil {
+	if err := persistence.UnmarshalFromFile(d.ourChatterboxProfilePath(), profile); err != nil {
 		return err
 	}
 
@@ -208,7 +208,7 @@ func (d *Daemon) run() error {
 				}
 			} else { // try decrypting with a ratchet
 				fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
-				checkAuth := util.CheckAuthWith(d.denameClient)
+				checkAuth := util.CheckAuthWith(d.ProfileRatchet)
 				ratchets, err := AllRatchets(d, fillAuth, checkAuth)
 				if err != nil {
 					return err
@@ -231,6 +231,24 @@ func (d *Daemon) run() error {
 		}
 	}
 
+}
+
+func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename.Profile, error) {
+	if reply != nil {
+		if profile, err := d.denameClient.LookupFromReply(name, reply); err == nil {
+			return d.LatestProfile(name, profile)
+		}
+	}
+	// TODO: use a fresh client and TOR connection
+	profile, err := d.denameClient.Lookup(name)
+	if err != nil {
+		return nil, err
+	}
+	profile, err = d.LatestProfile(name, profile)
+	if err != nil {
+		return nil, err
+	}
+	return profile, nil
 }
 
 func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
@@ -274,7 +292,7 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 	if err != nil {
 		return nil, err
 	}
-	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, d.denameClient)
+	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, d.ProfileRatchet)
 	if err != nil {
 		return nil, err
 	}
@@ -316,6 +334,7 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
+	// TODO: CreateForeignServerConn should NOT perform dename lookups
 	theirConn, err := util.CreateForeignServerConn(theirDename, d.denameClient, addr, port, pkTransport)
 	if err != nil {
 		return nil, err
@@ -335,7 +354,7 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 
 func (d *Daemon) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) (*proto.Message, *ratchet.Ratchet, int, error) {
 	skAuth := (*[32]byte)(&d.MessageAuthSecretKey)
-	ratch, msg, index, err := util.DecryptAuthFirst(envelope, pkList, skList, skAuth, d.denameClient)
+	ratch, msg, index, err := util.DecryptAuthFirst(envelope, pkList, skList, skAuth, d.ProfileRatchet)
 
 	if err != nil {
 		return nil, nil, -1, err
@@ -445,7 +464,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 		}
 		for _, msg := range messages {
 			fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
-			checkAuth := util.CheckAuthWith(d.denameClient)
+			checkAuth := util.CheckAuthWith(d.ProfileRatchet)
 			if err != nil {
 				return err
 			}
@@ -479,8 +498,6 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 }
 
 func (d *Daemon) receiveMessage(message *proto.Message) error {
-	fmt.Printf("%s\n", message)
-
 	// generate metadata file
 	metadata := proto.ConversationMetadata{
 		Participants: message.Participants,
