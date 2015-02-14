@@ -38,9 +38,11 @@ type Daemon struct {
 
 	proto.LocalAccountConfig
 
-	denameClient *client.Client
-	inBuf        []byte
-	outBuf       []byte
+	foreignDenameClient  *client.Client
+	timelessDenameClient *client.Client
+
+	inBuf  []byte
+	outBuf []byte
 
 	stop chan struct{}
 	wg   sync.WaitGroup
@@ -68,14 +70,24 @@ func New(rootDir string) (*Daemon, error) {
 	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	denameClient, err := client.NewClient(nil, nil, nil)
+	ourDenameClient, err := client.NewClient(nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	d.denameClient = denameClient
+	// TODO: randomized per-connection TOR dialer
+	d.foreignDenameClient, err = client.NewClient(nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	timelessCfg := client.DefaultConfig
+	timelessCfg.Freshness.Threshold = fmt.Sprintf("%dy", 365*100)
+	d.timelessDenameClient, err = client.NewClient(&timelessCfg, nil, nil)
+	if err != nil {
+		return nil, err
+	}
 	d.inBuf = inBuf
 	d.outBuf = outBuf
-	d.psd, err = profilesyncd.New(d.denameClient, 10*time.Minute, d.Dename, d.onOurDenameProfileDownload, nil)
+	d.psd, err = profilesyncd.New(ourDenameClient, 10*time.Minute, d.Dename, d.onOurDenameProfileDownload, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -235,20 +247,34 @@ func (d *Daemon) run() error {
 
 func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename.Profile, error) {
 	if reply != nil {
-		if profile, err := d.denameClient.LookupFromReply(name, reply); err == nil {
+		if profile, err := d.foreignDenameClient.LookupFromReply(name, reply); err == nil {
+			// case 1: a fresh lookup is provided by the sender: remember and use it
 			return d.LatestProfile(name, profile)
 		}
 	}
-	// TODO: use a fresh client and TOR connection
-	profile, err := d.denameClient.Lookup(name)
+	stored, err := d.LatestProfile(name, nil)
+	if err == nil && stored != nil {
+		// case 2: if we already have a profile, we don't care about absolute freshness.
+		// This is okay assuming that 1) the original profile we got was fresh at
+		// some point and 2) any changes after that would be pushed to us by the
+		// profile owner sing a case 1 message. We still ignore received profiles
+		// that are older than the one currently stored.
+		if reply != nil {
+			if profile, err := d.timelessDenameClient.LookupFromReply(name, reply); err == nil {
+				return d.LatestProfile(name, profile)
+			}
+		}
+		return stored, nil
+	}
+
+	// case 3: look up the profile ourselves and remember it.  This should only
+	// happen if somebody sends us a message and we receive it when its bundled
+	// lookup is no longer fresh.
+	profile, err := d.foreignDenameClient.Lookup(name)
 	if err != nil {
 		return nil, err
 	}
-	profile, err = d.LatestProfile(name, profile)
-	if err != nil {
-		return nil, err
-	}
-	return profile, nil
+	return d.LatestProfile(name, profile)
 }
 
 func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
@@ -256,8 +282,7 @@ func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientR
 }
 
 func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
-	//If using TOR, dename client is fresh TOR connection
-	profile, err := d.denameClient.Lookup(theirDename)
+	profile, err := d.foreignDenameClient.Lookup(theirDename)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +307,7 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(theirDename, d.denameClient, addr, port, pkTransport)
+	theirConn, err := util.CreateForeignServerConn(theirDename, d.foreignDenameClient, addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +329,7 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 }
 
 func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
-	//If using TOR, dename client is fresh TOR connection
-	profile, err := d.denameClient.Lookup(theirDename)
+	profile, err := d.foreignDenameClient.Lookup(theirDename)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +359,7 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	// TODO: CreateForeignServerConn should NOT perform dename lookups
-	theirConn, err := util.CreateForeignServerConn(theirDename, d.denameClient, addr, port, pkTransport)
+	theirConn, err := util.CreateForeignServerConn(theirDename, d.foreignDenameClient, addr, port, pkTransport)
 	if err != nil {
 		return nil, err
 	}

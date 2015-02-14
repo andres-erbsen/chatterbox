@@ -121,7 +121,10 @@ func StoreRatchet(d *Daemon, name string, ratch *ratchet.Ratchet) error {
 func (d *Daemon) LatestProfile(name string, received *dename.Profile) (*dename.Profile, error) {
 	stored := new(dename.Profile)
 	err := persistence.UnmarshalFromFile(d.profilePath(name), stored)
-	if err != nil || *received.Version > *stored.Version {
+	if err != nil {
+		stored = nil
+	}
+	if received != nil && (stored == nil || *received.Version > *stored.Version) {
 		return received, d.MarshalToFile(d.profilePath(name), received)
 	}
 	return stored, nil
