@@ -42,7 +42,7 @@ func TestSpawnConversationInOutbox(t *testing.T) {
 
 	// check that a conversation exists in the outbox with the correct name
 	outboxDir := conf.OutboxDir()
-	expectedName := "test subject %between recipient_dename_b %and recipient_dename_a"
+	expectedName := "test subject %between recipient_dename_a %and recipient_dename_b"
 	_, err = os.Stat(filepath.Join(outboxDir, expectedName))
 	if err != nil {
 		t.Error(err)
