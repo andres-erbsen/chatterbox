@@ -223,19 +223,16 @@ func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, e
 	return ratch, unpadMsg, nil
 }
 
-func DeleteMessages(conn *transport.Conn, connToServer *ConnectionToServer, messageList [][32]byte) error {
+func DeleteMessages(connToServer *ConnectionToServer, messageList [][32]byte) error {
 	deleteMessages := &proto.ClientToServer{
 		DeleteMessages: proto.ToProtoByte32List(messageList),
 	}
-	if err := WriteProtobuf(conn, deleteMessages); err != nil {
+	if err := WriteProtobuf(connToServer.Conn, deleteMessages); err != nil {
 		return err
 	}
 
 	_, err := ReceiveReply(connToServer)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func UploadKeys(connToServer *ConnectionToServer, keyList [][]byte) error {

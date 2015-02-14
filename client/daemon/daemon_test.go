@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -193,6 +194,11 @@ func TestEncryptFirstMessage(t *testing.T) {
 	aliceRatchets = append(aliceRatchets, aliceRatch)
 	outAlice, aliceRatch, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	ha := sha256.Sum256(incomingAlice)
+	if err = aliceConf.receiveMessage(aliceConnToServer, outAlice, &ha); err != nil {
 		t.Fatal(err)
 	}
 

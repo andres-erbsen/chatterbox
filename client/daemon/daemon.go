@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"crypto/sha256"
+
 	"code.google.com/p/go.exp/fsnotify"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
@@ -193,12 +195,13 @@ func (d *Daemon) run() error {
 			if _, err = os.Stat(ev.Name); err == nil {
 				err = WatchDir(watcher, ev.Name, initFn)
 				if err != nil {
-					return err
+					log.Printf("watch %s: %s", ev.Name, err) // TODO
 				}
 
 				d.processOutboxDir(ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
+			msgHash := sha256.Sum256(envelope)
 			// assume it's the first message we're receiving from the person; try to decrypt
 			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
 			if err == nil {
@@ -206,7 +209,7 @@ func (d *Daemon) run() error {
 				StoreRatchet(d, message.Dename, ratch)
 
 				//TODO: Update prekeys by removing index, store
-				if err = d.receiveMessage(message); err != nil {
+				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
 					return err
 				}
 				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
@@ -226,7 +229,7 @@ func (d *Daemon) run() error {
 				if err != nil {
 					return err
 				}
-				if err = d.receiveMessage(message); err != nil {
+				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
 					return err
 				}
 
@@ -269,7 +272,17 @@ func (d *Daemon) updatePrekeys(connToServer *util.ConnectionToServer) (prekeyPub
 	return
 }
 
-func (d *Daemon) requestAllMessages(connToServer *util.ConnectionToServer) {
+func (d *Daemon) requestAllMessages(conn *util.ConnectionToServer) error {
+	msgs, err := util.ListUserMessages(conn)
+	if err != nil {
+		return err
+	}
+	for _, msgHash := range msgs {
+		if err := util.RequestMessage(conn, &msgHash); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename.Profile, error) {
@@ -580,7 +593,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	return nil
 }
 
-func (d *Daemon) receiveMessage(message *proto.Message) error {
+func (d *Daemon) receiveMessage(connToServer *util.ConnectionToServer, message *proto.Message, msgHash *[32]byte) error {
 	// generate metadata file
 	metadata := proto.ConversationMetadata{
 		Participants: message.Participants,
@@ -627,9 +640,10 @@ func (d *Daemon) receiveMessage(message *proto.Message) error {
 	fmt.Printf("new message name: %s\n", messageName)
 
 	// write the message to the conversation folder
+	// TODO: do we want this to be atomic?
 	if err := ioutil.WriteFile(filepath.Join(convDir, messageName), message.Contents, 0600); err != nil {
 		return err
 	}
 
-	return nil
+	return util.DeleteMessages(connToServer, [][32]byte{*msgHash})
 }
