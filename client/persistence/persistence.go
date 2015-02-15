@@ -29,7 +29,7 @@ func (p *Paths) ConversationDir() string { return filepath.Join(p.RootDir, "conv
 func (p *Paths) OutboxDir() string { return filepath.Join(p.RootDir, "outbox") }
 
 func (p *Paths) TempDir() string {
-	return filepath.Join(p.RootDir, "tmp", p.Application)
+	return filepath.Join(p.RootDir, ".tmp", p.Application)
 }
 
 func ConversationName(metadata *proto.ConversationMetadata) string {

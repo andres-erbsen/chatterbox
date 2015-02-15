@@ -482,8 +482,6 @@ func undupStrings(ss []string) []string {
 
 func (d *Daemon) processOutboxDir(dirname string) error {
 	// TODO: refactor: separate message assembly and filesystem access?
-	fmt.Printf("processing outbox dir: %s\n", dirname)
-	defer fmt.Printf("DONE processing outbox dir: %s\n", dirname)
 	// parse metadata
 	metadataFile := filepath.Join(dirname, persistence.MetadataFileName)
 	if _, err := os.Stat(metadataFile); err != nil {

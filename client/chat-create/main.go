@@ -1,14 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"github.com/andres-erbsen/chatterbox/client/persistence"
-	"github.com/andres-erbsen/chatterbox/proto"
-	"github.com/andres-erbsen/chatterbox/shred"
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/andres-erbsen/chatterbox/client/persistence"
+	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/shred"
 )
 
 // SpawnConversationInOutbox Spawns a new conversation in a user's outbox
@@ -34,9 +35,11 @@ func SpawnConversationInOutbox(conf *persistence.Paths, subject string, recipien
 		Subject:      subject,
 	}
 
-	// create folder for conversation with the conversation name (or error?)
+	// create folder for conversation with the conversation name
 	dirName := persistence.ConversationName(metadata)
-	os.MkdirAll(filepath.Join(tmpDir, dirName), 0700)
+	if err := os.Mkdir(filepath.Join(tmpDir, dirName), 0700); err != nil {
+		return err
+	}
 
 	// write metadata file
 	metadataFile := filepath.Join(tmpDir, dirName, persistence.MetadataFileName)
@@ -44,7 +47,9 @@ func SpawnConversationInOutbox(conf *persistence.Paths, subject string, recipien
 	if err != nil {
 		return err
 	}
-	ioutil.WriteFile(metadataFile, metadataBytes, 0600)
+	if err := ioutil.WriteFile(metadataFile, metadataBytes, 0600); err != nil {
+		return err
+	}
 
 	// write messages to files in the folder (or error)
 	for _, message := range messages {
@@ -58,32 +63,25 @@ func SpawnConversationInOutbox(conf *persistence.Paths, subject string, recipien
 	}
 
 	// move folder to the outbox (or error)
-	err = os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(conf.OutboxDir(), dirName))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return os.Rename(filepath.Join(tmpDir, dirName), filepath.Join(conf.OutboxDir(), dirName))
 }
 
+var root = flag.String("root", "", "chatterbox root directory")
+var message = flag.String("message", "", "to be sent to all participants")
+var subject = flag.String("subject", "", "used to refer to the conversation")
+
 func main() {
-	args := os.Args[1:]
-	if len(args) < 4 {
-		fmt.Println("arguments: <root_dir> <user_dename> <subject> <message>")
-		os.Exit(1)
-	}
-
-	rootDir := args[0]
-	recipient := args[1]
-	subject := args[2]
-	message := args[3]
-
+	flag.Parse()
 	conf := &persistence.Paths{
-		RootDir:     rootDir,
-		Application: "some_ui",
+		RootDir:     *root,
+		Application: "chat-create",
+	}
+	if *root == "" || *subject == "" {
+		flag.Usage()
+		log.Fatal("no root or subject specified")
 	}
 
-	if err := SpawnConversationInOutbox(conf, subject, []string{recipient}, [][]byte{([]byte)(message)}); err != nil {
+	if err := SpawnConversationInOutbox(conf, *subject, flag.Args(), [][]byte{([]byte)(*message)}); err != nil {
 		log.Fatal(err)
 	}
 }

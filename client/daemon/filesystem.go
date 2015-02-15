@@ -20,18 +20,18 @@ import (
 	dename "github.com/andres-erbsen/dename/protocol"
 )
 
-func (d *Daemon) keysDir() string        { return filepath.Join(d.RootDir, "keys") }
-func (d *Daemon) profilesDir() string    { return filepath.Join(d.RootDir, "profile") }
-func (d *Daemon) prekeysPath() string    { return filepath.Join(d.keysDir(), "prekeys.pb") }
-func (d *Daemon) ratchetKeysDir() string { return filepath.Join(d.keysDir(), "ratchet") }
-func (d *Daemon) configPath() string     { return filepath.Join(d.keysDir(), "config.pb") }
+func (d *Daemon) privDir() string        { return filepath.Join(d.RootDir, ".daemon") }
+func (d *Daemon) profilesDir() string    { return filepath.Join(d.privDir(), "profile") }
+func (d *Daemon) prekeysPath() string    { return filepath.Join(d.privDir(), "prekeys.pb") }
+func (d *Daemon) ratchetKeysDir() string { return filepath.Join(d.privDir(), "ratchet") }
+func (d *Daemon) configPath() string     { return filepath.Join(d.privDir(), "config.pb") }
 
 func (d *Daemon) ourDenameLookupReplyPath() string {
-	return filepath.Join(d.keysDir(), "ourDenameLookupReply.pb")
+	return filepath.Join(d.privDir(), "ourDenameLookupReply.pb")
 }
 
 func (d *Daemon) ourChatterboxProfilePath() string {
-	return filepath.Join(d.keysDir(), "chatterbox-profile.pb")
+	return filepath.Join(d.privDir(), "chatterbox-profile.pb")
 }
 
 func (d *Daemon) ratchetPath(name string) string {
@@ -163,7 +163,7 @@ func InitFs(d *Daemon) error {
 		d.ConversationDir(),
 		d.OutboxDir(),
 		d.TempDir(),
-		d.keysDir(),
+		d.privDir(),
 		d.profilesDir(),
 		d.ratchetKeysDir(),
 	}

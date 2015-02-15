@@ -424,13 +424,7 @@ func FillAuthWith(ourAuthPrivate *[32]byte) func([]byte, []byte, *[32]byte) {
 
 		h := hmac.New(sha256.New, sharedAuthKey[:])
 		h.Write(data)
-		h.Sum(nil)
 		copy(tag, h.Sum(nil))
-		fmt.Printf("message: %x\n", sha256.Sum256(data))
-		fmt.Printf("dename: %x\n", ourAuthPublic)
-		fmt.Printf("ratchet: %x\n", theirAuthPublic)
-		fmt.Printf("shared: %x\n", sharedAuthKey)
-		fmt.Printf("send: %x\n", tag)
 	}
 }
 
@@ -462,21 +456,10 @@ func CheckAuthWith(prt ProfileRatchet) func([]byte, []byte, []byte, *[32]byte) e
 		theirAuthPublic := (*[32]byte)(&chatProfile.MessageAuthKey)
 
 		curve25519.ScalarMult(&sharedAuthKey, ourAuthPrivate, theirAuthPublic)
-		var ratchetPublic [32]byte
-		curve25519.ScalarBaseMult(&ratchetPublic, ourAuthPrivate)
 		h := hmac.New(sha256.New, sharedAuthKey[:])
-
-		//var bobAuthPublic [32]byte
-		//curve25519.ScalarBaseMult(&bobAuthPublic, ourAuthPrivate)
 
 		h.Write(data)
 		if subtle.ConstantTimeCompare(tag, h.Sum(nil)[:len(tag)]) == 0 {
-			fmt.Printf("message: %x\n", sha256.Sum256(data))
-			fmt.Printf("dename: %x\n", theirAuthPublic)
-			fmt.Printf("ratchet: %x\n", ratchetPublic)
-			fmt.Printf("shared: %x\n", sharedAuthKey)
-			fmt.Printf("computed: %x\n", h.Sum(nil)[:len(tag)])
-			fmt.Printf("received: %x\n", tag)
 			return errors.New("Authentication failed: failed to reproduce envelope auth tag using the current auth pubkey from dename")
 		}
 		return nil

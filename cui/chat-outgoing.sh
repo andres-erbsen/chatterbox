@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
      echo "Usage: $0 <ROOTDIR> <CONV>" >&2
@@ -14,7 +15,7 @@ fi
 
 while true; do
 	clear
-	file=$(mktemp "$ROOTDIR/tmp/cui-message-being-edited.$$.XXXXXXXXXX")
+	file=$(mktemp "$ROOTDIR/.tmp/cui-message-being-edited.$$.XXXXXXXXXX")
 	$EDITOR "$file"
 	grep . "$file" > /dev/null || break
 	mv "$file" "$ROOTDIR/outbox/$CONV"
