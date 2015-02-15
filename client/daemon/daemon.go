@@ -54,6 +54,9 @@ type Daemon struct {
 
 	ourDenameLookup   *dename.ClientReply
 	ourDenameLookupMu sync.Mutex
+
+	checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error
+	fillAuth  func(tag, data []byte, theirAuthPublic *[32]byte)
 }
 
 // New initializes a chatterbox daemon by loading condiguration from rootDir
@@ -100,6 +103,9 @@ func New(rootDir string) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	d.fillAuth = util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
+	d.checkAuth = util.CheckAuthWith(d.ProfileRatchet)
 
 	return d, nil
 }
@@ -206,7 +212,9 @@ func (d *Daemon) run() error {
 			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
 			if err == nil {
 				// assumption was correct, found a prekey that matched
-				StoreRatchet(d, message.Dename, ratch)
+				if err := StoreRatchet(d, message.Dename, ratch); err != nil {
+					return err
+				}
 
 				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
 				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
@@ -218,9 +226,7 @@ func (d *Daemon) run() error {
 					return err
 				}
 			} else { // try decrypting with a ratchet
-				fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
-				checkAuth := util.CheckAuthWith(d.ProfileRatchet)
-				ratchets, err := AllRatchets(d, fillAuth, checkAuth)
+				ratchets, err := AllRatchets(d, d.fillAuth, d.checkAuth)
 				if err != nil {
 					return err
 				}
@@ -232,8 +238,9 @@ func (d *Daemon) run() error {
 				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
 					return err
 				}
-
-				StoreRatchet(d, message.Dename, ratch)
+				if err := StoreRatchet(d, message.Dename, ratch); err != nil {
+					return err
+				}
 			}
 		case err := <-watcher.Error:
 			if err != nil {
@@ -326,23 +333,23 @@ func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientR
 	}
 }
 
-func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratchet, error) {
+func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) error {
 	profile, err := d.foreignDenameClient.Lookup(theirDename)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := d.MarshalToFile(d.profilePath(theirDename), profile); err != nil {
-		return nil, err
+		return err
 	}
 
 	chatProfileBytes, err := client.GetProfileField(profile, util.PROFILE_FIELD_ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	chatProfile := new(proto.Profile)
 	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return nil, err
+		return err
 	}
 
 	addr := chatProfile.ServerAddressTCP
@@ -355,41 +362,44 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) (*ratchet.Ratc
 
 	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer theirConn.Close()
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 	theirKey, err := util.GetKey(theirConn, theirInBuf, theirPk, theirDename, pkSig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, d.ProfileRatchet)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	if err := StoreRatchet(d, theirDename, ratch); err != nil {
+		return err
 	}
 	err = util.UploadMessageToUser(theirConn, theirInBuf, theirPk, encMsg)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return ratch, nil
+	return nil
 }
 
-func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) (*ratchet.Ratchet, error) {
+func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.Ratchet) error {
 	profile := new(dename.Profile)
 	err := persistence.UnmarshalFromFile(d.profilePath(theirDename), profile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	chatProfileBytes, err := client.GetProfileField(profile, util.PROFILE_FIELD_ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	chatProfile := new(proto.Profile)
 	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		return nil, err
+		return err
 	}
 
 	addr := chatProfile.ServerAddressTCP
@@ -398,29 +408,29 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 	theirPk := (*[32]byte)(&chatProfile.UserIDAtServer)
 
 	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
 	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer theirConn.Close()
 
 	encMsg, ratch, err := util.EncryptAuth(msg, msgRatch)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	if err := StoreRatchet(d, theirDename, ratch); err != nil {
+		return err
 	}
 	err = util.UploadMessageToUser(theirConn, theirInBuf, theirPk, encMsg)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return ratch, nil
+	return nil
 }
 
 func (d *Daemon) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList []*[32]byte) (*proto.Message, *ratchet.Ratchet, int, error) {
@@ -497,7 +507,6 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 		return err
 	}
 	messages := make([][]byte, 0, len(potentialMessages))
-	sendTime := d.Now().UTC()
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != persistence.MetadataFileName {
 			msg, err := ioutil.ReadFile(filepath.Join(dirname, finfo.Name()))
@@ -513,7 +522,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 				Contents:     msg,
 				Subject:      metadata.Subject,
 				Participants: metadata.Participants,
-				Date:         sendTime.UnixNano(),
+				Date:         finfo.ModTime().UnixNano(),
 			}
 			d.ourDenameLookupMu.Unlock()
 			payloadBytes, err := payload.Marshal()
@@ -549,23 +558,17 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 			continue
 		}
 		for _, msg := range messages {
-			fillAuth := util.FillAuthWith((*[32]byte)(&d.MessageAuthSecretKey))
-			checkAuth := util.CheckAuthWith(d.ProfileRatchet)
 			if err != nil {
 				return err
 			}
-			if msgRatch, err := LoadRatchet(d, recipient, fillAuth, checkAuth); err != nil { //First message in this conversation
-				ratch, err := d.sendFirstMessage(msg, recipient)
-				if err != nil {
+			if msgRatch, err := LoadRatchet(d, recipient, d.fillAuth, d.checkAuth); err != nil { //First message to this recipien
+				if err := d.sendFirstMessage(msg, recipient); err != nil {
 					return err
 				}
-				StoreRatchet(d, recipient, ratch)
-			} else { // Not-first message in this conversation
-				ratch, err := d.sendMessage(msg, recipient, msgRatch)
-				if err != nil {
+			} else {
+				if err := d.sendMessage(msg, recipient, msgRatch); err != nil {
 					return err
 				}
-				StoreRatchet(d, recipient, ratch)
 			}
 		}
 	}
@@ -573,7 +576,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	// move the sent messages to the conversation folder
 	for _, finfo := range potentialMessages {
 		if !finfo.IsDir() && finfo.Name() != persistence.MetadataFileName {
-			messageName := persistence.MessageName(sendTime, string(d.Dename))
+			messageName := persistence.MessageName(finfo.ModTime(), string(d.Dename))
 			if err = os.Rename(filepath.Join(dirname, finfo.Name()), filepath.Join(convPath, messageName)); err != nil {
 				return err
 			}
@@ -583,14 +586,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	// canonicalize the outbox folder name
 	if dirname != filepath.Join(d.OutboxDir(), convName) {
 		if err := os.Rename(dirname, filepath.Join(d.OutboxDir(), convName)); err != nil {
-			// target dir already exists...
-			outQueue, err := ioutil.ReadDir(dirname)
-			if err != nil {
-				return nil
-			}
-			if len(outQueue) == 0 {
-				shred.Remove(dirname)
-			}
+			shred.RemoveAll(dirname)
 		}
 	}
 

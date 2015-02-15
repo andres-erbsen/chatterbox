@@ -10,7 +10,6 @@ import (
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
-	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/server"
 	"github.com/andres-erbsen/chatterbox/shred"
 	denameClient "github.com/andres-erbsen/dename/client"
@@ -158,7 +157,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	aliceRatch, err := aliceConf.sendFirstMessage(envelope, bob)
+	err = aliceConf.sendFirstMessage(envelope, bob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,16 +182,17 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bobRatch, err = bobConf.sendMessage(envelope2, alice, bobRatch)
+	err = bobConf.sendMessage(envelope2, alice, bobRatch)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	incomingAlice := <-aliceConnToServer.ReadEnvelope
 
-	aliceRatchets := make([]*ratchet.Ratchet, 0)
-	aliceRatchets = append(aliceRatchets, aliceRatch)
-	outAlice, aliceRatch, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
+	aliceConf.fillAuth = util.FillAuthWith((*[32]byte)(&aliceConf.MessageAuthSecretKey))
+	aliceConf.checkAuth = util.CheckAuthWith(aliceConf.ProfileRatchet)
+	aliceRatchets, err := AllRatchets(aliceConf, aliceConf.fillAuth, aliceConf.checkAuth)
+	outAlice, _, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
 	if err != nil {
 		t.Fatal(err)
 	}
