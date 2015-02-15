@@ -26,17 +26,23 @@ func (r *Ratchet) GetSendCount() uint32                 { return r.sendCount }
 func (r *Ratchet) GetRecvCount() uint32                 { return r.recvCount }
 func (r *Ratchet) GetPrevSendCount() uint32             { return r.prevSendCount }
 
+func newByte32(bs *[32]byte) *proto.Byte32 {
+	ret := new(proto.Byte32)
+	copy(ret[:], bs[:])
+	return ret
+}
+
 func (r *Ratchet) GetSavedKeys() []RatchetState_SavedKeys {
 	ret := make([]RatchetState_SavedKeys, len(r.saved))
 	i := 0
 	for headerKey, messageKeys := range r.saved {
-		ret[i].HeaderKey = (*proto.Byte32)(&headerKey)
+		ret[i].HeaderKey = newByte32(&headerKey)
 		ret[i].MessageKeys = make([]RatchetState_SavedKeys_MessageKey, len(messageKeys))
 		j := 0
 		for messageNum, savedKey := range messageKeys {
-			ret[i].MessageKeys[j].AuthPrivate = (*proto.Byte32)(&savedKey.authPriv)
+			ret[i].MessageKeys[j].AuthPrivate = newByte32(&savedKey.authPriv)
 			ret[i].MessageKeys[j].Num = messageNum
-			ret[i].MessageKeys[j].Key = (*proto.Byte32)(&savedKey.key)
+			ret[i].MessageKeys[j].Key = newByte32(&savedKey.key)
 			ret[i].MessageKeys[j].CreationTime = savedKey.timestamp.Unix()
 			j++
 		}
