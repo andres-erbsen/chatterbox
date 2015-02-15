@@ -4,7 +4,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -53,7 +52,8 @@ type Daemon struct {
 	wg   sync.WaitGroup
 	psd  *profilesyncd.ProfileSyncd
 
-	ourDenameLookup *dename.ClientReply
+	ourDenameLookup   *dename.ClientReply
+	ourDenameLookupMu sync.Mutex
 }
 
 // New initializes a chatterbox daemon by loading condiguration from rootDir
@@ -318,7 +318,9 @@ func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename
 }
 
 func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
+	d.ourDenameLookupMu.Lock()
 	d.ourDenameLookup = r
+	d.ourDenameLookupMu.Unlock()
 	if err := d.MarshalToFile(d.ourDenameLookupReplyPath(), r); err != nil {
 		log.Print(err)
 	}
@@ -439,15 +441,15 @@ func (d *Daemon) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList
 func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*proto.Message, *ratchet.Ratchet, error) {
 	var ratch *ratchet.Ratchet
 	var msg []byte
+	var err error
 	for _, msgRatch := range ratchets {
-		var err error
 		ratch, msg, err = util.DecryptAuth(envelope, msgRatch)
 		if err == nil {
 			break // found the right ratchet
 		}
 	}
 	if msg == nil {
-		return nil, nil, errors.New("Invalid message received.")
+		return nil, nil, err
 	}
 	message := new(proto.Message)
 	if err := message.Unmarshal(msg); err != nil {
@@ -504,6 +506,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 			}
 
 			// make protobuf for message; append it
+			d.ourDenameLookupMu.Lock()
 			payload := proto.Message{
 				Dename:       d.Dename,
 				DenameLookup: d.ourDenameLookup,
@@ -512,6 +515,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 				Participants: metadata.Participants,
 				Date:         sendTime.UnixNano(),
 			}
+			d.ourDenameLookupMu.Unlock()
 			payloadBytes, err := payload.Marshal()
 			if err != nil {
 				return err
