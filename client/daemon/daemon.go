@@ -208,13 +208,13 @@ func (d *Daemon) run() error {
 				// assumption was correct, found a prekey that matched
 				StoreRatchet(d, message.Dename, ratch)
 
-				//TODO: Update prekeys by removing index, store
-				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
-					return err
-				}
 				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
 				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
 				if err = StorePrekeys(d, newPrekeyPublics, newPrekeySecrets); err != nil {
+					return err
+				}
+				//TODO: Update prekeys by removing index, store
+				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
 					return err
 				}
 			} else { // try decrypting with a ratchet
@@ -449,7 +449,7 @@ func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*
 		}
 	}
 	if msg == nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("could not find suitable ratchet: %v", err)
 	}
 	message := new(proto.Message)
 	if err := message.Unmarshal(msg); err != nil {

@@ -12,7 +12,7 @@ func (r *Ratchet) Proto() protobuf.Message              { return NewRatchetState
 func (r *Ratchet) GetRootKey() *proto.Byte32            { return (*proto.Byte32)(&r.rootKey) }
 func (r *Ratchet) GetOurRatchetPrivate() *proto.Byte32  { return (*proto.Byte32)(&r.ourRatchetPrivate) }
 func (r *Ratchet) GetTheirRatchetPublic() *proto.Byte32 { return (*proto.Byte32)(&r.theirRatchetPublic) }
-func (r *Ratchet) GetPrevAuthPrivate() *proto.Byte32    { return (*proto.Byte32)(&r.ourAuthPrivate) }
+func (r *Ratchet) GetPrevAuthPrivate() *proto.Byte32    { return (*proto.Byte32)(&r.prevAuthPrivate) }
 func (r *Ratchet) GetOurAuthPrivate() *proto.Byte32     { return (*proto.Byte32)(&r.ourAuthPrivate) }
 func (r *Ratchet) GetTheirAuthPublic() *proto.Byte32    { return (*proto.Byte32)(&r.theirAuthPublic) }
 func (r *Ratchet) GetRatchet() bool                     { return r.ratchet }
