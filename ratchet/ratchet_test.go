@@ -179,6 +179,22 @@ func TestReorderAfterRatchet(t *testing.T) {
 	})
 }
 
+func TestReorderMore(t *testing.T) {
+	testScript(t, []scriptAction{
+		{sendA, deliver, -1},
+		{sendA, delay, 0},
+		{sendB, delay, 1},
+		{sendA, delay, 2},
+		{sendB, delay, 3},
+		{sendA, deliver, -1},
+		{sendB, deliver, -1},
+		{sendDelayed, deliver, 2},
+		{sendDelayed, deliver, 1},
+		{sendDelayed, deliver, 3},
+		{sendDelayed, deliver, 0},
+	})
+}
+
 func TestDrop(t *testing.T) {
 	testScript(t, []scriptAction{
 		{sendA, drop, -1},
