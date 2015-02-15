@@ -172,7 +172,6 @@ func (r *Ratchet) DecryptFirst(ciphertext []byte, ourRatchetPrivate *[32]byte) (
 func (r *Ratchet) encrypt(out, msg []byte) []byte {
 	if r.ratchet {
 		r.randBytes(r.ourRatchetPrivate[:])
-		copy(r.prevAuthPrivate[:], r.ourAuthPrivate[:])
 		r.randBytes(r.ourAuthPrivate[:])
 		copy(r.sendHeaderKey[:], r.nextSendHeaderKey[:])
 
@@ -445,9 +444,11 @@ func (r *Ratchet) decryptAndCheckAuth(authTag, authBody, ciphertext []byte) ([]b
 	copy(r.rootKey[:], rootKey[:])
 	copy(r.recvChainKey[:], provisionalChainKey[:])
 	copy(r.recvHeaderKey[:], r.nextRecvHeaderKey[:])
+	copy(r.prevAuthPrivate[:], r.ourAuthPrivate[:])
 	deriveKey(&r.nextRecvHeaderKey, sendHeaderKeyLabel, rootKeyHMAC)
 	for i := range r.ourRatchetPrivate {
 		r.ourRatchetPrivate[i] = 0
+		r.ourAuthPrivate[i] = 0
 	}
 	copy(r.theirRatchetPublic[:], dhPublic[:])
 	copy(r.theirAuthPublic[:], authPublic[:])
