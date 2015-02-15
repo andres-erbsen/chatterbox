@@ -325,6 +325,10 @@ func (d *Daemon) ProfileRatchet(name string, reply *dename.ClientReply) (*dename
 }
 
 func (d *Daemon) onOurDenameProfileDownload(p *dename.Profile, r *dename.ClientReply, e error) {
+	if e != nil {
+		log.Printf("dename lookup: %s", e)
+		return
+	}
 	d.ourDenameLookupMu.Lock()
 	d.ourDenameLookup = r
 	d.ourDenameLookupMu.Unlock()
