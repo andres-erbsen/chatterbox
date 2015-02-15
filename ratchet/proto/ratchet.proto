@@ -50,11 +50,11 @@ message RatchetState {
 
 	message SavedKeys {
 		required bytes header_key = 1 [(gogoproto.customtype) = "github.com/andres-erbsen/chatterbox/proto.Byte32"];
-		required bytes auth_private = 2 [(gogoproto.customtype) = "github.com/andres-erbsen/chatterbox/proto.Byte32"];
 		message MessageKey {
 			required uint32 num = 1 [(gogoproto.nullable) = false];
 			required bytes key = 2 [(gogoproto.customtype) = "github.com/andres-erbsen/chatterbox/proto.Byte32"];
 			required int64 creation_time = 3 [(gogoproto.nullable) = false];
+			required bytes auth_private = 4 [(gogoproto.customtype) = "github.com/andres-erbsen/chatterbox/proto.Byte32"];
 		}
 		repeated MessageKey message_keys = 3 [(gogoproto.nullable) = false];
 	}

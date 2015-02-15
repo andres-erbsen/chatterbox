@@ -34,7 +34,7 @@ func (r *Ratchet) GetSavedKeys() []RatchetState_SavedKeys {
 		ret[i].MessageKeys = make([]RatchetState_SavedKeys_MessageKey, len(messageKeys))
 		j := 0
 		for messageNum, savedKey := range messageKeys {
-			ret[i].AuthPrivate = (*proto.Byte32)(&savedKey.authPriv)
+			ret[i].MessageKeys[j].AuthPrivate = (*proto.Byte32)(&savedKey.authPriv)
 			ret[i].MessageKeys[j].Num = messageNum
 			ret[i].MessageKeys[j].Key = (*proto.Byte32)(&savedKey.key)
 			ret[i].MessageKeys[j].CreationTime = savedKey.timestamp.Unix()
@@ -79,7 +79,7 @@ func (r *Ratchet) FillFromFace(that RatchetStateFace) *Ratchet {
 			messageKeys[messageKey.GetNum()] = savedKey{
 				key:       *messageKey.Key,
 				timestamp: time.Unix(messageKey.GetCreationTime(), 0),
-				authPriv:  *saved.GetAuthPrivate(),
+				authPriv:  *messageKey.GetAuthPrivate(),
 			}
 		}
 		r.saved[*saved.HeaderKey] = messageKeys

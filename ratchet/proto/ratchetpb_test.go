@@ -17,21 +17,7 @@ import testing "testing"
 import math_rand "math/rand"
 import time "time"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import testing1 "testing"
-import math_rand1 "math/rand"
-import time1 "time"
 import encoding_json "encoding/json"
-import testing2 "testing"
-import math_rand2 "math/rand"
-import time2 "time"
-import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
-import math_rand3 "math/rand"
-import time3 "time"
-import testing3 "testing"
-import github_com_gogo_protobuf_proto2 "github.com/gogo/protobuf/proto"
-import math_rand4 "math/rand"
-import time4 "time"
-import testing4 "testing"
 
 func TestRatchetStateProto(t *testing.T) {
 	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
@@ -282,8 +268,8 @@ func BenchmarkRatchetState_SavedKeys_MessageKeyProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestRatchetStateJSON(t *testing1.T) {
-	popr := math_rand1.New(math_rand1.NewSource(time1.Now().UnixNano()))
+func TestRatchetStateJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState(popr, true)
 	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
@@ -298,8 +284,8 @@ func TestRatchetStateJSON(t *testing1.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestRatchetState_SavedKeysJSON(t *testing1.T) {
-	popr := math_rand1.New(math_rand1.NewSource(time1.Now().UnixNano()))
+func TestRatchetState_SavedKeysJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys(popr, true)
 	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
@@ -314,8 +300,8 @@ func TestRatchetState_SavedKeysJSON(t *testing1.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestRatchetState_SavedKeys_MessageKeyJSON(t *testing1.T) {
-	popr := math_rand1.New(math_rand1.NewSource(time1.Now().UnixNano()))
+func TestRatchetState_SavedKeys_MessageKeyJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys_MessageKey(popr, true)
 	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
@@ -330,12 +316,12 @@ func TestRatchetState_SavedKeys_MessageKeyJSON(t *testing1.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestRatchetStateProtoText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestRatchetStateProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState(popr, true)
-	data := github_com_gogo_protobuf_proto1.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &RatchetState{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -343,12 +329,12 @@ func TestRatchetStateProtoText(t *testing2.T) {
 	}
 }
 
-func TestRatchetStateProtoCompactText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestRatchetStateProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState(popr, true)
-	data := github_com_gogo_protobuf_proto1.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &RatchetState{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -356,12 +342,12 @@ func TestRatchetStateProtoCompactText(t *testing2.T) {
 	}
 }
 
-func TestRatchetState_SavedKeysProtoText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestRatchetState_SavedKeysProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys(popr, true)
-	data := github_com_gogo_protobuf_proto1.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &RatchetState_SavedKeys{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -369,12 +355,12 @@ func TestRatchetState_SavedKeysProtoText(t *testing2.T) {
 	}
 }
 
-func TestRatchetState_SavedKeysProtoCompactText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestRatchetState_SavedKeysProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys(popr, true)
-	data := github_com_gogo_protobuf_proto1.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &RatchetState_SavedKeys{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -382,12 +368,12 @@ func TestRatchetState_SavedKeysProtoCompactText(t *testing2.T) {
 	}
 }
 
-func TestRatchetState_SavedKeys_MessageKeyProtoText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestRatchetState_SavedKeys_MessageKeyProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys_MessageKey(popr, true)
-	data := github_com_gogo_protobuf_proto1.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &RatchetState_SavedKeys_MessageKey{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -395,12 +381,12 @@ func TestRatchetState_SavedKeys_MessageKeyProtoText(t *testing2.T) {
 	}
 }
 
-func TestRatchetState_SavedKeys_MessageKeyProtoCompactText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestRatchetState_SavedKeys_MessageKeyProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys_MessageKey(popr, true)
-	data := github_com_gogo_protobuf_proto1.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &RatchetState_SavedKeys_MessageKey{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -408,11 +394,11 @@ func TestRatchetState_SavedKeys_MessageKeyProtoCompactText(t *testing2.T) {
 	}
 }
 
-func TestRatchetStateSize(t *testing3.T) {
-	popr := math_rand3.New(math_rand3.NewSource(time3.Now().UnixNano()))
+func TestRatchetStateSize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState(popr, true)
-	size2 := github_com_gogo_protobuf_proto2.Size(p)
-	data, err := github_com_gogo_protobuf_proto2.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -423,14 +409,14 @@ func TestRatchetStateSize(t *testing3.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto2.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkRatchetStateSize(b *testing3.B) {
-	popr := math_rand3.New(math_rand3.NewSource(616))
+func BenchmarkRatchetStateSize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*RatchetState, 1000)
 	for i := 0; i < 1000; i++ {
@@ -443,11 +429,11 @@ func BenchmarkRatchetStateSize(b *testing3.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestRatchetState_SavedKeysSize(t *testing3.T) {
-	popr := math_rand3.New(math_rand3.NewSource(time3.Now().UnixNano()))
+func TestRatchetState_SavedKeysSize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys(popr, true)
-	size2 := github_com_gogo_protobuf_proto2.Size(p)
-	data, err := github_com_gogo_protobuf_proto2.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -458,14 +444,14 @@ func TestRatchetState_SavedKeysSize(t *testing3.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto2.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkRatchetState_SavedKeysSize(b *testing3.B) {
-	popr := math_rand3.New(math_rand3.NewSource(616))
+func BenchmarkRatchetState_SavedKeysSize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*RatchetState_SavedKeys, 1000)
 	for i := 0; i < 1000; i++ {
@@ -478,11 +464,11 @@ func BenchmarkRatchetState_SavedKeysSize(b *testing3.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestRatchetState_SavedKeys_MessageKeySize(t *testing3.T) {
-	popr := math_rand3.New(math_rand3.NewSource(time3.Now().UnixNano()))
+func TestRatchetState_SavedKeys_MessageKeySize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys_MessageKey(popr, true)
-	size2 := github_com_gogo_protobuf_proto2.Size(p)
-	data, err := github_com_gogo_protobuf_proto2.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -493,14 +479,14 @@ func TestRatchetState_SavedKeys_MessageKeySize(t *testing3.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto2.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkRatchetState_SavedKeys_MessageKeySize(b *testing3.B) {
-	popr := math_rand3.New(math_rand3.NewSource(616))
+func BenchmarkRatchetState_SavedKeys_MessageKeySize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*RatchetState_SavedKeys_MessageKey, 1000)
 	for i := 0; i < 1000; i++ {
@@ -513,24 +499,24 @@ func BenchmarkRatchetState_SavedKeys_MessageKeySize(b *testing3.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestRatchetStateFace(t *testing4.T) {
-	popr := math_rand4.New(math_rand4.NewSource(time4.Now().UnixNano()))
+func TestRatchetStateFace(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState(popr, true)
 	msg := p.TestProto()
 	if !p.Equal(msg) {
 		t.Fatalf("%#v !Face Equal %#v", msg, p)
 	}
 }
-func TestRatchetState_SavedKeysFace(t *testing4.T) {
-	popr := math_rand4.New(math_rand4.NewSource(time4.Now().UnixNano()))
+func TestRatchetState_SavedKeysFace(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys(popr, true)
 	msg := p.TestProto()
 	if !p.Equal(msg) {
 		t.Fatalf("%#v !Face Equal %#v", msg, p)
 	}
 }
-func TestRatchetState_SavedKeys_MessageKeyFace(t *testing4.T) {
-	popr := math_rand4.New(math_rand4.NewSource(time4.Now().UnixNano()))
+func TestRatchetState_SavedKeys_MessageKeyFace(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedRatchetState_SavedKeys_MessageKey(popr, true)
 	msg := p.TestProto()
 	if !p.Equal(msg) {

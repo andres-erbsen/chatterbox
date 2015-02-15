@@ -24,8 +24,6 @@ import io "io"
 import fmt "fmt"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
-import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
-
 import bytes "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -73,7 +71,6 @@ func (*RatchetState) ProtoMessage()    {}
 
 type RatchetState_SavedKeys struct {
 	HeaderKey        *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,1,req,name=header_key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"header_key,omitempty"`
-	AuthPrivate      *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,2,req,name=auth_private,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"auth_private,omitempty"`
 	MessageKeys      []RatchetState_SavedKeys_MessageKey               `protobuf:"bytes,3,rep,name=message_keys" json:"message_keys"`
 	XXX_unrecognized []byte                                            `json:"-"`
 }
@@ -86,6 +83,7 @@ type RatchetState_SavedKeys_MessageKey struct {
 	Num              uint32                                            `protobuf:"varint,1,req,name=num" json:"num"`
 	Key              *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,2,req,name=key,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"key,omitempty"`
 	CreationTime     int64                                             `protobuf:"varint,3,req,name=creation_time" json:"creation_time"`
+	AuthPrivate      *github_com_andres_erbsen_chatterbox_proto.Byte32 `protobuf:"bytes,4,req,name=auth_private,customtype=github.com/andres-erbsen/chatterbox/proto.Byte32" json:"auth_private,omitempty"`
 	XXX_unrecognized []byte                                            `json:"-"`
 }
 
@@ -566,31 +564,6 @@ func (m *RatchetState_SavedKeys) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AuthPrivate", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				byteLen |= (int(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			postIndex := index + byteLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.AuthPrivate = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
-			if err := m.AuthPrivate.Unmarshal(data[index:postIndex]); err != nil {
-				return err
-			}
-			index = postIndex
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MessageKeys", wireType)
@@ -711,6 +684,31 @@ func (m *RatchetState_SavedKeys_MessageKey) Unmarshal(data []byte) error {
 					break
 				}
 			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AuthPrivate", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if index >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[index]
+				index++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := index + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AuthPrivate = &github_com_andres_erbsen_chatterbox_proto.Byte32{}
+			if err := m.AuthPrivate.Unmarshal(data[index:postIndex]); err != nil {
+				return err
+			}
+			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -800,15 +798,12 @@ func (m *RatchetState) Size() (n int) {
 	}
 	return n
 }
+
 func (m *RatchetState_SavedKeys) Size() (n int) {
 	var l int
 	_ = l
 	if m.HeaderKey != nil {
 		l = m.HeaderKey.Size()
-		n += 1 + l + sovRatchet(uint64(l))
-	}
-	if m.AuthPrivate != nil {
-		l = m.AuthPrivate.Size()
 		n += 1 + l + sovRatchet(uint64(l))
 	}
 	if len(m.MessageKeys) > 0 {
@@ -822,6 +817,7 @@ func (m *RatchetState_SavedKeys) Size() (n int) {
 	}
 	return n
 }
+
 func (m *RatchetState_SavedKeys_MessageKey) Size() (n int) {
 	var l int
 	_ = l
@@ -831,6 +827,10 @@ func (m *RatchetState_SavedKeys_MessageKey) Size() (n int) {
 		n += 1 + l + sovRatchet(uint64(l))
 	}
 	n += 1 + sovRatchet(uint64(m.CreationTime))
+	if m.AuthPrivate != nil {
+		l = m.AuthPrivate.Size()
+		n += 1 + l + sovRatchet(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -885,7 +885,6 @@ func NewPopulatedRatchetState(r randyRatchet, easy bool) *RatchetState {
 func NewPopulatedRatchetState_SavedKeys(r randyRatchet, easy bool) *RatchetState_SavedKeys {
 	this := &RatchetState_SavedKeys{}
 	this.HeaderKey = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
-	this.AuthPrivate = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
 	if r.Intn(10) != 0 {
 		v3 := r.Intn(10)
 		this.MessageKeys = make([]RatchetState_SavedKeys_MessageKey, v3)
@@ -908,8 +907,9 @@ func NewPopulatedRatchetState_SavedKeys_MessageKey(r randyRatchet, easy bool) *R
 	if r.Intn(2) == 0 {
 		this.CreationTime *= -1
 	}
+	this.AuthPrivate = github_com_andres_erbsen_chatterbox_proto.NewPopulatedByte32(r)
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedRatchet(r, 4)
+		this.XXX_unrecognized = randUnrecognizedRatchet(r, 5)
 	}
 	return this
 }
@@ -924,11 +924,7 @@ type randyRatchet interface {
 }
 
 func randUTF8RuneRatchet(r randyRatchet) rune {
-	res := rune(r.Uint32() % 1112064)
-	if 55296 <= res {
-		res += 2047
-	}
-	return res
+	return rune(r.Intn(126-43) + 43)
 }
 func randStringRatchet(r randyRatchet) string {
 	v5 := r.Intn(100)
@@ -1157,6 +1153,7 @@ func (m *RatchetState) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
+
 func (m *RatchetState_SavedKeys) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -1182,16 +1179,6 @@ func (m *RatchetState_SavedKeys) MarshalTo(data []byte) (n int, err error) {
 		}
 		i += n13
 	}
-	if m.AuthPrivate != nil {
-		data[i] = 0x12
-		i++
-		i = encodeVarintRatchet(data, i, uint64(m.AuthPrivate.Size()))
-		n14, err := m.AuthPrivate.MarshalTo(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n14
-	}
 	if len(m.MessageKeys) > 0 {
 		for _, msg := range m.MessageKeys {
 			data[i] = 0x1a
@@ -1209,6 +1196,7 @@ func (m *RatchetState_SavedKeys) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
+
 func (m *RatchetState_SavedKeys_MessageKey) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
@@ -1231,20 +1219,31 @@ func (m *RatchetState_SavedKeys_MessageKey) MarshalTo(data []byte) (n int, err e
 		data[i] = 0x12
 		i++
 		i = encodeVarintRatchet(data, i, uint64(m.Key.Size()))
-		n15, err := m.Key.MarshalTo(data[i:])
+		n14, err := m.Key.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n14
+	}
+	data[i] = 0x18
+	i++
+	i = encodeVarintRatchet(data, i, uint64(m.CreationTime))
+	if m.AuthPrivate != nil {
+		data[i] = 0x22
+		i++
+		i = encodeVarintRatchet(data, i, uint64(m.AuthPrivate.Size()))
+		n15, err := m.AuthPrivate.MarshalTo(data[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n15
 	}
-	data[i] = 0x18
-	i++
-	i = encodeVarintRatchet(data, i, uint64(m.CreationTime))
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
 	return i, nil
 }
+
 func encodeFixed64Ratchet(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -1274,7 +1273,7 @@ func encodeVarintRatchet(data []byte, offset int, v uint64) int {
 }
 
 type RatchetStateFace interface {
-	Proto() github_com_gogo_protobuf_proto1.Message
+	Proto() github_com_gogo_protobuf_proto.Message
 	GetRootKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetOurRatchetPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetTheirRatchetPublic() *github_com_andres_erbsen_chatterbox_proto.Byte32
@@ -1294,11 +1293,11 @@ type RatchetStateFace interface {
 	GetSavedKeys() []RatchetState_SavedKeys
 }
 
-func (this *RatchetState) Proto() github_com_gogo_protobuf_proto1.Message {
+func (this *RatchetState) Proto() github_com_gogo_protobuf_proto.Message {
 	return this
 }
 
-func (this *RatchetState) TestProto() github_com_gogo_protobuf_proto1.Message {
+func (this *RatchetState) TestProto() github_com_gogo_protobuf_proto.Message {
 	return NewRatchetStateFromFace(this)
 }
 
@@ -1393,26 +1392,21 @@ func NewRatchetStateFromFace(that RatchetStateFace) *RatchetState {
 }
 
 type RatchetState_SavedKeysFace interface {
-	Proto() github_com_gogo_protobuf_proto1.Message
+	Proto() github_com_gogo_protobuf_proto.Message
 	GetHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
-	GetAuthPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetMessageKeys() []RatchetState_SavedKeys_MessageKey
 }
 
-func (this *RatchetState_SavedKeys) Proto() github_com_gogo_protobuf_proto1.Message {
+func (this *RatchetState_SavedKeys) Proto() github_com_gogo_protobuf_proto.Message {
 	return this
 }
 
-func (this *RatchetState_SavedKeys) TestProto() github_com_gogo_protobuf_proto1.Message {
+func (this *RatchetState_SavedKeys) TestProto() github_com_gogo_protobuf_proto.Message {
 	return NewRatchetState_SavedKeysFromFace(this)
 }
 
 func (this *RatchetState_SavedKeys) GetHeaderKey() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
 	return this.HeaderKey
-}
-
-func (this *RatchetState_SavedKeys) GetAuthPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
-	return this.AuthPrivate
 }
 
 func (this *RatchetState_SavedKeys) GetMessageKeys() []RatchetState_SavedKeys_MessageKey {
@@ -1422,23 +1416,23 @@ func (this *RatchetState_SavedKeys) GetMessageKeys() []RatchetState_SavedKeys_Me
 func NewRatchetState_SavedKeysFromFace(that RatchetState_SavedKeysFace) *RatchetState_SavedKeys {
 	this := &RatchetState_SavedKeys{}
 	this.HeaderKey = that.GetHeaderKey()
-	this.AuthPrivate = that.GetAuthPrivate()
 	this.MessageKeys = that.GetMessageKeys()
 	return this
 }
 
 type RatchetState_SavedKeys_MessageKeyFace interface {
-	Proto() github_com_gogo_protobuf_proto1.Message
+	Proto() github_com_gogo_protobuf_proto.Message
 	GetNum() uint32
 	GetKey() *github_com_andres_erbsen_chatterbox_proto.Byte32
 	GetCreationTime() int64
+	GetAuthPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32
 }
 
-func (this *RatchetState_SavedKeys_MessageKey) Proto() github_com_gogo_protobuf_proto1.Message {
+func (this *RatchetState_SavedKeys_MessageKey) Proto() github_com_gogo_protobuf_proto.Message {
 	return this
 }
 
-func (this *RatchetState_SavedKeys_MessageKey) TestProto() github_com_gogo_protobuf_proto1.Message {
+func (this *RatchetState_SavedKeys_MessageKey) TestProto() github_com_gogo_protobuf_proto.Message {
 	return NewRatchetState_SavedKeys_MessageKeyFromFace(this)
 }
 
@@ -1454,11 +1448,16 @@ func (this *RatchetState_SavedKeys_MessageKey) GetCreationTime() int64 {
 	return this.CreationTime
 }
 
+func (this *RatchetState_SavedKeys_MessageKey) GetAuthPrivate() *github_com_andres_erbsen_chatterbox_proto.Byte32 {
+	return this.AuthPrivate
+}
+
 func NewRatchetState_SavedKeys_MessageKeyFromFace(that RatchetState_SavedKeys_MessageKeyFace) *RatchetState_SavedKeys_MessageKey {
 	this := &RatchetState_SavedKeys_MessageKey{}
 	this.Num = that.GetNum()
 	this.Key = that.GetKey()
 	this.CreationTime = that.GetCreationTime()
+	this.AuthPrivate = that.GetAuthPrivate()
 	return this
 }
 
@@ -1618,13 +1617,6 @@ func (this *RatchetState_SavedKeys) Equal(that interface{}) bool {
 	} else if !this.HeaderKey.Equal(*that1.HeaderKey) {
 		return false
 	}
-	if that1.AuthPrivate == nil {
-		if this.AuthPrivate != nil {
-			return false
-		}
-	} else if !this.AuthPrivate.Equal(*that1.AuthPrivate) {
-		return false
-	}
 	if len(this.MessageKeys) != len(that1.MessageKeys) {
 		return false
 	}
@@ -1669,6 +1661,13 @@ func (this *RatchetState_SavedKeys_MessageKey) Equal(that interface{}) bool {
 		return false
 	}
 	if this.CreationTime != that1.CreationTime {
+		return false
+	}
+	if that1.AuthPrivate == nil {
+		if this.AuthPrivate != nil {
+			return false
+		}
+	} else if !this.AuthPrivate.Equal(*that1.AuthPrivate) {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
