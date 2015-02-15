@@ -34,7 +34,7 @@ func (c *ConnectionToServer) ReceiveMessages() error {
 			}
 		}
 		if msg.Envelope != nil {
-			c.ReadEnvelope <- msg.Envelope
+			go func() { c.ReadEnvelope <- msg.Envelope }() // TODO: bounded buffer?
 		} else {
 			c.ReadReply <- msg
 		}
