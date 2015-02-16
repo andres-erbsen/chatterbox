@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"gopkg.in/qml.v1"
+	"encoding/json"
 	"os"
 )
 
@@ -15,14 +16,15 @@ func main() {
 	}
 }
 
-type Library struct {
-	Count int
-	Inventory []Book
+type Conversation struct {
+	Subject string
+	Users []string
+	LastMessage string
 }
 
-type Book struct {
-	Title string
-	Author string
+func (con *Conversation) toJson() string {
+	raw_json, _ := json.Marshal(con)
+	return string(raw_json)
 }
 
 func run() error {
@@ -34,27 +36,24 @@ func run() error {
 		return err
 	}
 
-	mersault := Book{Title: "The Outsider", Author:"Camus"}
-	lucky := Book{Title: "Waiting For Godot", Author:"Beckett"}
-	kvothe := Book{Title: "The Name of the Wind", Author:"Rothfuss"}
+	con1 := Conversation{Subject:"subject", Users:[]string{"Bob", "Jane"}, LastMessage:"hello?"}
+	con2 := Conversation{Subject:"elephants", Users:[]string{"Bob"}, LastMessage:"I forgot what I was going to say."}
+	con3 := Conversation{Subject:"tigers", Users:[]string{"Jane"}, LastMessage:"oh my"}
 
-	bookList := []Book{mersault, lucky, kvothe}
-
-	library := Library{Count:3, Inventory:bookList}
-
-
-	context := engine.Context()
-	context.SetVar("library", &library)
-	context.SetVar("book", &Book{Title: "The Outsider", Author:"Camus"})
+	history := []Conversation{con1, con2, con3}
 
 	window := controls.CreateWindow(nil)
+
 	listModel := window.ObjectByName("listModel")
-	listModel.Call("addItem", "{\"title\": \"The Plague\", \"author\":\"Camus\"}")
-	// window.On("sendMessage", func(to, subject, message string) {
-	// 	println("To: " + to)
-	// 	println("Subject: " + subject)
-	// 	println("Message: " + message)
-	// })
+	for _, con := range history {
+		listModel.Call("addItem", con.toJson())
+	}
+
+	window.On("sendMessage", func(to, subject, message string) {
+		println("To: " + to)
+		println("Subject: " + subject)
+		println("Message: " + message)
+	})
 
 	window.Show()
 	window.Wait()

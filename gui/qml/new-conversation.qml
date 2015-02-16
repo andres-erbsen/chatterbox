@@ -2,6 +2,9 @@ import QtQuick 2.2
 import QtQuick.Controls 1.1
 import QtQuick.Layouts 1.1
 
+
+
+
 ApplicationWindow {
 	id: newConversationWindow
 	signal sendMessage(string to, string subject, string message)
@@ -20,6 +23,21 @@ ApplicationWindow {
 		shortcut: "Ctrl+Return"
 		onTriggered: {
 			newConversationWindow.sendMessage(toField.text, subjectField.text, messageArea.text)
+		}
+	}
+
+	ListModel {
+	    id: sourceModel
+		objectName: "listModel"
+
+		function addItem(json) {
+			var parsed = JSON.parse(json);
+			for (var key in parsed) {
+				if (parsed.hasOwnProperty(key) && (typeof parsed[key] == 'object')) {
+						parsed[key] = parsed[key].toString();
+				}
+			}
+			append(parsed);
 		}
 	}
 
@@ -82,6 +100,7 @@ ApplicationWindow {
 	        sortIndicatorVisible: true
 
 	        anchors.fill: parent
+	        model: sourceModel
 
 	        Layout.minimumWidth: 400
 	        Layout.minimumHeight: 240
@@ -89,44 +108,32 @@ ApplicationWindow {
 	        Layout.preferredHeight: 400
 
 	        TableViewColumn {
-	            id: titleColumn
-	            title: "Title"
-	            role: "title"
+	            id: subjectColumn
+	            title: "Subject"
+	            role: "Subject"
 	            movable: false
 	            resizable: false
-	            width: tableView.viewport.width - authorColumn.width
+	            width: tableView.viewport.width / 4
 	        }
 
 	        TableViewColumn {
-	            id: authorColumn
-	            title: "Author"
-	            role: "author"
+	            id: usersColumn
+	            title: "Participants"
+	            role: "Users"
 	            movable: false
 	            resizable: false
-	            width: tableView.viewport.width / 3
+	            width: tableView.viewport.width / 4
 	        }
 
-	        model: ListModel {
-	            id: sourceModel
-	        	objectName: "listModel"
-	        	
-	        	function addItem(json) {
-	        		append(JSON.parse(json))
-	        	}
-
-	            Component.onCompleted: {
-			        append({
-		                title: "Death of a Salesman",
-		                author: "Arthur Miller"
-					})
-					for (var i=0; i < library.count; i++) {
-			        	append({
-		                	title: book.title,
-		                	author: book.author
-		            	})
-			    	}
-			    }
+	        TableViewColumn {
+	            id: lastMessageColumn
+	            title: "Last Message"
+	            role: "LastMessage"
+	            movable: false
+	            resizable: false
+	            width: tableView.viewport.width - usersColumn.width - subjectColumn.width
 	        }
+ 
 	    }
     }
 }
