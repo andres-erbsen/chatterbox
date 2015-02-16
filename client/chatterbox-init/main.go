@@ -71,11 +71,11 @@ func main() {
 		panic(err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(*dir, ".keys"), 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(filepath.Join(*dir, ".daemon"), 0700); err != nil && !os.IsExist(err) {
 		fmt.Fprintf(os.Stderr, "could not create directory %s: %s", *dir, err)
 		os.Exit(2)
 	}
-	configFilePath := filepath.Join(*dir, ".keys", "config.pb")
+	configFilePath := filepath.Join(*dir, ".daemon", "config.pb")
 	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "file already exists: %s\n", configFilePath)
 		os.Exit(2)
@@ -85,7 +85,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", configFilePath, err)
 		os.Exit(2)
 	}
-	profileFilePath := filepath.Join(*dir, ".keys", "chatterbox-profile.pb")
+	profileFilePath := filepath.Join(*dir, ".daemon", "chatterbox-profile.pb")
 	if err := ioutil.WriteFile(profileFilePath, publicProfileBytes, 0600); err != nil {
 		// TODO: "WriteFileSync" -- issue fsync after write
 		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", profileFilePath, err)
