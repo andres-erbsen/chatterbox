@@ -15,7 +15,18 @@ func main() {
 	}
 }
 
+type Library struct {
+	Count int
+	Inventory []Book
+}
+
+type Book struct {
+	Title string
+	Author string
+}
+
 func run() error {
+
 	engine := qml.NewEngine()
 
 	controls, err := engine.LoadFile("qrc:///qml/new-conversation.qml")
@@ -23,12 +34,27 @@ func run() error {
 		return err
 	}
 
+	mersault := Book{Title: "The Outsider", Author:"Camus"}
+	lucky := Book{Title: "Waiting For Godot", Author:"Beckett"}
+	kvothe := Book{Title: "The Name of the Wind", Author:"Rothfuss"}
+
+	bookList := []Book{mersault, lucky, kvothe}
+
+	library := Library{Count:3, Inventory:bookList}
+
+
+	context := engine.Context()
+	context.SetVar("library", &library)
+	context.SetVar("book", &Book{Title: "The Outsider", Author:"Camus"})
+
 	window := controls.CreateWindow(nil)
-	window.On("sendMessage", func(to, subject, message string) {
-		println("To: " + to)
-		println("Subject: " + subject)
-		println("Message: " + message)
-	})
+	listModel := window.ObjectByName("listModel")
+	listModel.Call("addItem", "{\"title\": \"The Plague\", \"author\":\"Camus\"}")
+	// window.On("sendMessage", func(to, subject, message string) {
+	// 	println("To: " + to)
+	// 	println("Subject: " + subject)
+	// 	println("Message: " + message)
+	// })
 
 	window.Show()
 	window.Wait()

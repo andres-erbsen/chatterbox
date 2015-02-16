@@ -50,7 +50,7 @@ ApplicationWindow {
 
 		TextArea {
 			id: messageArea 
-			text: "Write the message here and press Ctrl+Return to send"
+			text: "Write message here. Ctrl + Enter to send potatoes."
 			Layout.minimumHeight: 10
 			Layout.fillWidth: true
 			Layout.fillHeight: true
@@ -74,5 +74,59 @@ ApplicationWindow {
 			}
         }
 		*/
+
+	    TableView {
+	        id: tableView
+
+	        frameVisible: false
+	        sortIndicatorVisible: true
+
+	        anchors.fill: parent
+
+	        Layout.minimumWidth: 400
+	        Layout.minimumHeight: 240
+	        Layout.preferredWidth: 600
+	        Layout.preferredHeight: 400
+
+	        TableViewColumn {
+	            id: titleColumn
+	            title: "Title"
+	            role: "title"
+	            movable: false
+	            resizable: false
+	            width: tableView.viewport.width - authorColumn.width
+	        }
+
+	        TableViewColumn {
+	            id: authorColumn
+	            title: "Author"
+	            role: "author"
+	            movable: false
+	            resizable: false
+	            width: tableView.viewport.width / 3
+	        }
+
+	        model: ListModel {
+	            id: sourceModel
+	        	objectName: "listModel"
+	        	
+	        	function addItem(json) {
+	        		append(JSON.parse(json))
+	        	}
+
+	            Component.onCompleted: {
+			        append({
+		                title: "Death of a Salesman",
+		                author: "Arthur Miller"
+					})
+					for (var i=0; i < library.count; i++) {
+			        	append({
+		                	title: book.title,
+		                	author: book.author
+		            	})
+			    	}
+			    }
+	        }
+	    }
     }
 }
