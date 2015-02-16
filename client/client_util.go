@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"time"
 
 	"code.google.com/p/go.crypto/curve25519"
@@ -20,6 +21,7 @@ import (
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	dename "github.com/andres-erbsen/dename/protocol"
+	"golang.org/x/net/proxy"
 )
 
 const PROFILE_FIELD_ID = 1984
@@ -84,35 +86,29 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
-func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transport.Conn, error) {
-	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, "1984"))
-	if err != nil {
-		return nil, err
+func TorIdentity(addr string) proxy.Dialer {
+	var identity [16]byte
+	if _, err := rand.Read(identity[:]); err != nil {
+		panic(err)
 	}
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
+	dialer, err := proxy.SOCKS5("tcp", addr, &proxy.Auth{
+		User:     fmt.Sprintf("%x", identity[:8]),
+		Password: fmt.Sprintf("%x", identity[8:]),
+	}, proxy.Direct)
 	if err != nil {
-		conn.Close()
-		return nil, err
+		panic(err)
 	}
-
-	return conn, nil
+	return dialer
 }
 
-func CreateForeignServerConn(addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
-	// TODO: randomized TOR dialer
-	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
+func DialServer(dialer proxy.Dialer, addr string, port int, serverPK, pk, sk *[32]byte) (*transport.Conn, error) {
+	plainconn, err := dialer.Dial("tcp", net.JoinHostPort(addr, strconv.Itoa(port)))
 	if err != nil {
 		return nil, err
 	}
-
-	pkp, skp, err := box.GenerateKey(rand.Reader)
+	conn, _, err := transport.Handshake(plainconn, pk, sk, serverPK, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
-		return nil, err
-	}
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
-	if err != nil {
+		conn.Close()
 		return nil, err
 	}
 

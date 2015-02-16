@@ -9,7 +9,10 @@ import (
 )
 
 func main() {
-	daemon, err := daemon.New(os.Args[1])
+	if len(os.Args) != 2 {
+		log.Fatalf("USAGE: %s <account-directory>", os.Args[0])
+	}
+	daemon, err := daemon.Load(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 		return
