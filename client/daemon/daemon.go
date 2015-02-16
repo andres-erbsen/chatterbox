@@ -233,7 +233,7 @@ func (d *Daemon) run() error {
 
 				message, ratch, err := d.decryptMessage(envelope, ratchets)
 				if err != nil {
-					return err
+					fmt.Printf("RECEIVE ANOMALY: %s\n", err)
 				}
 				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
 					return err
