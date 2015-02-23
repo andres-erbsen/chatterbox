@@ -1,26 +1,27 @@
 package client
 
 import (
-	"code.google.com/p/go.crypto/curve25519"
-	"code.google.com/p/go.crypto/nacl/box"
-	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"io"
+	"net"
+	"strconv"
+	"time"
+
+	"code.google.com/p/go.crypto/curve25519"
+	"code.google.com/p/go.crypto/nacl/box"
+	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"github.com/agl/ed25519"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	dename "github.com/andres-erbsen/dename/protocol"
-	testutil2 "github.com/andres-erbsen/dename/server/testutil" //TODO: Move MakeToken to TestUtil
-	"io"
-	"net"
-	"testing"
-	"time"
+	"golang.org/x/net/proxy"
 )
 
 const PROFILE_FIELD_ID = 1984
@@ -85,85 +86,29 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
-func CreateTestAccount(name string, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) *transport.Conn {
-
-	CreateTestDenameAccount(name, denameClient, secretConfig, serverAddr, serverPk, t)
-	conn := CreateTestHomeServerConn(name, denameClient, secretConfig, t)
-
-	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
-
-	err := CreateAccount(conn, inBuf)
-	if err != nil {
-		t.Fatal(err)
+func TorIdentity(addr string) proxy.Dialer {
+	var identity [16]byte
+	if _, err := rand.Read(identity[:]); err != nil {
+		panic(err)
 	}
-	return conn
+	dialer, err := proxy.SOCKS5("tcp", addr, &proxy.Auth{
+		User:     fmt.Sprintf("%x", identity[:8]),
+		Password: fmt.Sprintf("%x", identity[8:]),
+	}, proxy.Direct)
+	if err != nil {
+		panic(err)
+	}
+	return dialer
 }
 
-func CreateTestHomeServerConn(dename string, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, t *testing.T) *transport.Conn {
-	profile, err := denameClient.Lookup(dename)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	chatProfileBytes, err := client.GetProfileField(profile, PROFILE_FIELD_ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	chatProfile := new(proto.Profile)
-	if err := chatProfile.Unmarshal(chatProfileBytes); err != nil {
-		t.Fatal(err)
-	}
-
-	addr := chatProfile.ServerAddressTCP
-	port := chatProfile.ServerPortTCP
-	pkTransport := ([32]byte)(chatProfile.ServerTransportPK)
-	pkp := (*[32]byte)(&chatProfile.UserIDAtServer)
-
-	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	skp := (*[32]byte)(&secretConfig.TransportSecretKeyForServer)
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, &pkTransport, proto.SERVER_MESSAGE_SIZE)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return conn
-}
-
-func CreateHomeServerConn(addr string, pkp, skp, pkTransport *[32]byte) (*transport.Conn, error) {
-	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, "1984"))
+func DialServer(dialer proxy.Dialer, addr string, port int, serverPK, pk, sk *[32]byte) (*transport.Conn, error) {
+	plainconn, err := dialer.Dial("tcp", net.JoinHostPort(addr, strconv.Itoa(port)))
 	if err != nil {
 		return nil, err
 	}
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
+	conn, _, err := transport.Handshake(plainconn, pk, sk, serverPK, proto.SERVER_MESSAGE_SIZE)
 	if err != nil {
 		conn.Close()
-		return nil, err
-	}
-
-	return conn, nil
-}
-
-func CreateForeignServerConn(addr string, port int, pkTransport *[32]byte) (*transport.Conn, error) {
-	// TODO: randomized TOR dialer
-	oldConn, err := net.Dial("tcp", net.JoinHostPort(addr, fmt.Sprint(port)))
-	if err != nil {
-		return nil, err
-	}
-
-	pkp, skp, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-
-	conn, _, err := transport.Handshake(oldConn, pkp, skp, pkTransport, proto.SERVER_MESSAGE_SIZE)
-	if err != nil {
 		return nil, err
 	}
 
@@ -349,46 +294,6 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 		return nil, errors.New("Server threw a parse error.")
 	}
 	return response, nil
-}
-
-func CreateTestDenameAccount(name string, denameClient *client.Client, secretConfig *proto.LocalAccountConfig, serverAddr string, serverPk *[32]byte, t *testing.T) {
-	//TODO: move this to test?
-	//TODO: All these names are horrible, please change them
-	addr, portStr, err := net.SplitHostPort(serverAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var port int32
-	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
-		t.Fatal(err)
-	}
-
-	chatProfile := &proto.Profile{
-		ServerAddressTCP:  addr,
-		ServerPortTCP:     port,
-		ServerTransportPK: (proto.Byte32)(*serverPk),
-	}
-
-	if err := GenerateLongTermKeys(secretConfig, chatProfile, rand.Reader); err != nil {
-		t.Fatal(err)
-	}
-
-	chatProfileBytes, err := protobuf.Marshal(chatProfile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	profile, sk, err := client.NewProfile(nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	client.SetProfileField(profile, PROFILE_FIELD_ID, chatProfileBytes)
-
-	err = denameClient.Register(sk, name, profile, testutil2.MakeToken())
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func GenerateLongTermKeys(secretConfig *proto.LocalAccountConfig, publicProfile *proto.Profile, rand io.Reader) error {

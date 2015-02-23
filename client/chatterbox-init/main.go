@@ -1,18 +1,14 @@
 package main
 
 import (
-	"flag"
-	"github.com/andres-erbsen/chatterbox/client"
-	"github.com/andres-erbsen/chatterbox/proto"
-	"github.com/andres-erbsen/chatterbox/transport"
-	//	"github.com/andres-erbsen/client/clientutil"
-	"crypto/rand"
 	"encoding/hex"
+	"flag"
 	"fmt"
-	"io/ioutil"
-	"net"
+	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/andres-erbsen/chatterbox/client/daemon"
 )
 
 type hex32Byte [32]byte
@@ -34,8 +30,11 @@ func (h *hex32Byte) Set(value string) error {
 func main() {
 	dename := flag.String("dename", "", "Your dename username.")
 	var serverTransportPubkey [32]byte
+	if err := ((*hex32Byte)(&serverTransportPubkey)).Set("70eb7fb3e6c85c006ba76b48208ccf75f99eb6ec98dffb4292388369cb197e30"); err != nil {
+		panic(err)
+	}
 	flag.Var((*hex32Byte)(&serverTransportPubkey), "server-pubkey", "The TCP port which the server listens on. Note that people sending you mesages expct to be able to reach your home server at port 1984.")
-	serverAddress := flag.String("server-host", "", "The IP address or hostname on which your (prospective) home server server can be reached")
+	serverAddress := flag.String("server-host", "chatterbox.xvm.mit.edu", "The IP address or hostname on which your (prospective) home server server can be reached")
 	serverPort := flag.Int("server-port", 1984, "The TCP port which the server listens on.")
 	dir := flag.String("account-directory", "", "Dedicated directory for the account.")
 	flag.Parse()
@@ -48,75 +47,10 @@ func main() {
 		*dir = filepath.Join(os.Getenv("HOME"), ".chatterbox", *dename)
 	}
 
-	secretConfig := &proto.LocalAccountConfig{
-		ServerAddressTCP:  *serverAddress,
-		ServerPortTCP:     int32(*serverPort),
-		ServerTransportPK: serverTransportPubkey,
-		Dename:            *dename,
+	if err := daemon.Init(*dir, *dename, *serverAddress, *serverPort, &serverTransportPubkey); err != nil {
+		log.Fatal(err)
 	}
-	publicProfile := &proto.Profile{
-		ServerAddressTCP:  *serverAddress,
-		ServerPortTCP:     int32(*serverPort),
-		ServerTransportPK: serverTransportPubkey,
-	}
-	if err := client.GenerateLongTermKeys(secretConfig, publicProfile, rand.Reader); err != nil {
-		panic(err)
-	}
-	secretConfigBytes, err := secretConfig.Marshal()
-	if err != nil {
-		panic(err)
-	}
-	publicProfileBytes, err := publicProfile.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	if err := os.MkdirAll(filepath.Join(*dir, ".daemon"), 0700); err != nil && !os.IsExist(err) {
-		fmt.Fprintf(os.Stderr, "could not create directory %s: %s", *dir, err)
-		os.Exit(2)
-	}
-	configFilePath := filepath.Join(*dir, ".daemon", "config.pb")
-	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "file already exists: %s\n", configFilePath)
-		os.Exit(2)
-	}
-	if err := ioutil.WriteFile(configFilePath, secretConfigBytes, 0600); err != nil {
-		// TODO: "WriteFileSync" -- issue fsync after write
-		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", configFilePath, err)
-		os.Exit(2)
-	}
-	profileFilePath := filepath.Join(*dir, ".daemon", "chatterbox-profile.pb")
-	if err := ioutil.WriteFile(profileFilePath, publicProfileBytes, 0600); err != nil {
-		// TODO: "WriteFileSync" -- issue fsync after write
-		fmt.Fprintf(os.Stderr, "error writing file %s: %s\n", profileFilePath, err)
-		os.Exit(2)
-	}
-
-	fmt.Printf("You may use the following command to link this account with your dename profile:.\n"+
-		"dnmgr set '%s' 1984 < %s\n", *dename, profileFilePath)
-
-	// TODO: use TOR
-	fmt.Printf("Registering with the server...\n")
-	plainConn, err := net.Dial("tcp", net.JoinHostPort(*serverAddress, fmt.Sprint(*serverPort)))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to server at %s:%d: %s\n",
-			*serverAddress, *serverPort, err)
-		os.Exit(1)
-	}
-	defer plainConn.Close()
-	conn, _, err := transport.Handshake(plainConn,
-		(*[32]byte)(&publicProfile.UserIDAtServer),
-		(*[32]byte)(&secretConfig.TransportSecretKeyForServer),
-		&serverTransportPubkey, proto.SERVER_MESSAGE_SIZE)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to server at %s:%d: %s\n",
-			*serverAddress, *serverPort, err)
-		os.Exit(1)
-	}
-	if err := client.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE)); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to connect to serverat %s:%d: %s\n",
-			*serverAddress, *serverPort, err)
-		os.Exit(1)
-	}
-	fmt.Printf("Account initialization done.\n")
+	fmt.Printf("Account initialization done.\n"+
+		"You may use the following command to link this account with your dename profile:.\n"+
+		"dnmgr set '%s' 1984 < %s/.daemon/chatterbox-profile.pb\n", *dename, *dir)
 }

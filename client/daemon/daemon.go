@@ -13,7 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"crypto/rand"
 	"crypto/sha256"
+
+	"golang.org/x/net/proxy"
 
 	"code.google.com/p/go.exp/fsnotify"
 	util "github.com/andres-erbsen/chatterbox/client"
@@ -57,16 +60,71 @@ type Daemon struct {
 
 	checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error
 	fillAuth  func(tag, data []byte, theirAuthPublic *[32]byte)
+
+	torAddr string
 }
 
-// New initializes a chatterbox daemon by loading condiguration from rootDir
-func New(rootDir string) (*Daemon, error) {
+// Init fills in a new daemon state directory.
+func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte) error {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
 			Application: "daemon",
 		},
-		Now: time.Now,
+		LocalAccountConfig: proto.LocalAccountConfig{
+			ServerAddressTCP:  serverAddr,
+			ServerPortTCP:     int32(serverPort),
+			ServerTransportPK: (proto.Byte32)(*serverPK),
+			Dename:            dename,
+		},
+		Now:     time.Now,
+		torAddr: "127.0.0.1:9050",
+	}
+	if err := os.MkdirAll(rootDir, 0700); err != nil {
+		return err
+	}
+	if err := os.Mkdir(d.privDir(), 0700); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(d.TempDir(), 0700); err != nil {
+		return err
+	}
+
+	publicProfile := &proto.Profile{
+		ServerAddressTCP:  serverAddr,
+		ServerPortTCP:     int32(serverPort),
+		ServerTransportPK: (proto.Byte32)(*serverPK),
+	}
+	if err := util.GenerateLongTermKeys(&d.LocalAccountConfig, publicProfile, rand.Reader); err != nil {
+		panic(err)
+	}
+
+	if err := d.MarshalToFile(d.configPath(), &d.LocalAccountConfig); err != nil {
+		return err
+	}
+	if err := d.MarshalToFile(d.ourChatterboxProfilePath(), publicProfile); err != nil {
+		return err
+	}
+
+	conn, err := util.DialServer(d.anonDialer(),
+		serverAddr, serverPort, serverPK,
+		(*[32]byte)(&publicProfile.UserIDAtServer),
+		(*[32]byte)(&d.TransportSecretKeyForServer))
+	if err != nil {
+		return err
+	}
+	return util.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE))
+}
+
+// Load initializes a chatterbox daemon from rootDir
+func Load(rootDir string) (*Daemon, error) {
+	d := &Daemon{
+		Paths: persistence.Paths{
+			RootDir:     rootDir,
+			Application: "daemon",
+		},
+		Now:     time.Now,
+		torAddr: "127.0.0.1:9050",
 	}
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return nil, err
@@ -141,10 +199,10 @@ func (d *Daemon) run() error {
 		return err
 	}
 
-	ourConn, err := util.CreateHomeServerConn(
-		d.ServerAddressTCP, (*[32]byte)(&profile.UserIDAtServer),
-		(*[32]byte)(&d.TransportSecretKeyForServer),
-		(*[32]byte)(&d.ServerTransportPK))
+	ourConn, err := util.DialServer(d.anonDialer(),
+		d.ServerAddressTCP, 1984, (*[32]byte)(&d.ServerTransportPK),
+		(*[32]byte)(&profile.UserIDAtServer),
+		(*[32]byte)(&d.TransportSecretKeyForServer))
 	if err != nil {
 		return err
 	}
@@ -364,7 +422,7 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) error {
 
 	ourSkAuth := (*[32]byte)(&d.MessageAuthSecretKey)
 
-	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
+	theirConn, err := util.DialServer(d.anonDialer(), addr, port, pkTransport, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -417,7 +475,7 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	theirConn, err := util.CreateForeignServerConn(addr, port, pkTransport)
+	theirConn, err := util.DialServer(d.anonDialer(), addr, port, pkTransport, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -648,4 +706,11 @@ func (d *Daemon) receiveMessage(connToServer *util.ConnectionToServer, message *
 	}
 
 	return util.DeleteMessages(connToServer, [][32]byte{*msgHash})
+}
+
+func (d *Daemon) anonDialer() proxy.Dialer {
+	if d.torAddr == "DANGEROUS_NO_TOR" {
+		return proxy.Direct
+	}
+	return util.TorIdentity(d.torAddr)
 }
