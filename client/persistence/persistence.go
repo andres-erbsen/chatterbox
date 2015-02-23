@@ -104,6 +104,27 @@ func (p *Paths) MessageToOutbox(conversationName, message string) error {
 	return os.Rename(filepath.Join(p.TempDir(), f.Name()), filepath.Join(p.OutboxDir(), f.Name()))
 }
 
+func ReadConversationMetadata(dir string) (*proto.ConversationMetadata, error) {
+	c := new(proto.ConversationMetadata)
+	return c, UnmarshalFromFile(filepath.Join(dir, MetadataFileName), c)
+}
+
+func (p *Paths) ListConversations() ([]*proto.ConversationMetadata, error) {
+	fis, err := ioutil.ReadDir(p.ConversationDir())
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]*proto.ConversationMetadata, 0, len(fis))
+	for _, fi := range fis {
+		c, err := ReadConversationMetadata(filepath.Join(p.ConversationDir(), fi.Name()))
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, c)
+	}
+	return ret, nil
+}
+
 func randHex(l int) string {
 	s := make([]byte, (l+1)/2)
 	if _, err := rand.Read(s); err != nil {
