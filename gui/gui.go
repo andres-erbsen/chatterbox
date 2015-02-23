@@ -22,8 +22,25 @@ type Conversation struct {
 	LastMessage string
 }
 
+
+type Message struct {
+	Sender string
+	Content string
+}
+
 func (con *Conversation) toJson() string {
-	raw_json, _ := json.Marshal(con)
+	raw_json, err := json.Marshal(con)
+	if err != nil {
+		panic(err)
+	}
+	return string(raw_json)
+}
+
+func (msg *Message) toJson() string {
+	raw_json, err := json.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
 	return string(raw_json)
 }
 
@@ -50,18 +67,22 @@ func oldConversation(engine *qml.Engine) error {
 	}
 	window := controls.CreateWindow(nil)
 
-	messages := []string{"test 1", "test 2"}
+	messages := []Message{ Message{Sender:"Bill",Content:"test 1"} }
+
+	me := "Bob"
 
 	messageModel := window.ObjectByName("messageModel")
 	for _, message := range messages {
-		messageModel.Call("addItem", "{\"message\":\"" + message +"\", \"name\":\"" + "Bob" +"\"}")
+		raw_json, _ := json.Marshal(message)
+		messageModel.Call("addItem", string(raw_json))
 	}
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
 	window.On("sendMessage", func(message string) {
 		//println("To: " + to)
 		//println("Subject: " + subject)
-		messageModel.Call("addItem", "{\"message\":\"" + message +"\", \"name\":\"" + "Bob" +"\"}")
+		raw_json, _ := json.Marshal(Message{Sender:me,Content:message})
+		messageModel.Call("addItem", string(raw_json))
 		window.ObjectByName("messageView").Call("positionViewAtEnd")
 		println("Message: " + message)
 	})

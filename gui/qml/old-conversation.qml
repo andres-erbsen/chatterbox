@@ -29,16 +29,17 @@ ApplicationWindow {
 		id: messageModel
 		objectName: 'messageModel'
     	ListElement{
-    		message: "test message"
-    		name:"Jane"
+    		Content: "test message"
+    		Sender:"Jane"
     	}
     	ListElement{
-    		message: "test message"
-    		name:"Jane"
+    		Content: "test message"
+    		Sender:"Jane"
     	}
 
 
 		function addItem(json) {
+			console.log(json)
 			var parsed = JSON.parse(json);
 			for (var key in parsed) {
 				if (parsed.hasOwnProperty(key) && (typeof parsed[key] == 'object')) {
@@ -78,9 +79,13 @@ ApplicationWindow {
 		        anchors.fill: parent
 		        model: messageModel
 		        delegate: RowLayout {
-		        	Text{ text: "<b>" + name + "</b>: "}
 		        	Text{ 
-		        		text: message
+		        		text: Sender + ": "
+		        		textFormat: Text.PlainText
+		        		font.bold:true
+		        	}
+		        	Text{ 
+		        		text: Content
 		        		textFormat: Text.PlainText
 		        	}
 
