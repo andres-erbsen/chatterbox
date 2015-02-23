@@ -72,6 +72,22 @@ func run() error {
 		
 	}
 
+	window.ObjectByName("table").On("doubleClicked", func() error { 
+		newControls, err := engine.LoadFile("qml/new-conversation.qml")
+		if err != nil {
+			return err
+		}
+		newWindow := newControls.CreateWindow(nil)
+
+		newWindow.On("sendMessage", func(to, subject, message string) {
+			println("To: " + to)
+			println("Subject: " + subject)
+			println("Message: " + message)
+		})
+
+		return nil
+	})
+
 	window.Show()
 	window.Wait()
 	return nil

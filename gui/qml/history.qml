@@ -51,11 +51,6 @@ ApplicationWindow {
 	        Layout.preferredWidth: 600
 	        Layout.preferredHeight: 400
 
-	        onDoubleClicked: {
-	        	var component = Qt.createComponent("new-conversation.qml");
-            	component.createObject(historyWindow).show();
-	        }
-
 	        TableViewColumn {
 	            id: subjectColumn
 	            title: "Subject"

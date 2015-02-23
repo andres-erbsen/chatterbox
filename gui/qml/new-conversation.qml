@@ -23,6 +23,7 @@ ApplicationWindow {
 		shortcut: "Ctrl+Return"
 		onTriggered: {
 			newConversationWindow.sendMessage(toField.text, subjectField.text, messageArea.text)
+			messageArea.text = "Guess who has a bid?"
 		}
 	}
 
@@ -53,7 +54,7 @@ ApplicationWindow {
 
 		TextArea {
 			id: messageArea 
-			text: "Write message here. Ctrl + Enter to send potatoes."
+			text: "Ctrl + Enter for an important message."
 			Layout.minimumHeight: 10
 			Layout.fillWidth: true
 			Layout.fillHeight: true
