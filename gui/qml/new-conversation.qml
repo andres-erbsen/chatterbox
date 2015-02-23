@@ -3,8 +3,6 @@ import QtQuick.Controls 1.1
 import QtQuick.Layouts 1.1
 
 
-
-
 ApplicationWindow {
 	id: newConversationWindow
 	signal sendMessage(string to, string subject, string message)
@@ -23,6 +21,7 @@ ApplicationWindow {
 		shortcut: "Ctrl+Return"
 		onTriggered: {
 			newConversationWindow.sendMessage(toField.text, subjectField.text, messageArea.text)
+			messageArea.text = ""
 		}
 	}
 
@@ -53,7 +52,7 @@ ApplicationWindow {
 
 		TextArea {
 			id: messageArea 
-			text: "Write message here. Ctrl + Enter to send potatoes."
+			text: "Ctrl + Enter to send a message."
 			Layout.minimumHeight: 10
 			Layout.fillWidth: true
 			Layout.fillHeight: true

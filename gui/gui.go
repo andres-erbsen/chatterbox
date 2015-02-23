@@ -22,31 +22,73 @@ type Conversation struct {
 	LastMessage string
 }
 
+
+type Message struct {
+	Sender string
+	Content string
+}
+
 func (con *Conversation) toJson() string {
-	raw_json, _ := json.Marshal(con)
+	raw_json, err := json.Marshal(con)
+	if err != nil {
+		panic(err)
+	}
 	return string(raw_json)
 }
 
-// func newConversation() error {
-// 	engine := qml.NewEngine()
+func (msg *Message) toJson() string {
+	raw_json, err := json.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+	return string(raw_json)
+}
 
-// 	controls, err := engine.LoadFile("qrc:///qml/new-conversation.qml")
-// 	if err != nil {
-// 		return err
-// 	}
+func newConversation(engine *qml.Engine) error { 
+	controls, err := engine.LoadFile("qml/new-conversation.qml")
+	if err != nil {
+		return err
+	}
+	window := controls.CreateWindow(nil)
 
-// 	window := controls.CreateWindow(nil)
+	window.On("sendMessage", func(to, subject, message string) {
+		println("To: " + to)
+		println("Subject: " + subject)
+		println("Message: " + message)
+	})
 
-// 	window.On("sendMessage", func(to, subject, message string) {
-// 		println("To: " + to)
-// 		println("Subject: " + subject)
-// 		println("Message: " + message)
-// 	})
+	return nil
+}
 
-// 	window.Show()
-// 	window.Wait()
-// 	return nil
-// }
+func oldConversation(engine *qml.Engine) error { 
+	controls, err := engine.LoadFile("qml/old-conversation.qml")
+	if err != nil {
+		return err
+	}
+	window := controls.CreateWindow(nil)
+
+	messages := []Message{ Message{Sender:"Bill",Content:"test 1"} }
+
+	me := "Bob"
+
+	messageModel := window.ObjectByName("messageModel")
+	for _, message := range messages {
+		raw_json, _ := json.Marshal(message)
+		messageModel.Call("addItem", string(raw_json))
+	}
+	window.ObjectByName("messageView").Call("positionViewAtEnd")
+
+	window.On("sendMessage", func(message string) {
+		//println("To: " + to)
+		//println("Subject: " + subject)
+		raw_json, _ := json.Marshal(Message{Sender:me,Content:message})
+		messageModel.Call("addItem", string(raw_json))
+		window.ObjectByName("messageView").Call("positionViewAtEnd")
+		println("Message: " + message)
+	})
+
+	return nil
+}
 
 func run() error {
 
@@ -69,8 +111,10 @@ func run() error {
 	listModel := window.ObjectByName("listModel")
 	for _, con := range history {
 		listModel.Call("addItem", con.toJson())
-		
 	}
+
+	//window.ObjectByName("table").On("clicked", func() {newConversation(engine)})
+	window.ObjectByName("table").On("clicked", func() {oldConversation(engine)})
 
 	window.Show()
 	window.Wait()
