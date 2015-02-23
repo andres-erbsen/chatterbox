@@ -89,19 +89,19 @@ func (p *Paths) MarshalToFile(path string, in interface {
 }
 
 func (p *Paths) ConversationToOutbox(metadata *proto.ConversationMetadata) error {
-	return os.Mkdir(filepath.Join(conf.OutboxDir(), persistence.ConversationName(metadata)), 0700)
+	return os.Mkdir(filepath.Join(p.OutboxDir(), ConversationName(metadata)), 0700)
 }
 
-func (p *Paths) MessageToOutbox(conversationName, message string) {
+func (p *Paths) MessageToOutbox(conversationName, message string) error {
 	f, err := ioutil.TempFile(p.TempDir(), "")
 	if err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(f.Name(), message, 0600); err != nil {
+	if err = ioutil.WriteFile(f.Name(), []byte(message), 0600); err != nil {
 		return err
 	}
 
-	os.Rename(filepath.Join(p.TempDir(), f.Name()), filepath.Join(p.OutboxDir(), f.Name()))
+	return os.Rename(filepath.Join(p.TempDir(), f.Name()), filepath.Join(p.OutboxDir(), f.Name()))
 }
 
 func randHex(l int) string {

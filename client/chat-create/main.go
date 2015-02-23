@@ -23,8 +23,8 @@ func main() {
 	}
 
 	metadata := &proto.ConversationMetadata{
-		Participants: recipients,
-		Subject:      subject,
+		Participants: flag.Args(),
+		Subject:      *subject,
 	}
 
 	if err := p.ConversationToOutbox(metadata); err != nil {
