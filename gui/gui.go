@@ -27,27 +27,6 @@ func (con *Conversation) toJson() string {
 	return string(raw_json)
 }
 
-// func newConversation() error {
-// 	engine := qml.NewEngine()
-
-// 	controls, err := engine.LoadFile("qrc:///qml/new-conversation.qml")
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	window := controls.CreateWindow(nil)
-
-// 	window.On("sendMessage", func(to, subject, message string) {
-// 		println("To: " + to)
-// 		println("Subject: " + subject)
-// 		println("Message: " + message)
-// 	})
-
-// 	window.Show()
-// 	window.Wait()
-// 	return nil
-// }
-
 func run() error {
 
 	engine := qml.NewEngine()
