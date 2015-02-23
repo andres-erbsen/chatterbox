@@ -46,10 +46,10 @@ ApplicationWindow {
 	        anchors.fill: parent
 	        model: sourceModel
 
-	        Layout.minimumWidth: 400
+	        Layout.minimumWidth: 200
 	        Layout.minimumHeight: 240
-	        Layout.preferredWidth: 600
-	        Layout.preferredHeight: 400
+	        Layout.preferredWidth: 400
+	        Layout.preferredHeight: 300
 
 	        TableViewColumn {
 	            id: subjectColumn

@@ -27,6 +27,48 @@ func (con *Conversation) toJson() string {
 	return string(raw_json)
 }
 
+func newConversation(engine *qml.Engine) error { 
+	controls, err := engine.LoadFile("qml/new-conversation.qml")
+	if err != nil {
+		return err
+	}
+	window := controls.CreateWindow(nil)
+
+	window.On("sendMessage", func(to, subject, message string) {
+		println("To: " + to)
+		println("Subject: " + subject)
+		println("Message: " + message)
+	})
+
+	return nil
+}
+
+func oldConversation(engine *qml.Engine) error { 
+	controls, err := engine.LoadFile("qml/old-conversation.qml")
+	if err != nil {
+		return err
+	}
+	window := controls.CreateWindow(nil)
+
+	messages := []string{"test 1", "test 2"}
+
+	messageModel := window.ObjectByName("messageModel")
+	for _, message := range messages {
+		messageModel.Call("addItem", "{\"message\":\"" + message +"\", \"name\":\"" + "Bob" +"\"}")
+	}
+	window.ObjectByName("messageView").Call("positionViewAtEnd")
+
+	window.On("sendMessage", func(message string) {
+		//println("To: " + to)
+		//println("Subject: " + subject)
+		messageModel.Call("addItem", "{\"message\":\"" + message +"\", \"name\":\"" + "Bob" +"\"}")
+		window.ObjectByName("messageView").Call("positionViewAtEnd")
+		println("Message: " + message)
+	})
+
+	return nil
+}
+
 func run() error {
 
 	engine := qml.NewEngine()
@@ -48,24 +90,10 @@ func run() error {
 	listModel := window.ObjectByName("listModel")
 	for _, con := range history {
 		listModel.Call("addItem", con.toJson())
-		
 	}
 
-	window.ObjectByName("table").On("doubleClicked", func() error { 
-		newControls, err := engine.LoadFile("qml/new-conversation.qml")
-		if err != nil {
-			return err
-		}
-		newWindow := newControls.CreateWindow(nil)
-
-		newWindow.On("sendMessage", func(to, subject, message string) {
-			println("To: " + to)
-			println("Subject: " + subject)
-			println("Message: " + message)
-		})
-
-		return nil
-	})
+	//window.ObjectByName("table").On("clicked", func() {newConversation(engine)})
+	window.ObjectByName("table").On("clicked", func() {oldConversation(engine)})
 
 	window.Show()
 	window.Wait()
