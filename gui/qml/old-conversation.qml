@@ -20,8 +20,8 @@ ApplicationWindow {
 		text: "Send &Message"
 		shortcut: "Ctrl+Return"
 		onTriggered: {
-			conversationWindow.sendMessage(messageArea.text)
-			messageArea.text = ""
+			conversationWindow.sendMessage(messageArea.text);
+			messageArea.remove(0, messageArea.length);
 		}
 	}
 
