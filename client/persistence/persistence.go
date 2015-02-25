@@ -125,6 +125,22 @@ func (p *Paths) ListConversations() ([]*proto.ConversationMetadata, error) {
 	return ret, nil
 }
 
+func (p *Paths) ListMessages() ([]string, error) {
+	fis, err := ioutil.ReadDir(p.ConversationDir())
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]*proto.ConversationMetadata, 0, len(fis))
+	for _, fi := range fis {
+		c, err := ReadConversationMetadata(filepath.Join(p.ConversationDir(), fi.Name()))
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, c)
+	}
+	return ret, nil
+}
+
 func randHex(l int) string {
 	s := make([]byte, (l+1)/2)
 	if _, err := rand.Read(s); err != nil {

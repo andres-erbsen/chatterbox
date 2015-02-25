@@ -3,28 +3,48 @@
 package main
 
 import (
-	"fmt"
-	"gopkg.in/qml.v1"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"os"
+
+	"github.com/andres-erbsen/chatterbox/client/persistence"
+	"gopkg.in/qml.v1"
 )
 
+var root = flag.String("root", "", "chatterbox root directory")
+
+type gui struct {
+	persistence.Paths
+	engine *qml.Engine
+}
+
 func main() {
-	if err := qml.Run(run); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	flag.Parse()
+	if *root == "" {
+		fmt.Fprintf(os.Stderr, "USAGE: %s -root=ROOTDIR", os.Args[0])
 		os.Exit(1)
+	}
+
+	g := new(gui)
+	g.Paths = persistence.Paths{
+		RootDir:     *root,
+		Application: "chat-create",
+	}
+	if err := qml.Run(g.run); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(2)
 	}
 }
 
 type Conversation struct {
-	Subject string
-	Users []string
+	Subject     string
+	Users       []string
 	LastMessage string
 }
 
-
 type Message struct {
-	Sender string
+	Sender  string
 	Content string
 }
 
@@ -44,7 +64,7 @@ func (msg *Message) toJson() string {
 	return string(raw_json)
 }
 
-func newConversation(engine *qml.Engine) error { 
+func newConversation(engine *qml.Engine) error {
 	controls, err := engine.LoadFile("qml/new-conversation.qml")
 	if err != nil {
 		return err
@@ -60,14 +80,14 @@ func newConversation(engine *qml.Engine) error {
 	return nil
 }
 
-func oldConversation(engine *qml.Engine) error { 
+func oldConversation(engine *qml.Engine) error {
 	controls, err := engine.LoadFile("qml/old-conversation.qml")
 	if err != nil {
 		return err
 	}
 	window := controls.CreateWindow(nil)
 
-	messages := []Message{ Message{Sender:"Bill",Content:"test 1"} }
+	messages := []Message{Message{Sender: "Bill", Content: "test 1"}}
 
 	me := "Bob"
 
@@ -81,7 +101,7 @@ func oldConversation(engine *qml.Engine) error {
 	window.On("sendMessage", func(message string) {
 		//println("To: " + to)
 		//println("Subject: " + subject)
-		raw_json, _ := json.Marshal(Message{Sender:me,Content:message})
+		raw_json, _ := json.Marshal(Message{Sender: me, Content: message})
 		messageModel.Call("addItem", string(raw_json))
 		window.ObjectByName("messageView").Call("positionViewAtEnd")
 		println("Message: " + message)
@@ -90,31 +110,27 @@ func oldConversation(engine *qml.Engine) error {
 	return nil
 }
 
-func run() error {
-
-	engine := qml.NewEngine()
-
-	controls, err := engine.LoadFile("qml/history.qml")
+func (g *gui) run() error {
+	g.engine = qml.NewEngine()
+	controls, err := g.engine.LoadFile("qml/history.qml")
 	if err != nil {
 		return err
 	}
 
-	con1 := Conversation{Subject:"subject", Users:[]string{"Bob", "Jane"}, LastMessage:"hello?"}
-	con2 := Conversation{Subject:"elephants", Users:[]string{"Bob"}, LastMessage:"I forgot what I was going to say."}
-	con3 := Conversation{Subject:"tigers", Users:[]string{"Jane"}, LastMessage:"oh my"}
-
-	history := []Conversation{con1, con2, con3}
-
 	window := controls.CreateWindow(nil)
 
-
 	listModel := window.ObjectByName("listModel")
-	for _, con := range history {
-		listModel.Call("addItem", con.toJson())
+	convs, err := g.ListConversations()
+	if err != nil {
+		return err
+	}
+	for _, con := range convs {
+		c := Conversation{Subject: con.Subject, Users: con.Participants}
+		listModel.Call("addItem", c.toJson())
 	}
 
-	//window.ObjectByName("table").On("clicked", func() {newConversation(engine)})
-	window.ObjectByName("table").On("clicked", func() {oldConversation(engine)})
+	//window.ObjectByName("table").On("clicked", func() {newConversation(g.engine)})
+	window.ObjectByName("table").On("clicked", g.conversation())
 
 	window.Show()
 	window.Wait()
