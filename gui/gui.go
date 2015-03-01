@@ -41,10 +41,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	g := &gui{stop: make(chan struct{}), conversationsIndex: make(map[string]int), openConversations: make(map[string]*qml.Window)}
-	g.Paths = persistence.Paths{
-		RootDir:     *root,
-		Application: "chat-create",
+	g := &gui{
+		stop:               make(chan struct{}),
+		conversationsIndex: make(map[string]int),
+		openConversations:  make(map[string]*qml.Window),
+		Paths: persistence.Paths{
+			RootDir:     *root,
+			Application: "qmlgui",
+		},
+	}
+	var err error
+	g.watcher, err = fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
 	}
 	go g.watch()
 	if err := qml.Run(g.run); err != nil {
@@ -83,7 +92,26 @@ func newConversation(engine *qml.Engine) error {
 	return nil
 }
 
-func (g *gui) handleMessage(window *qml.Window, msg *persistence.Message) {
+func (g *gui) handleMessage(path string) {
+	convName := filepath.Base(filepath.Dir(path))
+	msg, err := persistence.ReadMessageFromFile(path)
+	if err != nil {
+		log.Printf("error reading message %s: %s\n", path, err)
+		return
+	}
+
+	qml.Lock()
+	defer qml.Unlock()
+	win, ok := g.openConversations[convName]
+	if !ok {
+		log.Printf("ignoring message for %s\nmap: %v", convName, g.openConversations)
+		return
+	}
+	g.displayMessage(win, msg)
+}
+
+func (g *gui) displayMessage(window *qml.Window, msg *persistence.Message) {
+	log.Printf("displayMessage %s", msg)
 	window.ObjectByName("messageModel").Call("addItem", toJson(
 		&persistence.Message{
 			Path:    msg.Path,
@@ -112,7 +140,7 @@ func (g *gui) openConversation(idx int) error {
 		panic(err)
 	}
 	for _, msg := range msgs {
-		g.handleMessage(window, msg)
+		g.displayMessage(window, msg)
 	}
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
@@ -176,6 +204,13 @@ func (g *gui) handleConversation(con *proto.ConversationMetadata) {
 	if _, already := g.conversationsIndex[persistence.ConversationName(con)]; already {
 		return
 	}
+
+	err := g.watcher.Add(filepath.Join(g.ConversationDir(), persistence.ConversationName(con)))
+	if err != nil {
+		log.Printf("error watching conversation %s: %s\n", persistence.ConversationName(con), err)
+		// continue after error
+	}
+
 	qml.Lock()
 	defer qml.Unlock()
 	g.conversationsIndex[persistence.ConversationName(con)] = len(g.conversations)
@@ -185,13 +220,8 @@ func (g *gui) handleConversation(con *proto.ConversationMetadata) {
 }
 
 func (g *gui) watch() {
-	var err error
-	g.watcher, err = fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer g.watcher.Close()
-	err = g.watcher.Add(g.ConversationDir())
+	err := g.watcher.Add(g.ConversationDir())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -213,11 +243,6 @@ func (g *gui) watch() {
 			if match, _ := filepath.Match("*", rpath); match {
 				// when a conversation is created it MUST have a metadata file when
 				// it is moved to the conversations directory
-				err = g.watcher.Add(g.ConversationDir())
-				if err != nil {
-					log.Printf("error watching conversation %s: %s\n", rpath, err)
-					// continue after error
-				}
 				c, err := persistence.ReadConversationMetadata(e.Name)
 				if err != nil {
 					log.Printf("error reading metadata of %s: %s\n", rpath, err)
@@ -225,14 +250,7 @@ func (g *gui) watch() {
 				}
 				g.handleConversation(c)
 			} else if match, _ := filepath.Match("*/*", rpath); match {
-				// TODO: handle incoming message
-				win := g.openConversations[filepath.Base(rpath)]
-				msg, err := persistence.ReadMessageFromFile(rpath)
-				if err != nil {
-					log.Printf("error reading message %s: %s\n", rpath, err)
-					continue
-				}
-				g.handleMessage(win, msg)
+				g.handleMessage(e.Name)
 
 			} else {
 				log.Printf("event at unknown path: %s", rpath)

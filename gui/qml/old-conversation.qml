@@ -30,11 +30,9 @@ ApplicationWindow {
 		objectName: 'messageModel'
 
 		function addItem(json) {
-			console.log(json)
 			var parsed = JSON.parse(json);
 			for (var key in parsed) {
 				if (parsed.hasOwnProperty(key) && (typeof parsed[key] == 'object')) {
-						//console.log(key);
 						parsed[key] = parsed[key].toString();
 				}
 			}

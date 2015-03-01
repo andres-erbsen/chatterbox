@@ -55,6 +55,19 @@ func (p *Paths) MkdirInTemp() (string, error) {
 	return ioutil.TempDir(p.TempDir(), "")
 }
 
+func (p *Paths) TempFile() (string, error) {
+	if err := os.Mkdir(p.TempDir(), 0700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	f, err := ioutil.TempFile(p.TempDir(), "")
+	if err != nil {
+		return "", err
+	}
+	ret := f.Name()
+	f.Close()
+	return ret, nil
+}
+
 // Unmarshal reads an Unmarshal()-able from a file
 func UnmarshalFromFile(path string, out interface {
 	Unmarshal([]byte) error
@@ -76,7 +89,10 @@ func (p *Paths) MarshalToFile(path string, in interface {
 	if err != nil {
 		return err
 	}
-	tmpFile := filepath.Join(p.TempDir(), filepath.Base(path)+"-"+randHex(16))
+	tmpFile, err := p.TempFile()
+	if err != nil {
+		return err
+	}
 	err = ioutil.WriteFile(tmpFile, inBytes, 0600)
 	if err != nil {
 		return err
@@ -93,15 +109,15 @@ func (p *Paths) ConversationToOutbox(metadata *proto.ConversationMetadata) error
 }
 
 func (p *Paths) MessageToOutbox(conversationName, message string) error {
-	f, err := ioutil.TempFile(p.TempDir(), "")
+	tempfile, err := p.TempFile()
 	if err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(f.Name(), []byte(message), 0600); err != nil {
+	if err = ioutil.WriteFile(tempfile, []byte(message), 0600); err != nil {
 		return err
 	}
 
-	base := filepath.Base(f.Name())
+	base := filepath.Base(tempfile)
 	conv_outbox := filepath.Join(p.OutboxDir(), conversationName)
 
 	return os.Rename(filepath.Join(p.TempDir(), base), filepath.Join(conv_outbox, base))
