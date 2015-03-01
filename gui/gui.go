@@ -89,6 +89,18 @@ func (g *gui) conversation(idx int) error {
 	}
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
+	ctx :=g.engine.Context();
+	ctx.SetVar("textAreaCleared", false);
+
+	messageArea := window.ObjectByName("messageArea")
+	window.ObjectByName("textMouseArea").On("clicked", func() {
+		if !(ctx.Var("textAreaCleared").(bool)) {
+			messageArea.Call("remove", 0, messageArea.Property("length").(int));
+			ctx.SetVar("textAreaCleared", true);
+		}
+		messageArea.Set("focus", true);
+	})
+
 	window.On("sendMessage", func(message string) {
 		println("Send: " + message)
 	})
@@ -122,7 +134,7 @@ func (g *gui) run() error {
 
 	table.On("activated", g.conversation)
 	table.Set("focus", "true")
-	
+
 	window.Show()
 	window.Wait()
 	return nil

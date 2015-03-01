@@ -48,9 +48,9 @@ ApplicationWindow {
 	        anchors.fill: parent
 	        model: sourceModel
 
-	        Keys.onReturnPressed: {
-	        	console.log("return pressed, index is " + tableView.currentRow);
-	        }
+	        // Keys.onReturnPressed: {
+	        // 	console.log("return pressed, index is " + tableView.currentRow);
+	        // }
 
 	        Layout.minimumWidth: 200
 	        Layout.minimumHeight: 240
