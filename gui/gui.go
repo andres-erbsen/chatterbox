@@ -156,6 +156,8 @@ func (g *gui) handleConversation(con *proto.ConversationMetadata) {
 	if _, already := g.conversationsIndex[persistence.ConversationName(con)]; already {
 		return
 	}
+	qml.Lock()
+	defer qml.Unlock()
 	g.conversationsIndex[persistence.ConversationName(con)] = len(g.conversations)
 	g.conversations = append(g.conversations, con)
 	c := Conversation{Subject: con.Subject, Users: con.Participants}
