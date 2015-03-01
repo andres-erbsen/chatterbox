@@ -39,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	g := &gui{stop: make(chan struct{})}
+	g := &gui{stop: make(chan struct{}), conversationsIndex: make(map[string]int)}
 	g.Paths = persistence.Paths{
 		RootDir:     *root,
 		Application: "chat-create",
@@ -100,8 +100,8 @@ func (g *gui) openConversation(idx int) error {
 	}
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
-	ctx :=g.engine.Context();
-	ctx.SetVar("textAreaCleared", false);
+	ctx := g.engine.Context()
+	ctx.SetVar("textAreaCleared", false)
 
 	messageArea := window.ObjectByName("messageArea")
 
@@ -112,8 +112,8 @@ func (g *gui) openConversation(idx int) error {
 	window.ObjectByName("messageArea").On("focusChanged", func() {
 		if !(ctx.Var("textAreaCleared").(bool)) {
 			// messageArea.Call("remove", 0, messageArea.Property("length").(int));
-			messageArea.Call("selectAll");
-			ctx.SetVar("textAreaCleared", true);
+			messageArea.Call("selectAll")
+			ctx.SetVar("textAreaCleared", true)
 		}
 		//messageArea.Set("focus", true);
 	})
