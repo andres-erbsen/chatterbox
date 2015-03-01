@@ -132,6 +132,20 @@ type Message struct {
 	Path, Sender, Content string
 }
 
+func ReadMessageFromFile(filename string) *Message {
+		println(filename)
+		base := filepath.Base(filename)
+		if len(base) < len("2015-02-16T07:09:55Z-") {
+			panic("badly formatted message filename : " + filename)
+		}
+		sender := filename[len("2015-02-16T07:09:55Z-"):]
+		contents, err := ioutil.ReadFile(filename)
+		if err != nil {
+			panic(err)
+		}
+		return &Message{Path: filename, Sender: sender, Content: string(contents)}
+}
+
 func (p *Paths) LoadMessages(conv *proto.ConversationMetadata) ([]*Message, error) {
 	convpath := filepath.Join(p.ConversationDir(), ConversationName(conv))
 	fis, err := ioutil.ReadDir(convpath)
@@ -143,16 +157,7 @@ func (p *Paths) LoadMessages(conv *proto.ConversationMetadata) ([]*Message, erro
 		if fi.Name() == MetadataFileName {
 			continue
 		}
-		if len(fi.Name()) < len("2015-02-16T07:09:55Z-") {
-			panic("badly formatted message filename in conversation \"" + ConversationName(conv) + "\" : " + fi.Name())
-		}
-		sender := fi.Name()[len("2015-02-16T07:09:55Z-"):]
-		path := filepath.Join(convpath, fi.Name())
-		contents, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, &Message{Path: path, Sender: sender, Content: string(contents)})
+		ret = append(ret, ReadMessageFromFile(fi.Name()))
 	}
 	return ret, nil
 }

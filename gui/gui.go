@@ -29,6 +29,8 @@ type gui struct {
 
 	watcher *fsnotify.Watcher
 
+	openConversations map[string]*qml.Window
+
 	stop chan struct{}
 }
 
@@ -39,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	g := &gui{stop: make(chan struct{}), conversationsIndex: make(map[string]int)}
+	g := &gui{stop: make(chan struct{}), conversationsIndex: make(map[string]int), openConversations: make(map[string]*qml.Window)}
 	g.Paths = persistence.Paths{
 		RootDir:     *root,
 		Application: "chat-create",
@@ -81,24 +83,35 @@ func newConversation(engine *qml.Engine) error {
 	return nil
 }
 
+func addMessage (window *qml.Window, msg *persistence.Message) {
+	messageModel := window.ObjectByName("messageModel")
+	msg.Content = strings.TrimSpace(msg.Content)
+	messageModel.Call("addItem", toJson(msg))
+	window.ObjectByName("messageView").Call("positionViewAtEnd")
+}
+
 func (g *gui) openConversation(idx int) error {
 	controls, err := g.engine.LoadFile("qml/old-conversation.qml")
 	if err != nil {
 		return err
 	}
 	window := controls.CreateWindow(nil)
-	messageModel := window.ObjectByName("messageModel")
+
 	conv := g.conversations[idx]
+
+	//TODO: if an open conversation is selected again, focus that window
+
+	qml.Lock()
+	g.openConversations[persistence.ConversationName(conv)] = window;
+	qml.Unlock()
 
 	msgs, err := g.LoadMessages(conv)
 	if err != nil {
 		panic(err)
 	}
 	for _, msg := range msgs {
-		msg.Content = strings.TrimSpace(msg.Content)
-		messageModel.Call("addItem", toJson(msg))
+		addMessage(window, msg)
 	}
-	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
 	ctx := g.engine.Context()
 	ctx.SetVar("textAreaCleared", false)
@@ -118,6 +131,12 @@ func (g *gui) openConversation(idx int) error {
 		if err != nil {
 			panic(err)
 		}
+	})
+
+	window.On("closing", func() {
+		qml.Lock()
+		delete(g.openConversations, persistence.ConversationName(conv))
+		qml.Unlock()
 	})
 
 	return nil
@@ -204,6 +223,9 @@ func (g *gui) watch() {
 				g.handleConversation(c)
 			} else if match, _ := filepath.Match("*/*", rpath); match {
 				// TODO: handle incoming message
+				win := g.openConversations[filepath.Base(rpath)]
+				addMessage(win, persistence.ReadMessageFromFile(rpath))
+
 			} else {
 				log.Printf("event at unknown path: %s", rpath)
 			}
