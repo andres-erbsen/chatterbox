@@ -38,6 +38,7 @@ ApplicationWindow {
         anchors.margins: margin
 
 		ScrollView {
+			// TODO: handle pageup, pagedown
 			Layout.fillHeight: true
 			Layout.fillWidth: true
 			ListView {
@@ -71,7 +72,11 @@ ApplicationWindow {
 			Layout.preferredHeight: 36
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
-			
+
+			focus: true
+			Component.onCompleted: {
+				messageArea.selectAll()
+			}
 		}
     }
 }

@@ -62,12 +62,6 @@ func main() {
 	}
 }
 
-type Conversation struct {
-	Subject     string
-	Users       []string
-	LastMessage string
-}
-
 func toJson(v interface{}) string {
 	rawJson, err := json.Marshal(v)
 	if err != nil {
@@ -76,14 +70,17 @@ func toJson(v interface{}) string {
 	return string(rawJson)
 }
 
-func newConversation(engine *qml.Engine) error {
-	controls, err := engine.LoadFile("qml/new-conversation.qml")
+func (g *gui) newConversation() error {
+	controls, err := g.engine.LoadFile("qml/new-conversation.qml")
 	if err != nil {
 		return err
 	}
 	window := controls.CreateWindow(nil)
 
-	window.On("sendMessage", func(to, subject, message string) {
+	window.ObjectByName("sendMessage").On("triggered", func() {
+		to := window.ObjectByName("toField").String("text")
+		subject := window.ObjectByName("subjectField").String("text")
+		message := window.ObjectByName("messageArea").String("text")
 		println("To: " + to)
 		println("Subject: " + subject)
 		println("Message: " + message)
@@ -145,18 +142,6 @@ func (g *gui) openConversation(idx int) error {
 	}
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
-	ctx := g.engine.Context()
-	ctx.SetVar("textAreaCleared", false)
-
-	messageArea := window.ObjectByName("messageArea")
-
-	window.ObjectByName("messageArea").On("focusChanged", func() {
-		if !(ctx.Var("textAreaCleared").(bool)) {
-			messageArea.Call("selectAll")
-			ctx.SetVar("textAreaCleared", true)
-		}
-	})
-
 	window.On("sendMessage", func(message string) {
 		println("Send: " + message)
 		err := g.MessageToOutbox(persistence.ConversationName(conv), message)
@@ -192,9 +177,8 @@ func (g *gui) run() error {
 		g.handleConversation(con)
 	}
 
-	table := window.ObjectByName("table")
-	table.On("activated", g.openConversation)
-	table.Set("focus", "true")
+	window.ObjectByName("table").On("activated", g.openConversation)
+	window.ObjectByName("newConversation").On("triggered", g.newConversation)
 
 	window.Show()
 	window.Wait()
@@ -216,8 +200,7 @@ func (g *gui) handleConversation(con *proto.ConversationMetadata) {
 	defer qml.Unlock()
 	g.conversationsIndex[persistence.ConversationName(con)] = len(g.conversations)
 	g.conversations = append(g.conversations, con)
-	c := Conversation{Subject: con.Subject, Users: con.Participants}
-	g.conversationsDisplay.Call("addItem", toJson(c))
+	g.conversationsDisplay.Call("addItem", toJson(con))
 }
 
 func (g *gui) watch() {

@@ -5,8 +5,6 @@ import QtQuick.Layouts 1.1
 
 ApplicationWindow {
 	id: newConversationWindow
-	signal sendMessage(string to, string subject, string message)
-
     visible: true
     title: "New Conversation"
     property int margin: 5
@@ -17,12 +15,9 @@ ApplicationWindow {
 
 	Action {
 		id: sendMessage
+		objectName: "sendMessage"
 		text: "Send &Message"
 		shortcut: "Ctrl+Return"
-		onTriggered: {
-			newConversationWindow.sendMessage(toField.text, subjectField.text, messageArea.text)
-			messageArea.text = ""
-		}
 	}
 
     ColumnLayout {
@@ -33,10 +28,11 @@ ApplicationWindow {
 			Text {text: "To:"}
 				TextField {
 					id: toField
-						focus: true
-						placeholderText: "dename names, comma-separated"
-						Layout.fillWidth: true
-						onAccepted: {subjectField.focus = true}
+					objectName: "toField"
+					focus: true
+					placeholderText: "dename names, comma-separated"
+					Layout.fillWidth: true
+					onAccepted: {subjectField.focus = true}
 				}
 		}
 
@@ -44,38 +40,25 @@ ApplicationWindow {
 			Text {text: "Subject:"}
 				TextField {
 					id: subjectField
+					objectName: "subjectField"
 					Layout.fillWidth: true
-					onAccepted: {messageArea.selectAll(); messageArea.focus = true}
+					onAccepted: {messageArea.focus = true}
 				}
 		}
 
 
 		TextArea {
 			id: messageArea 
+			objectName: "messageArea"
 			text: "Ctrl + Enter to send a message."
 			Layout.minimumHeight: 10
 			Layout.fillWidth: true
 			Layout.fillHeight: true
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
-
-			/* andreser: the following works for me
-			keys.onreturnpressed: {
-				console.log("return pressed in main textarea");
+			Component.onCompleted: {
+				messageArea.selectAll()
 			}
-			*/
 		}
-
-		/*
-        GroupBox {
-            id: sendMessageButton
-            Layout.alignment: Qt.AlignRight
-            flat: true
-			Button {
-				text: "Send Message"
-				onClicked: {sendMessage.trigger()}
-			}
-        }
-		*/
     }
 }

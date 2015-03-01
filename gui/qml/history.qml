@@ -19,15 +19,8 @@ ApplicationWindow {
 
 		function addItem(json) {
 			var parsed = JSON.parse(json);
-			for (var key in parsed) {
-				if (parsed.hasOwnProperty(key) && (typeof parsed[key] == 'object')) {
-						//console.log(key);
-						parsed[key] = parsed[key].toString();
-				}
-			}
-			parsed['objectName'] = parsed['Subject'];
-			parsed['focus'] = "true";
-			append(parsed);
+			// TODO represents participants using some QML-(color?)-delimited thing, comma-separated encoding is not reversible
+			append({Subject: parsed.Subject, Participants:parsed.Participants.toString()});
 		}
 	}
 
@@ -45,41 +38,36 @@ ApplicationWindow {
 	        frameVisible: true
 	        sortIndicatorVisible: false
 
-	        anchors.fill: parent
 	        model: sourceModel
+			Layout.fillHeight: true
+			Layout.fillWidth: true
 
-	        Layout.minimumWidth: 200
-	        Layout.minimumHeight: 240
-	        Layout.preferredWidth: 400
-	        Layout.preferredHeight: 300
+	        TableViewColumn {
+	            id: usersColumn
+	            title: "Participants"
+	            role: "Participants"
+	            movable: false
+	        }
 
 	        TableViewColumn {
 	            id: subjectColumn
 	            title: "Subject"
 	            role: "Subject"
 	            movable: false
-	            resizable: false
-	            width: tableView.viewport.width / 4
 	        }
-
-	        TableViewColumn {
-	            id: usersColumn
-	            title: "Participants"
-	            role: "Users"
-	            movable: false
-	            resizable: false
-	            width: tableView.viewport.width / 4
-	        }
-
-	        TableViewColumn {
-	            id: lastMessageColumn
-	            title: "Last Message"
-	            role: "LastMessage"
-	            movable: false
-	            resizable: false
-	            width: tableView.viewport.width - usersColumn.width - subjectColumn.width
-	        }
- 
 	    }
+
+		Button {
+			id: newConversationButton
+	        objectName: "newConversationButton"
+			action: newConversation
+		}
     }
+
+	Action {
+		id: newConversation
+		objectName: "newConversation"
+		text: "&New Conversation"
+		shortcut: "Ctrl+N"
+	}
 }
