@@ -93,12 +93,18 @@ func (g *gui) conversation(idx int) error {
 	ctx.SetVar("textAreaCleared", false);
 
 	messageArea := window.ObjectByName("messageArea")
-	window.ObjectByName("textMouseArea").On("clicked", func() {
+
+	// messageArea.On("activated", func() {
+	// 	println("activated");
+	// });
+
+	window.ObjectByName("messageArea").On("focusChanged", func() {
 		if !(ctx.Var("textAreaCleared").(bool)) {
-			messageArea.Call("remove", 0, messageArea.Property("length").(int));
+			// messageArea.Call("remove", 0, messageArea.Property("length").(int));
+			messageArea.Call("selectAll");
 			ctx.SetVar("textAreaCleared", true);
 		}
-		messageArea.Set("focus", true);
+		//messageArea.Set("focus", true);
 	})
 
 	window.On("sendMessage", func(message string) {

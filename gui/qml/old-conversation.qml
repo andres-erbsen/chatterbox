@@ -98,12 +98,7 @@ ApplicationWindow {
 			Layout.preferredHeight: 36
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
-
-			MouseArea {
-	            id: textMouseArea
-				objectName: "textMouseArea"
-        		anchors.fill: parent
-			}
+			
 		}
     }
 }
