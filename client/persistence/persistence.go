@@ -13,6 +13,7 @@ import (
 
 	"github.com/andres-erbsen/chatterbox/client/encoding"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/andres-erbsen/chatterbox/shred"
 )
 
 type Paths struct {
@@ -52,6 +53,9 @@ func MessageName(date time.Time, sender string) string {
 }
 
 func (p *Paths) MkdirInTemp() (string, error) {
+	if err := os.Mkdir(p.TempDir(), 0700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
 	return ioutil.TempDir(p.TempDir(), "")
 }
 
@@ -104,12 +108,22 @@ func (p *Paths) MarshalToFile(path string, in interface {
 	return nil
 }
 
-func (p *Paths) ConversationToOutbox(metadata *proto.ConversationMetadata) error {
-	return os.Mkdir(filepath.Join(p.OutboxDir(), ConversationName(metadata)), 0700)
+func (p *Paths) ConversationToOutbox(metadata *proto.ConversationMetadata, msgs ...string) error {
+	path := filepath.Join(p.OutboxDir(), ConversationName(metadata))
+	tmpDir, err := p.MkdirInTemp()
+	if err != nil {
+		return err
+	}
+	defer shred.RemoveAll(tmpDir)
+	if err := p.MarshalToFile(filepath.Join(tmpDir, MetadataFileName), metadata); err != nil {
+		return err
+	}
+	return os.Rename(filepath.Join(tmpDir), path)
 }
 
 func (p *Paths) MessageToOutbox(conversationName, message string) error {
 	tempfile, err := p.TempFile()
+	defer shred.Remove(tempfile)
 	if err != nil {
 		return err
 	}
@@ -121,6 +135,18 @@ func (p *Paths) MessageToOutbox(conversationName, message string) error {
 	conv_outbox := filepath.Join(p.OutboxDir(), conversationName)
 
 	return os.Rename(filepath.Join(p.TempDir(), base), filepath.Join(conv_outbox, base))
+}
+
+func (p *Paths) AtomicWriteFile(path string, bs []byte, perm os.FileMode) error {
+	tempfile, err := p.TempFile()
+	defer shred.Remove(tempfile)
+	if err != nil {
+		return err
+	}
+	if err = ioutil.WriteFile(tempfile, []byte(bs), perm); err != nil {
+		return err
+	}
+	return os.Rename(filepath.Join(tempfile), path)
 }
 
 func ReadConversationMetadata(dir string) (*proto.ConversationMetadata, error) {

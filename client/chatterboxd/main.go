@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	if len(os.Args) != 2 {
 		log.Fatalf("USAGE: %s <account-directory>", os.Args[0])
 	}

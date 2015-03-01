@@ -35,6 +35,7 @@ type gui struct {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintf(os.Stderr, "USAGE: %s -root=ROOTDIR", os.Args[0])
@@ -81,9 +82,22 @@ func (g *gui) newConversation() error {
 		to := window.ObjectByName("toField").String("text")
 		subject := window.ObjectByName("subjectField").String("text")
 		message := window.ObjectByName("messageArea").String("text")
-		println("To: " + to)
-		println("Subject: " + subject)
-		println("Message: " + message)
+
+		participants := make([]string, 0, 2)
+		for _, dst := range strings.Split(to, ",") {
+			participants = append(participants, strings.TrimSpace(dst))
+		}
+		conv := &proto.ConversationMetadata{
+			Participants: participants,
+			Subject:      subject,
+		}
+		if err := g.ConversationToOutbox(conv); err != nil {
+			log.Printf("failed to create conversation (maybe already sent?): %s", err)
+		}
+		if err := g.MessageToOutbox(persistence.ConversationName(conv), message); err != nil {
+			log.Printf("failed to send message (maybe already sent?): %s", err)
+		}
+		window.Call("close")
 	})
 
 	return nil
@@ -143,10 +157,9 @@ func (g *gui) openConversation(idx int) error {
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
 	window.On("sendMessage", func(message string) {
-		println("Send: " + message)
 		err := g.MessageToOutbox(persistence.ConversationName(conv), message)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	})
 
