@@ -83,11 +83,13 @@ func newConversation(engine *qml.Engine) error {
 	return nil
 }
 
-func addMessage (window *qml.Window, msg *persistence.Message) {
-	messageModel := window.ObjectByName("messageModel")
-	msg.Content = strings.TrimSpace(msg.Content)
-	messageModel.Call("addItem", toJson(msg))
-	window.ObjectByName("messageView").Call("positionViewAtEnd")
+func (g *gui) handleMessage(window *qml.Window, msg *persistence.Message) {
+	window.ObjectByName("messageModel").Call("addItem", toJson(
+		&persistence.Message{
+			Path:    msg.Path,
+			Content: strings.TrimSpace(msg.Content),
+			Sender:  msg.Sender,
+		}))
 }
 
 func (g *gui) openConversation(idx int) error {
@@ -102,7 +104,7 @@ func (g *gui) openConversation(idx int) error {
 	//TODO: if an open conversation is selected again, focus that window
 
 	qml.Lock()
-	g.openConversations[persistence.ConversationName(conv)] = window;
+	g.openConversations[persistence.ConversationName(conv)] = window
 	qml.Unlock()
 
 	msgs, err := g.LoadMessages(conv)
@@ -110,8 +112,9 @@ func (g *gui) openConversation(idx int) error {
 		panic(err)
 	}
 	for _, msg := range msgs {
-		addMessage(window, msg)
+		g.handleMessage(window, msg)
 	}
+	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
 	ctx := g.engine.Context()
 	ctx.SetVar("textAreaCleared", false)
@@ -224,7 +227,12 @@ func (g *gui) watch() {
 			} else if match, _ := filepath.Match("*/*", rpath); match {
 				// TODO: handle incoming message
 				win := g.openConversations[filepath.Base(rpath)]
-				addMessage(win, persistence.ReadMessageFromFile(rpath))
+				msg, err := persistence.ReadMessageFromFile(rpath)
+				if err != nil {
+					log.Printf("error reading message %s: %s\n", rpath, err)
+					continue
+				}
+				g.handleMessage(win, msg)
 
 			} else {
 				log.Printf("event at unknown path: %s", rpath)

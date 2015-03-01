@@ -28,15 +28,6 @@ ApplicationWindow {
 	ListModel {
 		id: messageModel
 		objectName: 'messageModel'
-    	ListElement{
-    		Content: "test message"
-    		Sender:"Jane"
-    	}
-    	ListElement{
-    		Content: "test message"
-    		Sender:"Jane"
-    	}
-
 
 		function addItem(json) {
 			console.log(json)
