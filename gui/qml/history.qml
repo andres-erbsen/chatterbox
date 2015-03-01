@@ -42,15 +42,11 @@ ApplicationWindow {
 	        objectName: "table"
 
 	        focus:true
-	        frameVisible: false
+	        frameVisible: true
 	        sortIndicatorVisible: false
 
 	        anchors.fill: parent
 	        model: sourceModel
-
-	        Keys.onReturnPressed: {
-	        	console.log("return pressed, index is " + tableView.currentRow);
-	        }
 
 	        Layout.minimumWidth: 200
 	        Layout.minimumHeight: 240

@@ -58,6 +58,7 @@ ApplicationWindow {
 			Layout.fillHeight: true
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
+
 			/* andreser: the following works for me
 			keys.onreturnpressed: {
 				console.log("return pressed in main textarea");

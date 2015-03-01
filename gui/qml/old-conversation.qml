@@ -91,12 +91,14 @@ ApplicationWindow {
 		TextArea {
 			anchors.bottom: parent.bottom
 			id: messageArea 
+			objectName: "messageArea"
 			text: "Ctrl + Enter to send a message."
 			Layout.fillWidth: true
 			Layout.minimumHeight: 12
 			Layout.preferredHeight: 36
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
+			
 		}
     }
 }
