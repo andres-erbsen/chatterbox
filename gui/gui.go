@@ -19,6 +19,7 @@ var root = flag.String("root", "", "chatterbox root directory")
 type gui struct {
 	persistence.Paths
 	engine *qml.Engine
+	conversations []*proto.ConversationMetadata
 }
 
 func main() {
@@ -78,7 +79,7 @@ func (g *gui) conversation(idx int) error {
 	window := controls.CreateWindow(nil)
 	messageModel := window.ObjectByName("messageModel")
 
-	msgs, err := g.LoadMessages(&proto.ConversationMetadata{Subject: "thread", Participants: []string{"andres", "andreser"}})
+	msgs, err := g.LoadMessages(g.conversations[idx])
 	if err != nil {
 		panic(err)
 	}
@@ -109,13 +110,19 @@ func (g *gui) run() error {
 	if err != nil {
 		return err
 	}
-	for _, con := range convs {
+
+	g.conversations =convs
+
+	for _, con := range convs{
 		c := Conversation{Subject: con.Subject, Users: con.Participants}
 		listModel.Call("addItem", toJson(c))
 	}
 
-	window.ObjectByName("table").On("clicked", g.conversation)
+	table := window.ObjectByName("table")
 
+	table.On("activated", g.conversation)
+	table.Set("focus", "true")
+	
 	window.Show()
 	window.Wait()
 	return nil

@@ -26,6 +26,7 @@ ApplicationWindow {
 				}
 			}
 			parsed['objectName'] = parsed['Subject'];
+			parsed['focus'] = "true";
 			append(parsed);
 		}
 	}
@@ -40,11 +41,16 @@ ApplicationWindow {
 	        id: tableView
 	        objectName: "table"
 
+	        focus:true
 	        frameVisible: false
-	        sortIndicatorVisible: true
+	        sortIndicatorVisible: false
 
 	        anchors.fill: parent
 	        model: sourceModel
+
+	        Keys.onReturnPressed: {
+	        	console.log("return pressed, index is " + tableView.currentRow);
+	        }
 
 	        Layout.minimumWidth: 200
 	        Layout.minimumHeight: 240
