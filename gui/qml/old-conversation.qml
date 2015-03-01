@@ -29,56 +29,40 @@ ApplicationWindow {
 		id: messageModel
 		objectName: 'messageModel'
 
-		function addItem(json) {
-			var parsed = JSON.parse(json);
-			for (var key in parsed) {
-				if (parsed.hasOwnProperty(key) && (typeof parsed[key] == 'object')) {
-						parsed[key] = parsed[key].toString();
-				}
-			}
-			parsed['objectName'] = parsed['Subject'];
-			append(parsed);
-		}
+		function addItem(json) { append(JSON.parse(json)); }
     }
 
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: margin
-        spacing: 20
-		RowLayout {
-			anchors.top: parent.top
+
+		ScrollView {
+			Layout.fillHeight: true
+			Layout.fillWidth: true
 			ListView {
 				id: messageView
-		        objectName: "messageView"
+				objectName: "messageView"
 
-		        anchors.fill: parent
-		        model: messageModel
-		        delegate: RowLayout {
-		        	Text{ 
-		        		anchors.top: parent.top
-		        		text: Sender + ": "
-		        		textFormat: Text.PlainText
-		        		font.bold:true
-		        	}
-		        	Text{ 
-		        		anchors.top: parent.top
-		        		text: Content
-		        		textFormat: Text.PlainText
-		        	}
+				model: messageModel
+				delegate: RowLayout {
+					Text{ 
+						anchors.top: parent.top
+						text: Sender + ": "
+						textFormat: Text.PlainText
+						font.bold:true
+					}
+					Text{ 
+						anchors.top: parent.top
+						text: Content
+						textFormat: Text.PlainText
+					}
 
-		        }
-
-		        Layout.minimumWidth: 100
-		        Layout.minimumHeight: 100
-		        Layout.preferredWidth: 300
-		        Layout.preferredHeight: 180
+				}
 			}
 		}
 
-
 		TextArea {
-			anchors.bottom: parent.bottom
 			id: messageArea 
 			objectName: "messageArea"
 			text: "Ctrl + Enter to send a message."

@@ -111,13 +111,14 @@ func (g *gui) handleMessage(path string) {
 }
 
 func (g *gui) displayMessage(window *qml.Window, msg *persistence.Message) {
-	log.Printf("displayMessage %s", msg)
 	window.ObjectByName("messageModel").Call("addItem", toJson(
 		&persistence.Message{
 			Path:    msg.Path,
 			Content: strings.TrimSpace(msg.Content),
 			Sender:  msg.Sender,
 		}))
+	// TODO: only do this if the view was at the end before adding the new item
+	window.ObjectByName("messageView").Call("positionViewAtEnd")
 }
 
 func (g *gui) openConversation(idx int) error {
