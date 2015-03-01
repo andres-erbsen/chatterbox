@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"gopkg.in/fsnotify.v1"
 	"gopkg.in/qml.v1"
 )
 
@@ -19,7 +22,14 @@ var root = flag.String("root", "", "chatterbox root directory")
 type gui struct {
 	persistence.Paths
 	engine *qml.Engine
-	conversations []*proto.ConversationMetadata
+
+	conversations        []*proto.ConversationMetadata
+	conversationsIndex   map[string]int
+	conversationsDisplay qml.Object
+
+	watcher *fsnotify.Watcher
+
+	stop chan struct{}
 }
 
 func main() {
@@ -29,11 +39,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	g := new(gui)
+	g := &gui{stop: make(chan struct{})}
 	g.Paths = persistence.Paths{
 		RootDir:     *root,
 		Application: "chat-create",
 	}
+	go g.watch()
 	if err := qml.Run(g.run); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(2)
@@ -70,7 +81,7 @@ func newConversation(engine *qml.Engine) error {
 	return nil
 }
 
-func (g *gui) conversation(idx int) error {
+func (g *gui) openConversation(idx int) error {
 	println(idx)
 	controls, err := g.engine.LoadFile("qml/old-conversation.qml")
 	if err != nil {
@@ -97,6 +108,7 @@ func (g *gui) conversation(idx int) error {
 }
 
 func (g *gui) run() error {
+	defer close(g.stop)
 	g.engine = qml.NewEngine()
 	controls, err := g.engine.LoadFile("qml/history.qml")
 	if err != nil {
@@ -104,26 +116,79 @@ func (g *gui) run() error {
 	}
 
 	window := controls.CreateWindow(nil)
-
-	listModel := window.ObjectByName("listModel")
+	g.conversationsDisplay = window.ObjectByName("listModel")
 	convs, err := g.ListConversations()
 	if err != nil {
 		return err
 	}
-
-	g.conversations =convs
-
-	for _, con := range convs{
-		c := Conversation{Subject: con.Subject, Users: con.Participants}
-		listModel.Call("addItem", toJson(c))
+	for _, con := range convs {
+		g.handleConversation(con)
 	}
 
 	table := window.ObjectByName("table")
-
-	table.On("activated", g.conversation)
+	table.On("activated", g.openConversation)
 	table.Set("focus", "true")
-	
+
 	window.Show()
 	window.Wait()
 	return nil
+}
+
+func (g *gui) handleConversation(con *proto.ConversationMetadata) {
+	if _, already := g.conversationsIndex[persistence.ConversationName(con)]; already {
+		return
+	}
+	g.conversationsIndex[persistence.ConversationName(con)] = len(g.conversations)
+	g.conversations = append(g.conversations, con)
+	c := Conversation{Subject: con.Subject, Users: con.Participants}
+	g.conversationsDisplay.Call("addItem", toJson(c))
+}
+
+func (g *gui) watch() {
+	var err error
+	g.watcher, err = fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer g.watcher.Close()
+	err = g.watcher.Add(g.ConversationDir())
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		select {
+		case <-g.stop:
+			return
+		case err := <-g.watcher.Errors:
+			fmt.Println("error:", err)
+		case e := <-g.watcher.Events:
+			rpath, err := filepath.Rel(g.ConversationDir(), e.Name)
+			if err != nil {
+				panic(err)
+			}
+			if !(e.Op == fsnotify.Create || e.Op == fsnotify.Rename) {
+				// TODO: handle move, delete
+				continue
+			}
+			if match, _ := filepath.Match("*", rpath); match {
+				// when a conversation is created it MUST have a metadata file when
+				// it is moved to the conversations directory
+				err = g.watcher.Add(g.ConversationDir())
+				if err != nil {
+					log.Printf("error watching conversation %s: %s\n", rpath, err)
+					// continue after error
+				}
+				c, err := persistence.ReadConversationMetadata(e.Name)
+				if err != nil {
+					log.Printf("error reading metadata of %s: %s\n", rpath, err)
+					continue
+				}
+				g.handleConversation(c)
+			} else if match, _ := filepath.Match("*/*", rpath); match {
+				// TODO: handle incoming message
+			} else {
+				log.Printf("event at unknown path: %s", rpath)
+			}
+		}
+	}
 }
