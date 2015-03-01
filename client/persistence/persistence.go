@@ -125,18 +125,31 @@ func (p *Paths) ListConversations() ([]*proto.ConversationMetadata, error) {
 	return ret, nil
 }
 
-func (p *Paths) ListMessages() ([]string, error) {
-	fis, err := ioutil.ReadDir(p.ConversationDir())
+type Message struct {
+	Path, Sender, Content string
+}
+
+func (p *Paths) LoadMessages(conv *proto.ConversationMetadata) ([]*Message, error) {
+	convpath := filepath.Join(p.ConversationDir(), ConversationName(conv))
+	fis, err := ioutil.ReadDir(convpath)
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]*proto.ConversationMetadata, 0, len(fis))
+	ret := make([]*Message, 0, len(fis))
 	for _, fi := range fis {
-		c, err := ReadConversationMetadata(filepath.Join(p.ConversationDir(), fi.Name()))
+		if fi.Name() == MetadataFileName {
+			continue
+		}
+		if len(fi.Name()) < len("2015-02-16T07:09:55Z-") {
+			panic("badly formatted message filename in conversation \"" + ConversationName(conv) + "\" : " + fi.Name())
+		}
+		sender := fi.Name()[len("2015-02-16T07:09:55Z-"):]
+		path := filepath.Join(convpath, fi.Name())
+		contents, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
-		ret = append(ret, c)
+		ret = append(ret, &Message{Path: path, Sender: sender, Content: string(contents)})
 	}
 	return ret, nil
 }

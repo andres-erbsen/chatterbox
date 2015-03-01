@@ -56,22 +56,9 @@ ApplicationWindow {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: margin
-        spacing:20
+        spacing: 20
 		RowLayout {
-			Text {
-				text: "To:"
-				objectName: "to"
-			}
-		}
-
-		RowLayout {
-			Text {
-				text: "Subject:"
-				objectName: "subject"
-			}
-		}
-
-		RowLayout {
+			anchors.top: parent.top
 			ListView {
 				id: messageView
 		        objectName: "messageView"
@@ -102,11 +89,12 @@ ApplicationWindow {
 
 
 		TextArea {
+			anchors.bottom: parent.bottom
 			id: messageArea 
 			text: "Ctrl + Enter to send a message."
-			Layout.minimumHeight: 10
 			Layout.fillWidth: true
-			Layout.fillHeight: true
+			Layout.minimumHeight: 12
+			Layout.preferredHeight: 36
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
 		}

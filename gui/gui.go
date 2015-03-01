@@ -7,8 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/andres-erbsen/chatterbox/client/persistence"
+	"github.com/andres-erbsen/chatterbox/proto"
 	"gopkg.in/qml.v1"
 )
 
@@ -43,25 +45,12 @@ type Conversation struct {
 	LastMessage string
 }
 
-type Message struct {
-	Sender  string
-	Content string
-}
-
-func (con *Conversation) toJson() string {
-	raw_json, err := json.Marshal(con)
+func toJson(v interface{}) string {
+	rawJson, err := json.Marshal(v)
 	if err != nil {
 		panic(err)
 	}
-	return string(raw_json)
-}
-
-func (msg *Message) toJson() string {
-	raw_json, err := json.Marshal(msg)
-	if err != nil {
-		panic(err)
-	}
-	return string(raw_json)
+	return string(rawJson)
 }
 
 func newConversation(engine *qml.Engine) error {
@@ -80,31 +69,27 @@ func newConversation(engine *qml.Engine) error {
 	return nil
 }
 
-func oldConversation(engine *qml.Engine) error {
-	controls, err := engine.LoadFile("qml/old-conversation.qml")
+func (g *gui) conversation(idx int) error {
+	println(idx)
+	controls, err := g.engine.LoadFile("qml/old-conversation.qml")
 	if err != nil {
 		return err
 	}
 	window := controls.CreateWindow(nil)
-
-	messages := []Message{Message{Sender: "Bill", Content: "test 1"}}
-
-	me := "Bob"
-
 	messageModel := window.ObjectByName("messageModel")
-	for _, message := range messages {
-		raw_json, _ := json.Marshal(message)
-		messageModel.Call("addItem", string(raw_json))
+
+	msgs, err := g.LoadMessages(&proto.ConversationMetadata{Subject: "thread", Participants: []string{"andres", "andreser"}})
+	if err != nil {
+		panic(err)
+	}
+	for _, msg := range msgs {
+		msg.Content = strings.TrimSpace(msg.Content)
+		messageModel.Call("addItem", toJson(msg))
 	}
 	window.ObjectByName("messageView").Call("positionViewAtEnd")
 
 	window.On("sendMessage", func(message string) {
-		//println("To: " + to)
-		//println("Subject: " + subject)
-		raw_json, _ := json.Marshal(Message{Sender: me, Content: message})
-		messageModel.Call("addItem", string(raw_json))
-		window.ObjectByName("messageView").Call("positionViewAtEnd")
-		println("Message: " + message)
+		println("Send: " + message)
 	})
 
 	return nil
@@ -126,11 +111,10 @@ func (g *gui) run() error {
 	}
 	for _, con := range convs {
 		c := Conversation{Subject: con.Subject, Users: con.Participants}
-		listModel.Call("addItem", c.toJson())
+		listModel.Call("addItem", toJson(c))
 	}
 
-	//window.ObjectByName("table").On("clicked", func() {newConversation(g.engine)})
-	window.ObjectByName("table").On("clicked", g.conversation())
+	window.ObjectByName("table").On("clicked", g.conversation)
 
 	window.Show()
 	window.Wait()
