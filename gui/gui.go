@@ -82,15 +82,15 @@ func newConversation(engine *qml.Engine) error {
 }
 
 func (g *gui) openConversation(idx int) error {
-	println(idx)
 	controls, err := g.engine.LoadFile("qml/old-conversation.qml")
 	if err != nil {
 		return err
 	}
 	window := controls.CreateWindow(nil)
 	messageModel := window.ObjectByName("messageModel")
+	conv := g.conversations[idx]
 
-	msgs, err := g.LoadMessages(g.conversations[idx])
+	msgs, err := g.LoadMessages(conv)
 	if err != nil {
 		panic(err)
 	}
@@ -105,21 +105,19 @@ func (g *gui) openConversation(idx int) error {
 
 	messageArea := window.ObjectByName("messageArea")
 
-	// messageArea.On("activated", func() {
-	// 	println("activated");
-	// });
-
 	window.ObjectByName("messageArea").On("focusChanged", func() {
 		if !(ctx.Var("textAreaCleared").(bool)) {
-			// messageArea.Call("remove", 0, messageArea.Property("length").(int));
 			messageArea.Call("selectAll")
 			ctx.SetVar("textAreaCleared", true)
 		}
-		//messageArea.Set("focus", true);
 	})
 
 	window.On("sendMessage", func(message string) {
 		println("Send: " + message)
+		err := g.MessageToOutbox(persistence.ConversationName(conv), message)
+		if err != nil {
+			panic(err)
+		}
 	})
 
 	return nil

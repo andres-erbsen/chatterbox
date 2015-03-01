@@ -101,7 +101,10 @@ func (p *Paths) MessageToOutbox(conversationName, message string) error {
 		return err
 	}
 
-	return os.Rename(filepath.Join(p.TempDir(), f.Name()), filepath.Join(p.OutboxDir(), f.Name()))
+	base := filepath.Base(f.Name())
+	conv_outbox := filepath.Join(p.OutboxDir(), conversationName)
+
+	return os.Rename(filepath.Join(p.TempDir(), base), filepath.Join(conv_outbox, base))
 }
 
 func ReadConversationMetadata(dir string) (*proto.ConversationMetadata, error) {
