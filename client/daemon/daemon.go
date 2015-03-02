@@ -688,7 +688,7 @@ func (d *Daemon) saveMessage(message *proto.Message) error {
 	if err != nil {
 		return err
 	}
-	if err = os.Rename(filepath.Join(tdir), outboxDir); err != nil {
+	if err = os.Rename(filepath.Join(tdir), outboxDir); err != nil && !os.IsExist(err) && !strings.Contains(err.Error(), "directory not empty") {
 		return err
 	}
 	return nil
