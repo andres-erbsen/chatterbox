@@ -2,12 +2,12 @@ package main
 
 import (
 	"crypto/rand"
+	"fmt"
 	"golang.org/x/crypto/nacl/box"
 	"io/ioutil"
 	"log"
-	"fmt"
-	"path"
 	"os"
+	"path"
 )
 
 const SECRET_KEY string = "transport_secret_key"
