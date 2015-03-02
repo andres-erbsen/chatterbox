@@ -13,6 +13,10 @@ ApplicationWindow {
     minimumWidth: mainLayout.Layout.minimumWidth + 40 * margin
     minimumHeight: mainLayout.Layout.minimumHeight + 12 * margin
 
+    function closeWindow() {
+    	newConversationWindow.close();
+    }
+
 	Action {
 		id: sendMessage
 		objectName: "sendMessage"

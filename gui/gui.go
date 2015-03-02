@@ -97,7 +97,7 @@ func (g *gui) newConversation() error {
 		if err := g.MessageToOutbox(persistence.ConversationName(conv), message); err != nil {
 			log.Printf("failed to send message (maybe already sent?): %s", err)
 		}
-		window.Call("close")
+		window.Call("closeWindow") //overriding native "close" b/c of weird errors
 	})
 
 	return nil
