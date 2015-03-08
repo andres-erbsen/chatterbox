@@ -17,8 +17,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 
-	"golang.org/x/net/proxy"
-
 	"code.google.com/p/go.exp/fsnotify"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
@@ -62,10 +60,10 @@ type Daemon struct {
 	checkAuth func(tag, data, msg []byte, ourAuthPrivate *[32]byte) error
 	fillAuth  func(tag, data []byte, theirAuthPublic *[32]byte)
 
-	torAddr string
+	cc *util.ConnectionCache
 }
 
-// Init fills in a new daemon state directory.
+// Init creates a new account locally and at the server
 func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte) error {
 	d := &Daemon{
 		Paths: persistence.Paths{
@@ -78,8 +76,8 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 			ServerTransportPK: (proto.Byte32)(*serverPK),
 			Dename:            dename,
 		},
-		Now:     time.Now,
-		torAddr: "127.0.0.1:9050",
+		Now: time.Now,
+		cc:  util.NewConnectionCache("127.0.0.1:9050"),
 	}
 	if err := os.MkdirAll(rootDir, 0700); err != nil {
 		return err
@@ -107,14 +105,19 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		return err
 	}
 
-	conn, err := util.DialServer(d.anonDialer(),
-		serverAddr, serverPort, serverPK,
-		(*[32]byte)(&publicProfile.UserIDAtServer),
-		(*[32]byte)(&d.TransportSecretKeyForServer))
+	conn, err := d.cc.DialServer(dename, serverAddr, serverPort, serverPK,
+		(*[32]byte)(&publicProfile.UserIDAtServer), (*[32]byte)(&d.TransportSecretKeyForServer))
 	if err != nil {
 		return err
 	}
-	return util.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE))
+	err = util.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE))
+	if err != nil {
+		conn.Close()
+		d.cc.PutClose(dename)
+		return err
+	}
+	d.cc.Put(dename, conn)
+	return nil
 }
 
 // Load initializes a chatterbox daemon from rootDir
@@ -124,9 +127,10 @@ func Load(rootDir string) (*Daemon, error) {
 			RootDir:     rootDir,
 			Application: "daemon",
 		},
-		Now:     time.Now,
-		torAddr: "127.0.0.1:9050",
+		Now: time.Now,
+		cc:  util.NewConnectionCache("127.0.0.1:9050"),
 	}
+
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return nil, err
 	}
@@ -200,9 +204,8 @@ func (d *Daemon) run() error {
 		return err
 	}
 
-	ourConn, err := util.DialServer(d.anonDialer(),
-		d.ServerAddressTCP, 1984, (*[32]byte)(&d.ServerTransportPK),
-		(*[32]byte)(&profile.UserIDAtServer),
+	ourConn, err := d.cc.DialServer(d.Dename, d.ServerAddressTCP, 1984,
+		(*[32]byte)(&d.ServerTransportPK), (*[32]byte)(&profile.UserIDAtServer),
 		(*[32]byte)(&d.TransportSecretKeyForServer))
 	if err != nil {
 		return err
@@ -426,28 +429,36 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) error {
 
 	ourSkAuth := (*[32]byte)(&d.MessageAuthSecretKey)
 
-	theirConn, err := util.DialServer(d.anonDialer(), addr, port, pkTransport, nil, nil)
+	theirConn, err := d.cc.DialServer(theirDename, addr, port, pkTransport, nil, nil)
 	if err != nil {
 		return err
 	}
-	defer theirConn.Close()
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 	theirKey, err := util.GetKey(theirConn, theirInBuf, theirPk, theirDename, pkSig)
 	if err != nil {
+		theirConn.Close()
+		d.cc.PutClose(theirDename)
 		return err
 	}
 	encMsg, ratch, err := util.EncryptAuthFirst(msg, ourSkAuth, theirKey, d.ProfileRatchet)
 	if err != nil {
+		theirConn.Close()
+		d.cc.PutClose(theirDename)
 		return err
 	}
 	if err := StoreRatchet(d, theirDename, ratch); err != nil {
+		theirConn.Close()
+		d.cc.PutClose(theirDename)
 		return err
 	}
 	err = util.UploadMessageToUser(theirConn, theirInBuf, theirPk, encMsg)
 	if err != nil {
+		theirConn.Close()
+		d.cc.PutClose(theirDename)
 		return err
 	}
+	d.cc.Put(theirDename, theirConn)
 	return nil
 }
 
@@ -479,23 +490,27 @@ func (d *Daemon) sendMessage(msg []byte, theirDename string, msgRatch *ratchet.R
 
 	theirInBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	theirConn, err := util.DialServer(d.anonDialer(), addr, port, pkTransport, nil, nil)
-	if err != nil {
-		return err
-	}
-	defer theirConn.Close()
-
 	encMsg, ratch, err := util.EncryptAuth(msg, msgRatch)
 	if err != nil {
 		return err
 	}
+
+	theirConn, err := d.cc.DialServer(theirDename, addr, port, pkTransport, nil, nil)
+	if err != nil {
+		return err
+	}
 	if err := StoreRatchet(d, theirDename, ratch); err != nil {
+		theirConn.Close()
+		d.cc.PutClose(theirDename)
 		return err
 	}
 	err = util.UploadMessageToUser(theirConn, theirInBuf, theirPk, encMsg)
 	if err != nil {
+		theirConn.Close()
+		d.cc.PutClose(theirDename)
 		return err
 	}
+	d.cc.Put(theirDename, theirConn)
 	return nil
 }
 
@@ -692,13 +707,6 @@ func (d *Daemon) saveMessage(message *proto.Message) error {
 		return err
 	}
 	return nil
-}
-
-func (d *Daemon) anonDialer() proxy.Dialer {
-	if d.torAddr == "DANGEROUS_NO_TOR" {
-		return proxy.Direct
-	}
-	return util.TorIdentity(d.torAddr)
 }
 
 func (p *Daemon) conversationToConversations(metadata *proto.ConversationMetadata) error {

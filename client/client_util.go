@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
-	"strconv"
 	"time"
 
 	"code.google.com/p/go.crypto/curve25519"
@@ -86,7 +84,7 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 	return pkList
 }
 
-func TorIdentity(addr string) proxy.Dialer {
+func TorAnon(addr string) proxy.Dialer {
 	var identity [16]byte
 	if _, err := rand.Read(identity[:]); err != nil {
 		panic(err)
@@ -99,20 +97,6 @@ func TorIdentity(addr string) proxy.Dialer {
 		panic(err)
 	}
 	return dialer
-}
-
-func DialServer(dialer proxy.Dialer, addr string, port int, serverPK, pk, sk *[32]byte) (*transport.Conn, error) {
-	plainconn, err := dialer.Dial("tcp", net.JoinHostPort(addr, strconv.Itoa(port)))
-	if err != nil {
-		return nil, err
-	}
-	conn, _, err := transport.Handshake(plainconn, pk, sk, serverPK, proto.SERVER_MESSAGE_SIZE)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-
-	return conn, nil
 }
 
 func EncryptAuthFirst(message []byte, skAuth *[32]byte, userKey *[32]byte, prt ProfileRatchet) ([]byte, *ratchet.Ratchet, error) {
@@ -290,8 +274,8 @@ func ReceiveProtobuf(conn *transport.Conn, inBuf []byte) (*proto.ServerToClient,
 	if response.Status == nil {
 		return nil, errors.New("Server returned nil status.")
 	}
-	if *response.Status == proto.ServerToClient_PARSE_ERROR {
-		return nil, errors.New("Server threw a parse error.")
+	if *response.Status != proto.ServerToClient_OK {
+		return nil, errors.New("Server did not return OK")
 	}
 	return response, nil
 }
