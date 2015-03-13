@@ -2,16 +2,19 @@
 
 2. Download, compile, install
 
-		go get github.com/andres-erbsen/chatterbox/client/{chatterboxd,chatterbox-init,chat-create}
+		go get -u github.com/andres-erbsen/chatterbox/{chatterboxd,chatterbox-init,chatterbox-create,chatterbox-qt}
 
 3. Create an account:
 
-		chatterbox-init  -account-directory=/home/${USER}/.chatterbox/${DENAME_USER} -dename=${DENAME_USER} -server-host=chatterbox.xvm.mit.edu -server-pubkey=70eb7fb3e6c85c006ba76b48208ccf75f99eb6ec98dffb4292388369cb197e30
+		chatterbox-init  -dename=${DENAME_USER}
 
-4. Create a conversation:
+4. Start the daemon
 
-		chat-create -root=/home/${USER}/.chatterbox/${DENAME_USER} -subject=SubjectHere -message=hello ${DENAME_USER} DENAME_OF_FRIEND
+        chatterboxd -root=${INIT_DIR}
 
-5. Open that conversation in a terminal client:
+5. Run the qt UI
 
-		env EDITOR=vim cui/chat-in-tmux.sh ~/.chatterbox/${DENAME_USER}/conversations/SubjectHere\ \%between\ ${DENAME_USER}\ \%and\ DENAME_OF_FRIEND/
+		# Install QT packages -- these are the packages for Arch
+        pacman -S qt5-base qt5-connectivity qt5-declarative qt5-enginio qt5-graphicaleffects qt5-imageformats qt5-location qt5-multimedia qt5-quick1 qt5-quickcontrols qt5-script qt5-sensors qt5-serialport qt5-svg qt5-tools qt5-translations qt5-wayland qt5-webchannel qt5-webengine qt5-webkit qt5-websockets qt5-x11extras qt5-xmlpatterns
+
+		chatterbox-qt -root=${INIT_DIR}
