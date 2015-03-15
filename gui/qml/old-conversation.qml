@@ -68,7 +68,7 @@ ApplicationWindow {
 						}
 						Rectangle {
 							id: background
-							color: Color
+							color: (index % 2 == 0) ? "#eee" : "#ccc"
 							Layout.maximumWidth:messageView.width
 							Layout.preferredWidth:messageView.width
 						    height: content_text.height
