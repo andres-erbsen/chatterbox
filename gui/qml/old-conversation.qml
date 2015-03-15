@@ -47,17 +47,21 @@ ApplicationWindow {
 
 				model: messageModel
 				delegate: RowLayout {
-					Text{ 
-						anchors.top: parent.top
-						text: Sender + ": "
-						textFormat: Text.PlainText
-						font.bold:true
-					}
-					Text{ 
-						anchors.top: parent.top
-						text: Content
-						textFormat: Text.PlainText
-					}
+						Text{ 
+							id: sender_text
+							anchors.top: parent.top
+							text: Sender + ": "
+							textFormat: Text.PlainText
+							font.bold:true
+						}
+						Text{ 
+							id:content_text
+							Layout.maximumWidth:messageView.width - sender_text.width
+							Layout.preferredWidth:messageView.width - sender_text.width
+							text: Content
+							textFormat: Text.PlainText
+							wrapMode: Text.Wrap
+						}
 
 				}
 			}
