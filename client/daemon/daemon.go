@@ -44,6 +44,7 @@ type Daemon struct {
 	// Gets the current time
 	Now func() time.Time
 
+	proto.LocalAccount
 	proto.LocalAccountConfig
 
 	foreignDenameClient  *client.Client
@@ -71,6 +72,9 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
 			Application: "daemon",
+		},
+		LocalAccount: proto.LocalAccount{
+			Dename:            dename,
 		},
 		LocalAccountConfig: proto.LocalAccountConfig{
 			ServerAddressTCP:  serverAddr,
@@ -100,6 +104,9 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		panic(err)
 	}
 
+	if err := d.MarshalToFile(persistence.AccountPath(), &d.LocalAccount); err != nil {
+		return err
+	}
 	if err := d.MarshalToFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return err
 	}
@@ -126,6 +133,9 @@ func Load(rootDir string) (*Daemon, error) {
 		},
 		Now:     time.Now,
 		torAddr: "127.0.0.1:9050",
+	}
+	if err := persistence.UnmarshalFromFile(persistence.AccountPath(), &d.LocalAccount); err != nil {
+		return nil, err
 	}
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return nil, err

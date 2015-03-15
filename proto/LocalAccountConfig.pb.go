@@ -2,6 +2,15 @@
 // source: LocalAccountConfig.proto
 // DO NOT EDIT!
 
+/*
+	Package proto is a generated protocol buffer package.
+
+	It is generated from these files:
+		LocalAccountConfig.proto
+
+	It has these top-level messages:
+		LocalAccountConfig
+*/
 package proto
 
 import proto1 "github.com/gogo/protobuf/proto"
@@ -26,7 +35,6 @@ type LocalAccountConfig struct {
 	TransportSecretKeyForServer Byte32 `protobuf:"bytes,4,req,customtype=Byte32" json:"TransportSecretKeyForServer"`
 	KeySigningSecretKey         []byte `protobuf:"bytes,5,req" json:"KeySigningSecretKey"`
 	MessageAuthSecretKey        Byte32 `protobuf:"bytes,6,req,customtype=Byte32" json:"MessageAuthSecretKey"`
-	Dename                      string `protobuf:"bytes,7,req" json:"Dename"`
 	XXX_unrecognized            []byte `json:"-"`
 }
 
@@ -186,28 +194,6 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 				return err
 			}
 			index = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Dename", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if index >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := data[index]
-				index++
-				stringLen |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			postIndex := index + int(stringLen)
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Dename = string(data[index:postIndex])
-			index = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -247,8 +233,6 @@ func (m *LocalAccountConfig) Size() (n int) {
 	}
 	l = m.MessageAuthSecretKey.Size()
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
-	l = len(m.Dename)
-	n += 1 + l + sovLocalAccountConfig(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -286,9 +270,8 @@ func NewPopulatedLocalAccountConfig(r randyLocalAccountConfig, easy bool) *Local
 	}
 	v4 := NewPopulatedByte32(r)
 	this.MessageAuthSecretKey = *v4
-	this.Dename = randStringLocalAccountConfig(r)
 	if !easy && r.Intn(10) != 0 {
-		this.XXX_unrecognized = randUnrecognizedLocalAccountConfig(r, 8)
+		this.XXX_unrecognized = randUnrecognizedLocalAccountConfig(r, 7)
 	}
 	return this
 }
@@ -411,10 +394,6 @@ func (m *LocalAccountConfig) MarshalTo(data []byte) (n int, err error) {
 		return 0, err
 	}
 	i += n3
-	data[i] = 0x3a
-	i++
-	i = encodeVarintLocalAccountConfig(data, i, uint64(len(m.Dename)))
-	i += copy(data[i:], m.Dename)
 	if m.XXX_unrecognized != nil {
 		i += copy(data[i:], m.XXX_unrecognized)
 	}
@@ -484,9 +463,6 @@ func (this *LocalAccountConfig) Equal(that interface{}) bool {
 		return false
 	}
 	if !this.MessageAuthSecretKey.Equal(that1.MessageAuthSecretKey) {
-		return false
-	}
-	if this.Dename != that1.Dename {
 		return false
 	}
 	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {

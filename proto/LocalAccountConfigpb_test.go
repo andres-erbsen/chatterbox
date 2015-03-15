@@ -2,6 +2,15 @@
 // source: LocalAccountConfig.proto
 // DO NOT EDIT!
 
+/*
+Package proto is a generated protocol buffer package.
+
+It is generated from these files:
+	LocalAccountConfig.proto
+
+It has these top-level messages:
+	LocalAccountConfig
+*/
 package proto
 
 import testing "testing"
