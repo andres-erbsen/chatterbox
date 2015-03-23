@@ -52,5 +52,5 @@ func main() {
 	}
 	fmt.Printf("Account initialization done.\n"+
 		"You may use the following command to link this account with your dename profile:.\n"+
-		"dnmgr set '%s' 1984 < %s/.daemon/chatterbox-profile.pb\n", *dename, *dir)
+		"torify dnmgr set '%s' 1984 < %s/.daemon/chatterbox-profile.pb\n", *dename, *dir)
 }

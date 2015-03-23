@@ -1,4 +1,3 @@
-// Package daemon long-running client-side chatterbox functionality
 //   watches the file system for new messages --> sends them
 //   communicates with the server --> receive new messages
 package daemon
@@ -30,7 +29,7 @@ import (
 
 const (
 	// How many prekeys should the daemon try to keep at the server?
-	maxPrekeys  = 100 //TODO make this configurable
+	maxPrekeys  = 100
 	minPrekeys  = 50
 	daemonAppID = "daemon"
 )
@@ -77,7 +76,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 			Dename:            dename,
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache("127.0.0.1:9050"),
+		cc:  util.NewConnectionCache(util.NewAnonDialer("127.0.0.1:9050")),
 	}
 	if err := os.MkdirAll(rootDir, 0700); err != nil {
 		return err
@@ -128,7 +127,7 @@ func Load(rootDir string) (*Daemon, error) {
 			Application: "daemon",
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache("127.0.0.1:9050"),
+		cc:  util.NewConnectionCache(util.NewAnonDialer("127.0.0.1:9050")),
 	}
 
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
@@ -145,12 +144,11 @@ func Load(rootDir string) (*Daemon, error) {
 	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	ourDenameClient, err := client.NewClient(nil, nil, nil)
+	ourDenameClient, err := client.NewClient(nil, util.NewAnonDialer("127.0.0.1:9050"), nil)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: randomized per-connection TOR dialer
-	d.foreignDenameClient, err = client.NewClient(nil, nil, nil)
+	d.foreignDenameClient, err = client.NewClient(nil, util.NewAnonDialer("127.0.0.1:9050"), nil)
 	if err != nil {
 		return nil, err
 	}

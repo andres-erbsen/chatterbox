@@ -1,6 +1,8 @@
 package client
 
 import (
+	"crypto/rand"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -14,13 +16,13 @@ type ConnectionCache struct {
 	sync.Mutex
 	connections map[string]chan *transport.Conn
 
-	torAddr string
+	dialer proxy.Dialer
 }
 
-func NewConnectionCache(torAddr string) *ConnectionCache {
+func NewConnectionCache(dialer proxy.Dialer) *ConnectionCache {
 	return &ConnectionCache{
 		connections: make(map[string]chan *transport.Conn),
-		torAddr:     torAddr,
+		dialer:      dialer,
 	}
 }
 
@@ -73,12 +75,7 @@ func (cc *ConnectionCache) DialServer(cacheKey, addr string, port int, serverPK,
 	}
 	// ch is empty now
 
-	dialer := TorAnon(cc.torAddr)
-	if cc.torAddr == "DANGEROUS_NO_TOR" {
-		dialer = proxy.Direct
-	}
-
-	plainconn, err := dialer.Dial("tcp", net.JoinHostPort(addr, strconv.Itoa(port)))
+	plainconn, err := cc.dialer.Dial("tcp", net.JoinHostPort(addr, strconv.Itoa(port)))
 	if err != nil {
 		cc.PutClose(cacheKey)
 		return nil, err
@@ -91,4 +88,26 @@ func (cc *ConnectionCache) DialServer(cacheKey, addr string, port int, serverPK,
 	}
 
 	return conn, nil
+}
+
+type anonDialer struct{ torAddr string }
+
+func NewAnonDialer(torAddr string) proxy.Dialer { return &anonDialer{torAddr} }
+
+func (dl *anonDialer) Dial(network, addr string) (c net.Conn, err error) {
+	if dl.torAddr == "DANGEROUS_NO_TOR" {
+		return proxy.Direct.Dial(network, addr)
+	}
+	var identity [16]byte
+	if _, err := rand.Read(identity[:]); err != nil {
+		panic(err)
+	}
+	dialer, err := proxy.SOCKS5("tcp", dl.torAddr, &proxy.Auth{
+		User:     fmt.Sprintf("%x", identity[:8]),
+		Password: fmt.Sprintf("%x", identity[8:]),
+	}, proxy.Direct)
+	if err != nil {
+		return nil, err
+	}
+	return dialer.Dial(network, addr)
 }

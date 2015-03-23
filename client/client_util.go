@@ -2,11 +2,9 @@ package client
 
 import (
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
@@ -19,7 +17,6 @@ import (
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/andres-erbsen/dename/client"
 	dename "github.com/andres-erbsen/dename/protocol"
-	"golang.org/x/net/proxy"
 )
 
 const PROFILE_FIELD_ID = 1984
@@ -82,21 +79,6 @@ func SignKeys(keys []*[32]byte, sk *[64]byte) [][]byte {
 		pkList = append(pkList, append(append([]byte{}, key[:]...), signature[:]...))
 	}
 	return pkList
-}
-
-func TorAnon(addr string) proxy.Dialer {
-	var identity [16]byte
-	if _, err := rand.Read(identity[:]); err != nil {
-		panic(err)
-	}
-	dialer, err := proxy.SOCKS5("tcp", addr, &proxy.Auth{
-		User:     fmt.Sprintf("%x", identity[:8]),
-		Password: fmt.Sprintf("%x", identity[8:]),
-	}, proxy.Direct)
-	if err != nil {
-		panic(err)
-	}
-	return dialer
 }
 
 func EncryptAuthFirst(message []byte, skAuth *[32]byte, userKey *[32]byte, prt ProfileRatchet) ([]byte, *ratchet.Ratchet, error) {
