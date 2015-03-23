@@ -47,19 +47,37 @@ ApplicationWindow {
 
 				model: messageModel
 				delegate: RowLayout {
-					Text{ 
-						anchors.top: parent.top
-						text: Sender + ": "
-						textFormat: Text.PlainText
-						font.bold:true
-					}
-					Text{ 
-						anchors.top: parent.top
-						text: Content
-						textFormat: Text.PlainText
-					}
+						Text{ 
+							id: sender_text
+							z:100
+							anchors.top: parent.top
+							text: Sender + ": "
+							textFormat: Text.PlainText
+							font.bold:true
+						}
+						Text{ 
+							id:content_text
+							z:100
+							anchors.top: parent.top
+							anchors.left: sender_text.right
+							Layout.maximumWidth:messageView.width - sender_text.width
+							Layout.preferredWidth:messageView.width - sender_text.width
+							text: Content
+							textFormat: Text.PlainText
+							wrapMode: Text.Wrap
+						}
+						Rectangle {
+							id: background
+							color: (index % 2 == 0) ? "#eee" : "#ccc"
+							Layout.maximumWidth:messageView.width
+							Layout.preferredWidth:messageView.width
+						    height: content_text.height
+						    anchors.fill:parent
+						    z: 1
+						}
 
 				}
+
 			}
 		}
 

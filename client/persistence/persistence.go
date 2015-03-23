@@ -23,6 +23,7 @@ type Paths struct {
 
 const (
 	MetadataFileName = "metadata.pb"
+	AccountFileName = "account.pb"
 )
 
 func (p *Paths) ConversationDir() string { return filepath.Join(p.RootDir, "conversations") }
@@ -31,6 +32,10 @@ func (p *Paths) OutboxDir() string { return filepath.Join(p.RootDir, "outbox") }
 
 func (p *Paths) TempDir() string {
 	return filepath.Join(p.RootDir, ".tmp", p.Application)
+}
+
+func (p *Paths) AccountPath() string {
+	return filepath.Join(p.RootDir, "account.pb")
 }
 
 func ConversationName(metadata *proto.ConversationMetadata) string {
