@@ -23,8 +23,6 @@ type gui struct {
 	persistence.Paths
 	engine *qml.Engine
 
-	proto.LocalAccount
-
 	conversations        []*proto.ConversationMetadata
 	conversationsIndex   map[string]int
 	conversationsDisplay qml.Object
@@ -53,13 +51,6 @@ func main() {
 			Application: "qmlgui",
 		},
 	}
-	
-	if err := persistence.UnmarshalFromFile(g.AccountPath(), &g.LocalAccount); err != nil {
-		panic(err)
-	}
-
-	fmt.Println(g.Dename)
-
 	var err error
 	g.watcher, err = fsnotify.NewWatcher()
 	if err != nil {
