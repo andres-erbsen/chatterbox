@@ -81,7 +81,7 @@ func toJson(v interface{}) string {
 }
 
 func (g *gui) newConversation() error {
-	controls, err := g.engine.LoadFile("qml/new-conversation.qml")
+	controls, err := g.engine.LoadFile("qrc:///qml/new-conversation.qml")
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func (g *gui) displayMessage(window *qml.Window, msg *persistence.Message) {
 }
 
 func (g *gui) openConversation(idx int) error {
-	controls, err := g.engine.LoadFile("qml/old-conversation.qml")
+	controls, err := g.engine.LoadFile("qrc:///qml/old-conversation.qml")
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (g *gui) openConversation(idx int) error {
 func (g *gui) run() error {
 	defer close(g.stop)
 	g.engine = qml.NewEngine()
-	controls, err := g.engine.LoadFile("qml/history.qml")
+	controls, err := g.engine.LoadFile("qrc:///qml/history.qml")
 	if err != nil {
 		return err
 	}

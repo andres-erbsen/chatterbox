@@ -58,7 +58,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		LocalAccountConfig: proto.LocalAccountConfig{
 			Dename: alice,
 		},
-		torAddr: "DANGEROUS_NO_TOR",
+		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
 	}
 
 	bobConf := &Daemon{
@@ -74,7 +74,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		LocalAccountConfig: proto.LocalAccountConfig{
 			Dename: bob,
 		},
-		torAddr: "DANGEROUS_NO_TOR",
+		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
 	}
 
 	aliceHomeConn := util.CreateTestAccount(alice, aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
