@@ -78,15 +78,6 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		Now: time.Now,
 		cc:  util.NewConnectionCache(util.NewAnonDialer("127.0.0.1:9050")),
 	}
-	if err := os.MkdirAll(rootDir, 0700); err != nil {
-		return err
-	}
-	if err := os.Mkdir(d.privDir(), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(d.TempDir(), 0700); err != nil {
-		return err
-	}
 
 	publicProfile := &proto.Profile{
 		ServerAddressTCP:  serverAddr,
@@ -97,16 +88,26 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		panic(err)
 	}
 
+	conn, err := d.cc.DialServer(dename, serverAddr, serverPort, serverPK,
+		(*[32]byte)(&publicProfile.UserIDAtServer), (*[32]byte)(&d.TransportSecretKeyForServer))
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(rootDir, 0700); err != nil {
+		return err
+	}
+	if err := os.Mkdir(d.privDir(), 0700); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(d.TempDir(), 0700); err != nil {
+		return err
+	}
+
 	if err := d.MarshalToFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return err
 	}
 	if err := d.MarshalToFile(d.ourChatterboxProfilePath(), publicProfile); err != nil {
-		return err
-	}
-
-	conn, err := d.cc.DialServer(dename, serverAddr, serverPort, serverPK,
-		(*[32]byte)(&publicProfile.UserIDAtServer), (*[32]byte)(&d.TransportSecretKeyForServer))
-	if err != nil {
 		return err
 	}
 	err = util.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE))
