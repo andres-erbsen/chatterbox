@@ -78,7 +78,6 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 			ServerAddressTCP:  serverAddr,
 			ServerPortTCP:     int32(serverPort),
 			ServerTransportPK: (proto.Byte32)(*serverPK),
-			Dename:            dename,
 		},
 		Now: time.Now,
 		cc:  util.NewConnectionCache("127.0.0.1:9050"),
@@ -102,7 +101,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		panic(err)
 	}
 
-	if err := d.MarshalToFile(persistence.AccountPath(), &d.LocalAccount); err != nil {
+	if err := d.MarshalToFile(d.AccountPath(), &d.LocalAccount); err != nil {
 		return err
 	}
 	if err := d.MarshalToFile(d.configPath(), &d.LocalAccountConfig); err != nil {
@@ -141,7 +140,7 @@ func Load(rootDir string) (*Daemon, error) {
 		outBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
 	}
 
-	if err := persistence.UnmarshalFromFile(persistence.AccountPath(), &d.LocalAccount); err != nil {
+	if err := persistence.UnmarshalFromFile(d.AccountPath(), &d.LocalAccount); err != nil {
 		return nil, err
 	}
 	d.ourDenameLookup = new(dename.ClientReply)
@@ -162,7 +161,7 @@ func Load(rootDir string) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	timelessCfg := client.DefaultConfig
 	timelessCfg.Freshness.Threshold = fmt.Sprintf("%dh", 100*365*24)
 	d.timelessDenameClient, err = client.NewClient(&timelessCfg, nil, nil)

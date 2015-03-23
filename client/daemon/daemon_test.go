@@ -55,7 +55,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 		timelessDenameClient: aliceDnmc,
 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-		LocalAccountConfig: proto.LocalAccountConfig{
+		LocalAccountConfig: proto.LocalAccountConfig{},
+		LocalAccount: proto.LocalAccount{
 			Dename: alice,
 		},
 		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
@@ -71,7 +72,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 		timelessDenameClient: bobDnmc,
 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-		LocalAccountConfig: proto.LocalAccountConfig{
+		LocalAccountConfig: proto.LocalAccountConfig{},
+		LocalAccount: proto.LocalAccount{
 			Dename: bob,
 		},
 		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
