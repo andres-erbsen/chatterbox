@@ -257,17 +257,41 @@ func TestReadFromFiles(t *testing.T) {
 	}
 
 	//initialize daemon with Load
-	aliceD, err := Load(aliceDir)
+	aliceDaemon, err := Load(aliceDir, torAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	bobD, err := Load(bobDir)
+	bobDaemon, err := Load(bobDir, torAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println(bobD.Dename)
-	fmt.Println(aliceD.Dename)
+	//fmt.Println(aliceDaemon.ServerAddrTCP)
+
+	fmt.Println(bobDaemon.Dename)
+	fmt.Println(aliceDaemon.Dename)
+
+	//activate initialized daemons
+	aliceDaemon.Start()
+	//bobDaemon.Start()
+	defer aliceDaemon.Stop()
+	//defer bobDaemon.Stop()
+
+	//alice creates a new conversation and sends a message
+	// participants := []string{alice,bob}
+	// subj := "testConversation"
+	// conv := &proto.ConversationMetadata{
+	// 	Participants: participants,
+	// 	Subject:      subj,
+	// }
+
+	// if err := aliceDaemon.ConversationToOutbox(conv); err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if err := aliceDaemon.MessageToOutbox(persistence.ConversationName(conv), "Bob, can you hear me?"); err != nil {
+	// 	t.Fatal(err)
+	// }
+
 
 }

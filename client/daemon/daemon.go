@@ -97,6 +97,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		ServerPortTCP:     int32(serverPort),
 		ServerTransportPK: (proto.Byte32)(*serverPK),
 	}
+
 	if err := util.GenerateLongTermKeys(&d.LocalAccountConfig, publicProfile, rand.Reader); err != nil {
 		panic(err)
 	}
@@ -127,14 +128,14 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 }
 
 // Load initializes a chatterbox daemon from rootDir
-func Load(rootDir string) (*Daemon, error) {
+func Load(rootDir string, torAddr string) (*Daemon, error) {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
 			Application: "daemon",
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache("127.0.0.1:9050"),
+		cc:  util.NewConnectionCache(torAddr),
 
 		inBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
@@ -143,6 +144,11 @@ func Load(rootDir string) (*Daemon, error) {
 	if err := persistence.UnmarshalFromFile(d.AccountPath(), &d.LocalAccount); err != nil {
 		return nil, err
 	}
+
+	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
+		return nil, err
+	}
+
 	d.ourDenameLookup = new(dename.ClientReply)
 	persistence.UnmarshalFromFile(d.ourDenameLookupReplyPath(), d.ourDenameLookup)
 
@@ -210,8 +216,7 @@ func (d *Daemon) run() error {
 	if err := persistence.UnmarshalFromFile(d.ourChatterboxProfilePath(), profile); err != nil {
 		return err
 	}
-
-	ourConn, err := d.cc.DialServer(d.Dename, d.ServerAddressTCP, 1984,
+	ourConn, err := d.cc.DialServer(d.Dename, d.ServerAddressTCP, int(d.ServerPortTCP),
 		(*[32]byte)(&d.ServerTransportPK), (*[32]byte)(&profile.UserIDAtServer),
 		(*[32]byte)(&d.TransportSecretKeyForServer))
 	if err != nil {
@@ -639,6 +644,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 					return err
 				}
 			} else {
+				fmt.Println(msg)
 				if err := d.sendMessage(msg, recipient, msgRatch); err != nil {
 					return err
 				}
