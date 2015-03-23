@@ -194,16 +194,18 @@ func TestEncryptFirstMessage(t *testing.T) {
 	aliceConf.fillAuth = util.FillAuthWith((*[32]byte)(&aliceConf.MessageAuthSecretKey))
 	aliceConf.checkAuth = util.CheckAuthWith(aliceConf.ProfileRatchet)
 	aliceRatchets, err := AllRatchets(aliceConf, aliceConf.fillAuth, aliceConf.checkAuth)
-	outAlice, _, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
+	outAlice, _, err := decryptMessage(incomingAlice, aliceRatchets)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ha := sha256.Sum256(incomingAlice)
-	if err = aliceConf.receiveMessage(aliceConnToServer, outAlice, &ha); err != nil {
+	if err := aliceConf.saveMessage(outAlice); err != nil {
 		t.Fatal(err)
 	}
-
+	if err := util.DeleteMessages(aliceConnToServer, [][32]byte{ha}); err != nil {
+		t.Fatal(err)
+	}
 	fmt.Printf("Alice hears: %s\n", outAlice)
 
 	//TODO: Confirm message is as expected within the test
