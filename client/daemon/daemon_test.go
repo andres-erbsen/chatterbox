@@ -3,6 +3,7 @@ package daemon
 import (
 	"crypto/sha256"
 	"fmt"
+	"net"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -209,4 +210,64 @@ func TestEncryptFirstMessage(t *testing.T) {
 	fmt.Printf("Alice hears: %s\n", outAlice)
 
 	//TODO: Confirm message is as expected within the test
+}
+
+func TestReadFromFiles(t *testing.T) {
+	alice := "alice"
+	bob := "bob"
+	torAddr := "DANGEROUS_NO_TOR"
+
+	_, denameTeardown := denameTestutil.SingleServer(t)
+	// FIXME: make denameTestutil.SingleServer wait until the server is up
+	defer denameTeardown()
+
+	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
+	defer serverTeardown()
+
+	aliceDir, err := ioutil.TempDir("", "daemon-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(aliceDir)
+	bobDir, err := ioutil.TempDir("", "daemon-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(bobDir)
+
+	//get port from serverAddr
+	addr, portStr, err := net.SplitHostPort(serverAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var port int
+	if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
+		t.Fatal(err)
+	}
+
+	//create the accounts with Init
+	err = Init(aliceDir, alice, addr, port, serverPubkey, torAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = Init(bobDir, bob, addr, port, serverPubkey, torAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//initialize daemon with Load
+	aliceD, err := Load(aliceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bobD, err := Load(bobDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(bobD.Dename)
+	fmt.Println(aliceD.Dename)
+
 }

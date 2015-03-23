@@ -47,7 +47,9 @@ func main() {
 		*dir = filepath.Join(os.Getenv("HOME"), ".chatterbox", *dename)
 	}
 
-	if err := daemon.Init(*dir, *dename, *serverAddress, *serverPort, &serverTransportPubkey); err != nil {
+	torAddr := "127.0.0.1:9050"
+
+	if err := daemon.Init(*dir, *dename, *serverAddress, *serverPort, &serverTransportPubkey, torAddr); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Account initialization done.\n"+

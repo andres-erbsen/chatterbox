@@ -65,7 +65,7 @@ type Daemon struct {
 }
 
 // Init creates a new account locally and at the server
-func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte) error {
+func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte, torAddr string) error {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
@@ -80,7 +80,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 			ServerTransportPK: (proto.Byte32)(*serverPK),
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache("127.0.0.1:9050"),
+		cc:  util.NewConnectionCache(torAddr),
 	}
 	if err := os.MkdirAll(rootDir, 0700); err != nil {
 		return err
