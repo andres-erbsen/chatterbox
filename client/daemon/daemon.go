@@ -292,8 +292,11 @@ func (d *Daemon) run() error {
 				if err = StorePrekeys(d, newPrekeyPublics, newPrekeySecrets); err != nil {
 					return err
 				}
-				//TODO: Update prekeys by removing index, store
-				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
+				//TODO: Update prekeys by removing index, store // is this done? What does it mean?
+				if err := d.saveMessage(message); err != nil {
+					return err
+				}
+				if err := util.DeleteMessages(connToServer, [][32]byte{msgHash}); err != nil {
 					return err
 				}
 			} else { // try decrypting with a ratchet
@@ -302,14 +305,18 @@ func (d *Daemon) run() error {
 					return err
 				}
 
-				message, ratch, err := d.decryptMessage(envelope, ratchets)
-				if err != nil {
-					fmt.Printf("RECEIVE ANOMALY: %s\n", err)
+				// TODO: figure out what here should be atomic and comment
+				if message, ratch, err := decryptMessage(envelope, ratchets); err == nil {
+					if err := d.saveMessage(message); err != nil {
+						return err
+					}
+					if err := StoreRatchet(d, message.Dename, ratch); err != nil {
+						return err
+					}
+				} else {
+					log.Printf("failed to decrypt %x: %s", msgHash, err)
 				}
-				if err = d.receiveMessage(connToServer, message, &msgHash); err != nil {
-					return err
-				}
-				if err := StoreRatchet(d, message.Dename, ratch); err != nil {
+				if err := util.DeleteMessages(connToServer, [][32]byte{msgHash}); err != nil {
 					return err
 				}
 			}
@@ -538,7 +545,7 @@ func (d *Daemon) decryptFirstMessage(envelope []byte, pkList []*[32]byte, skList
 	return message, ratch, index, nil
 }
 
-func (d *Daemon) decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*proto.Message, *ratchet.Ratchet, error) {
+func decryptMessage(envelope []byte, ratchets []*ratchet.Ratchet) (*proto.Message, *ratchet.Ratchet, error) {
 	var ratch *ratchet.Ratchet
 	var msg []byte
 	var err error
@@ -665,13 +672,6 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 	}
 
 	return nil
-}
-
-func (d *Daemon) receiveMessage(connToServer *util.ConnectionToServer, message *proto.Message, msgHash *[32]byte) error {
-	if err := d.saveMessage(message); err != nil {
-		return err
-	}
-	return util.DeleteMessages(connToServer, [][32]byte{*msgHash})
 }
 
 func (d *Daemon) saveMessage(message *proto.Message) error {
