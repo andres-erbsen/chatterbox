@@ -30,7 +30,8 @@ func (d *Daemon) ourDenameLookupReplyPath() string {
 	return filepath.Join(d.privDir(), "ourDenameLookupReply.pb")
 }
 
-func (d *Daemon) ourChatterboxProfilePath() string {
+//TODO: move to persistence and point somewhere other than daemon directory?
+func (d *Daemon) OurChatterboxProfilePath() string {
 	return filepath.Join(d.privDir(), "chatterbox-profile.pb")
 }
 

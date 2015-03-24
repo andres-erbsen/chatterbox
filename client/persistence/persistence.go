@@ -136,9 +136,9 @@ func (p *Paths) MessageToOutbox(conversationName, message string) error {
 		return err
 	}
 
-	base := filepath.Base(tempfile)
 	conv_outbox := filepath.Join(p.OutboxDir(), conversationName)
 
+	base := filepath.Base(tempfile)
 	return os.Rename(filepath.Join(p.TempDir(), base), filepath.Join(conv_outbox, base))
 }
 
