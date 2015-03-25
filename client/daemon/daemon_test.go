@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,14 +15,86 @@ import (
 	"github.com/andres-erbsen/chatterbox/shred"
 	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
+	"gopkg.in/fsnotify.v1"
 )
+
+func TestReadFromFiles(t *testing.T) {
+	alice := "alice"
+	bob := "bob"
+
+	denameConfig, denameTeardown := denameTestutil.SingleServer(t)
+	defer denameTeardown()
+
+	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
+	defer serverTeardown()
+
+	aliceDir, err := ioutil.TempDir("", "daemon-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(aliceDir)
+
+	bobDir, err := ioutil.TempDir("", "daemon-bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(bobDir)
+
+	aliceDaemon := PrepareTestAccountDaemon(alice, aliceDir, denameConfig, serverAddr, serverPubkey, t)
+	bobDaemon := PrepareTestAccountDaemon(bob, bobDir, denameConfig, serverAddr, serverPubkey, t)
+
+	//activate initialized daemons
+	aliceDaemon.Start()
+	bobDaemon.Start()
+	defer aliceDaemon.Stop()
+	defer bobDaemon.Stop()
+
+	//alice creates a new conversation and sends a message
+	participants := []string{alice, bob}
+	subj := "testConversation"
+	conv := &proto.ConversationMetadata{
+		Participants: participants,
+		Subject:      subj,
+	}
+
+	if err := aliceDaemon.ConversationToOutbox(conv); err != nil {
+		t.Fatal(err)
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = watcher.Add(bobDaemon.ConversationDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sentMessage := "Bob, can you hear me?"
+	if err := aliceDaemon.MessageToOutbox(persistence.ConversationName(conv), sentMessage); err != nil {
+		t.Fatal(err)
+	}
+
+	<-watcher.Events
+	files, err := filepath.Glob(filepath.Join(bobDaemon.ConversationDir(), persistence.ConversationName(conv), "*alice"))
+	if files == nil {
+		t.Fatal("no files in bob's alice<->bob conversation")
+	}
+	receivedMessage, err := ioutil.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(receivedMessage) != sentMessage {
+		t.Fatal("receivedMessage != sentMessage")
+	}
+}
 
 func TestEncryptFirstMessage(t *testing.T) {
 	alice := "alice"
 	bob := "bob"
 
 	denameConfig, denameTeardown := denameTestutil.SingleServer(t)
-	// FIXME: make denameTestutil.SingleServer wait until the server is up
 	defer denameTeardown()
 
 	aliceDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
@@ -39,7 +112,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer shred.RemoveAll(aliceDir)
-	bobDir, err := ioutil.TempDir("", "daemon-alice")
+	bobDir, err := ioutil.TempDir("", "daemon-bob")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +128,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 		timelessDenameClient: aliceDnmc,
 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-		LocalAccountConfig: proto.LocalAccountConfig{
+		LocalAccountConfig:   proto.LocalAccountConfig{},
+		LocalAccount: proto.LocalAccount{
 			Dename: alice,
 		},
 		cc: util.NewConnectionCache(util.NewAnonDialer("DANGEROUS_NO_TOR")),
@@ -71,7 +145,8 @@ func TestEncryptFirstMessage(t *testing.T) {
 		timelessDenameClient: bobDnmc,
 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-		LocalAccountConfig: proto.LocalAccountConfig{
+		LocalAccountConfig:   proto.LocalAccountConfig{},
+		LocalAccount: proto.LocalAccount{
 			Dename: bob,
 		},
 		cc: util.NewConnectionCache(util.NewAnonDialer("DANGEROUS_NO_TOR")),

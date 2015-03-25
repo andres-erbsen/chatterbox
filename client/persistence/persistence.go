@@ -23,9 +23,14 @@ type Paths struct {
 
 const (
 	MetadataFileName = "metadata.pb"
+	AccountFileName  = "account.pb"
 )
 
 func (p *Paths) ConversationDir() string { return filepath.Join(p.RootDir, "conversations") }
+
+func (p *Paths) AccountPath() string {
+	return filepath.Join(p.RootDir, "account.pb")
+}
 
 func (p *Paths) OutboxDir() string { return filepath.Join(p.RootDir, "outbox") }
 
@@ -131,9 +136,9 @@ func (p *Paths) MessageToOutbox(conversationName, message string) error {
 		return err
 	}
 
-	base := filepath.Base(tempfile)
 	conv_outbox := filepath.Join(p.OutboxDir(), conversationName)
 
+	base := filepath.Base(tempfile)
 	return os.Rename(filepath.Join(p.TempDir(), base), filepath.Join(conv_outbox, base))
 }
 

@@ -9,6 +9,7 @@
 		ClientClient.proto
 		ClientServer.proto
 		DenameChatProfile.proto
+		LocalAccount.proto
 		LocalAccountConfig.proto
 		LocalConversationMetadata.proto
 		Prekeys.proto

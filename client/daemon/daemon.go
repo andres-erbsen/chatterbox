@@ -42,6 +42,7 @@ type Daemon struct {
 	Now func() time.Time
 
 	proto.LocalAccountConfig
+	proto.LocalAccount
 
 	foreignDenameClient  *client.Client
 	timelessDenameClient *client.Client
@@ -63,21 +64,26 @@ type Daemon struct {
 }
 
 // Init creates a new account locally and at the server
-func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte, tor_address string) error {
+func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte, torAddr string) error {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
 			Application: "daemon",
 		},
+		LocalAccount: proto.LocalAccount{
+			Dename: dename,
+		},
 		LocalAccountConfig: proto.LocalAccountConfig{
 			ServerAddressTCP:  serverAddr,
 			ServerPortTCP:     int32(serverPort),
 			ServerTransportPK: (proto.Byte32)(*serverPK),
-			Dename:            dename,
-			TorAddress:        tor_address,
+			TorAddress:        torAddr,
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache(util.NewAnonDialer(tor_address)),
+		cc:  util.NewConnectionCache(util.NewAnonDialer(torAddr)),
+
+		inBuf:  make([]byte, proto.SERVER_MESSAGE_SIZE),
+		outBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
 	}
 
 	publicProfile := &proto.Profile{
@@ -85,6 +91,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		ServerPortTCP:     int32(serverPort),
 		ServerTransportPK: (proto.Byte32)(*serverPK),
 	}
+
 	if err := util.GenerateLongTermKeys(&d.LocalAccountConfig, publicProfile, rand.Reader); err != nil {
 		panic(err)
 	}
@@ -104,37 +111,76 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 	if err := os.MkdirAll(d.TempDir(), 0700); err != nil {
 		return err
 	}
-
+	if err := d.MarshalToFile(d.OurChatterboxProfilePath(), publicProfile); err != nil {
+		return err
+	}
+	if err := d.MarshalToFile(d.AccountPath(), &d.LocalAccount); err != nil {
+		return err
+	}
 	if err := d.MarshalToFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return err
 	}
-	if err := d.MarshalToFile(d.ourChatterboxProfilePath(), publicProfile); err != nil {
+	if err := d.MarshalToFile(d.OurChatterboxProfilePath(), publicProfile); err != nil {
 		return err
 	}
+	defer d.cc.PutClose(dename)
+	defer conn.Close()
+
 	err = util.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE))
 	if err != nil {
-		conn.Close()
-		d.cc.PutClose(dename)
 		return err
 	}
-	d.cc.Put(dename, conn)
+
+	notifies := make(chan []byte)
+	replies := make(chan *proto.ServerToClient)
+
+	connToServer := &util.ConnectionToServer{
+		InBuf:        d.inBuf,
+		Conn:         conn,
+		ReadReply:    replies,
+		ReadEnvelope: notifies,
+		Shutdown:     make(chan struct{}),
+	}
+
+	connToServer.WaitShutdown.Add(1)
+	go func() { connToServer.ReceiveMessages(); connToServer.WaitShutdown.Done() }()
+
+	_, _, err = d.updatePrekeys(connToServer)
+	if err != nil {
+		return err
+	}
+
+	close(connToServer.Shutdown)
+	connToServer.WaitShutdown.Wait()
+
 	return nil
 }
 
 // Load initializes a chatterbox daemon from rootDir
-func Load(rootDir string) (*Daemon, error) {
+func Load(rootDir string, torAddr string, denameConfig *client.Config) (*Daemon, error) {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
 			Application: "daemon",
 		},
-		Now: time.Now,
+		Now:    time.Now,
+		inBuf:  make([]byte, proto.SERVER_MESSAGE_SIZE),
+		outBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
 	}
 
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return nil, err
 	}
 	d.cc = util.NewConnectionCache(util.NewAnonDialer(d.TorAddress))
+
+	if err := persistence.UnmarshalFromFile(d.AccountPath(), &d.LocalAccount); err != nil {
+		return nil, err
+	}
+
+	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
+		return nil, err
+	}
+
 	d.ourDenameLookup = new(dename.ClientReply)
 	persistence.UnmarshalFromFile(d.ourDenameLookupReplyPath(), d.ourDenameLookup)
 
@@ -143,25 +189,22 @@ func Load(rootDir string) (*Daemon, error) {
 	if err := InitFs(d); err != nil {
 		return nil, err
 	}
-	inBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
-	outBuf := make([]byte, proto.SERVER_MESSAGE_SIZE)
 
-	ourDenameClient, err := client.NewClient(nil, util.NewAnonDialer("127.0.0.1:9050"), nil)
+	ourDenameClient, err := client.NewClient(denameConfig, util.NewAnonDialer(d.TorAddress), nil)
 	if err != nil {
 		return nil, err
 	}
-	d.foreignDenameClient, err = client.NewClient(nil, util.NewAnonDialer("127.0.0.1:9050"), nil)
+	d.foreignDenameClient, err = client.NewClient(denameConfig, util.NewAnonDialer(d.TorAddress), nil)
 	if err != nil {
 		return nil, err
 	}
-	timelessCfg := client.DefaultConfig
+	timelessCfg := *denameConfig // TODO: make very sure this is a deep copy
 	timelessCfg.Freshness.Threshold = fmt.Sprintf("%dh", 100*365*24)
 	d.timelessDenameClient, err = client.NewClient(&timelessCfg, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	d.inBuf = inBuf
-	d.outBuf = outBuf
+
 	d.psd, err = profilesyncd.New(ourDenameClient, 10*time.Minute, d.Dename, d.onOurDenameProfileDownload, nil)
 	if err != nil {
 		return nil, err
@@ -200,11 +243,11 @@ func (d *Daemon) Stop() {
 // run executes the main loop of the chatterbox daemon
 func (d *Daemon) run() error {
 	profile := new(proto.Profile)
-	if err := persistence.UnmarshalFromFile(d.ourChatterboxProfilePath(), profile); err != nil {
+	if err := persistence.UnmarshalFromFile(d.OurChatterboxProfilePath(), profile); err != nil {
 		return err
 	}
 
-	ourConn, err := d.cc.DialServer(d.Dename, d.ServerAddressTCP, 1984,
+	ourConn, err := d.cc.DialServer(d.Dename, d.ServerAddressTCP, int(d.ServerPortTCP),
 		(*[32]byte)(&d.ServerTransportPK), (*[32]byte)(&profile.UserIDAtServer),
 		(*[32]byte)(&d.TransportSecretKeyForServer))
 	if err != nil {
@@ -224,6 +267,11 @@ func (d *Daemon) run() error {
 
 	go connToServer.ReceiveMessages()
 
+	prekeyPublics, prekeySecrets, err := d.updatePrekeys(connToServer)
+	if err != nil {
+		return err
+	}
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -235,11 +283,6 @@ func (d *Daemon) run() error {
 			return d.processOutboxDir(path)
 		}
 		return d.processOutboxDir(filepath.Dir(path))
-	}
-
-	prekeyPublics, prekeySecrets, err := d.updatePrekeys(connToServer)
-	if err != nil {
-		return err
 	}
 
 	err = WatchDir(watcher, d.OutboxDir(), initFn)
@@ -266,9 +309,11 @@ func (d *Daemon) run() error {
 					log.Printf("watch %s: %s", ev.Name, err) // TODO
 				}
 
+				fmt.Printf("event in %s\n", ev.Name)
 				d.processOutboxDir(ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
+			fmt.Println("daemon received a message")
 			msgHash := sha256.Sum256(envelope)
 			// assume it's the first message we're receiving from the person; try to decrypt
 			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
@@ -322,6 +367,7 @@ func (d *Daemon) run() error {
 
 func (d *Daemon) updatePrekeys(connToServer *util.ConnectionToServer) (prekeyPublics, prekeySecrets []*[32]byte, err error) {
 	// load prekeys and ensure that we have enough of them
+
 	prekeyPublics, prekeySecrets, err = LoadPrekeys(d)
 	if err != nil {
 		return nil, nil, err
@@ -330,6 +376,7 @@ func (d *Daemon) updatePrekeys(connToServer *util.ConnectionToServer) (prekeyPub
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if numKeys < minPrekeys {
 		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(maxPrekeys - int(numKeys))
 		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)
@@ -466,6 +513,8 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) error {
 		return err
 	}
 	d.cc.Put(theirDename, theirConn)
+	fmt.Printf("sent first message to %s\n", theirDename)
+
 	return nil
 }
 
@@ -639,6 +688,7 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 					return err
 				}
 			} else {
+				fmt.Println(msg)
 				if err := d.sendMessage(msg, recipient, msgRatch); err != nil {
 					return err
 				}
