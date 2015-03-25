@@ -37,7 +37,7 @@ func main() {
 	serverAddress := flag.String("server-host", "chatterbox.xvm.mit.edu", "The IP address or hostname on which your (prospective) home server server can be reached")
 	serverPort := flag.Int("server-port", 1984, "The TCP port which the server listens on.")
 	dir := flag.String("account-directory", "", "Dedicated directory for the account.")
-	torAddress := flag.Bool("tor-address", "127.0.0.1:9050", "Address of the local TOR proxy.")
+	torAddress := flag.String("tor-address", "127.0.0.1:9050", "Address of the local TOR proxy.")
 	flag.Parse()
 
 	if *dename == "" || serverTransportPubkey == [32]byte{} || *serverAddress == "" {
