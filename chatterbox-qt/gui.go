@@ -145,20 +145,7 @@ func (g *gui) displayMessage(window *qml.Window, msg *persistence.Message) {
 }
 
 func (g *gui) openConversation(idx int) error {
-	controls, err := g.engine.LoadFile("qrc:///qml/old-conversation.qml")
-	if err != nil {
-		return err
-	}
-	window := controls.CreateWindow(nil)
-
 	conv := g.conversations[idx]
-
-	//TODO: if an open conversation is selected again, focus that window
-
-	qml.Lock()
-	g.openConversations[persistence.ConversationName(conv)] = window
-	qml.Unlock()
-
 	msgs, err := g.LoadMessages(conv)
 	if err != nil {
 		panic(err)
@@ -167,6 +154,12 @@ func (g *gui) openConversation(idx int) error {
 	for _, msg := range msgs {
 		msgsHTML += renderToHTML(msg) + "<br>"
 	}
+
+	controls, err := g.engine.LoadFile("qrc:///qml/old-conversation.qml")
+	if err != nil {
+		return err
+	}
+	window := controls.CreateWindow(nil)
 	window.ObjectByName("historyArea").Call("append", msgsHTML)
 	window.On("sendMessage", func(message string) {
 		err := g.MessageToOutbox(persistence.ConversationName(conv), message)
@@ -174,6 +167,12 @@ func (g *gui) openConversation(idx int) error {
 			log.Fatal(err)
 		}
 	})
+
+	//TODO: if an open conversation is selected again, focus that window
+
+	qml.Lock()
+	g.openConversations[persistence.ConversationName(conv)] = window
+	qml.Unlock()
 
 	window.On("closing", func() {
 		qml.Lock()
