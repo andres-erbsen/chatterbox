@@ -13,8 +13,7 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatalf("USAGE: %s <account-directory>", os.Args[0])
 	}
-	torAddr = "127.0.0.1:9050"
-	daemon, err := daemon.Load(os.Args[1],torAddr)
+	daemon, err := daemon.Load(os.Args[1], nil)
 	if err != nil {
 		log.Fatal(err)
 		return

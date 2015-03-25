@@ -157,7 +157,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 }
 
 // Load initializes a chatterbox daemon from rootDir
-func Load(rootDir string, torAddr string, denameConfig *client.Config) (*Daemon, error) {
+func Load(rootDir string, denameConfig *client.Config) (*Daemon, error) {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,

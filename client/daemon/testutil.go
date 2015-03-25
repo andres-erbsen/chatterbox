@@ -34,7 +34,7 @@ func PrepareTestAccountDaemon(name string, rootDir string, denameConfig *denameC
 	}
 
 	//initialize daemon with Load
-	theDaemon, err := Load(rootDir, torAddr, denameConfig)
+	theDaemon, err := Load(rootDir, denameConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
