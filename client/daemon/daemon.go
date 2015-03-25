@@ -63,7 +63,11 @@ type Daemon struct {
 }
 
 // Init creates a new account locally and at the server
-func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte) error {
+func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte, disable_tor bool) error {
+	tor_address := "127.0.0.1:9050"
+	if disable_tor {
+		tor_address = "DANGEROUS_NO_TOR"
+	}
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
@@ -74,9 +78,10 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 			ServerPortTCP:     int32(serverPort),
 			ServerTransportPK: (proto.Byte32)(*serverPK),
 			Dename:            dename,
+			TorAddress:        tor_address,
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache(util.NewAnonDialer("127.0.0.1:9050")),
+		cc:  util.NewConnectionCache(util.NewAnonDialer(tor_address)),
 	}
 
 	publicProfile := &proto.Profile{
@@ -128,12 +133,12 @@ func Load(rootDir string) (*Daemon, error) {
 			Application: "daemon",
 		},
 		Now: time.Now,
-		cc:  util.NewConnectionCache(util.NewAnonDialer("127.0.0.1:9050")),
 	}
 
 	if err := persistence.UnmarshalFromFile(d.configPath(), &d.LocalAccountConfig); err != nil {
 		return nil, err
 	}
+	d.cc = util.NewConnectionCache(util.NewAnonDialer(d.TorAddress))
 	d.ourDenameLookup = new(dename.ClientReply)
 	persistence.UnmarshalFromFile(d.ourDenameLookupReplyPath(), d.ourDenameLookup)
 
