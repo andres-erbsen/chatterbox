@@ -51,9 +51,6 @@ type Daemon struct {
 	inBuf  []byte
 	outBuf []byte
 
-	prekeyPublics []*[32]byte
-	prekeySecrets []*[32]byte
-
 	stop chan struct{}
 	wg   sync.WaitGroup
 	psd  *profilesyncd.ProfileSyncd
@@ -144,7 +141,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 
 	go connToServer.ReceiveMessages()
 
-	d.prekeyPublics, d.prekeySecrets, err = d.updatePrekeys(connToServer)
+	_, _, err = d.updatePrekeys(connToServer)
 	if err != nil {
 		return err
 	}
@@ -264,6 +261,13 @@ func (d *Daemon) run() error {
 
 	go connToServer.ReceiveMessages()
 
+	prekeyPublics, prekeySecrets, err := d.updatePrekeys(connToServer)
+	if err != nil {
+		return err
+	}
+
+	go connToServer.ReceiveMessages()
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -302,20 +306,22 @@ func (d *Daemon) run() error {
 					log.Printf("watch %s: %s", ev.Name, err) // TODO
 				}
 
+				fmt.Printf("event in %s\n", ev.Name)
 				d.processOutboxDir(ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
+			fmt.Println("daemon received a message")
 			msgHash := sha256.Sum256(envelope)
 			// assume it's the first message we're receiving from the person; try to decrypt
-			message, ratch, index, err := d.decryptFirstMessage(envelope, d.prekeyPublics, d.prekeySecrets)
+			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
 			if err == nil {
 				// assumption was correct, found a prekey that matched
 				if err := StoreRatchet(d, message.Dename, ratch); err != nil {
 					return err
 				}
 
-				newPrekeyPublics := append(d.prekeyPublics[:index], d.prekeyPublics[index+1:]...)
-				newPrekeySecrets := append(d.prekeySecrets[:index], d.prekeySecrets[index+1:]...)
+				newPrekeyPublics := append(prekeyPublics[:index], prekeyPublics[index+1:]...)
+				newPrekeySecrets := append(prekeySecrets[:index], prekeySecrets[index+1:]...)
 				if err = StorePrekeys(d, newPrekeyPublics, newPrekeySecrets); err != nil {
 					return err
 				}
@@ -497,6 +503,8 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) error {
 		return err
 	}
 	d.cc.Put(theirDename, theirConn)
+	fmt.Printf("sent first message to %s\n", theirDename)
+
 	return nil
 }
 

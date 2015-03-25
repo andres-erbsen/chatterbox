@@ -1,19 +1,19 @@
 package daemon
 
 import (
-	// "crypto/sha256"
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"testing"
-	// "path/filepath"
-	// "time"
+	"path/filepath"
+	"time"
 
-	// util "github.com/andres-erbsen/chatterbox/client"
+	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/server"
 	"github.com/andres-erbsen/chatterbox/shred"
-	// denameClient "github.com/andres-erbsen/dename/client"
+	denameClient "github.com/andres-erbsen/dename/client"
 	denameTestutil "github.com/andres-erbsen/dename/testutil"
 	"gopkg.in/fsnotify.v1"
 )
@@ -33,6 +33,7 @@ func TestReadFromFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer shred.RemoveAll(aliceDir)
+
 	bobDir, err := ioutil.TempDir("", "daemon-bob")
 	if err != nil {
 		t.Fatal(err)
@@ -61,15 +62,24 @@ func TestReadFromFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go watch(bobDaemon.ConversationDir(), t)
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	err = watcher.Add(bobDaemon.ConversationDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go watch(bobDaemon, watcher, t)
 
 	if err := aliceDaemon.MessageToOutbox(persistence.ConversationName(conv), "Bob, can you hear me?"); err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Printf("%s\n", bobDaemon.OutboxDir())
-	fmt.Printf("%s\n", bobDaemon.ConversationDir())
+	select{}
+
 
 	// received, err := bobDaemon.LoadMessages(conv)
 	// if err != nil {
@@ -80,246 +90,234 @@ func TestReadFromFiles(t *testing.T) {
 
 }
 
-func watch(dir string, t *testing.T) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func watch(d *Daemon, watcher *fsnotify.Watcher, t *testing.T) {
 	defer watcher.Close()
-	err = watcher.Add(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
 	for {
 		select {
 		case err := <-watcher.Errors:
 			fmt.Println("error:", err)
 		case e := <-watcher.Events:
 			fmt.Printf("event: %v\n", e)
-			// rpath, err := filepath.Rel(bobDaemon.ConversationDir(), e.Name)
-			// if err != nil {
-			// 	t.Fatal(err)
-			// }
-			// if !(e.Op == fsnotify.Create || e.Op == fsnotify.Rename) {
-			// 	// TODO: handle move, delete
-			// 	continue
-			// }
-			// if match, _ := filepath.Match("*", rpath); match {
-			// 	// when a conversation is created it MUST have a metadata file when
-			// 	// it is moved to the conversations directory
-			// 	c, err := persistence.ReadConversationMetadata(e.Name)
-			// 	if err != nil {
-			// 		fmt.Printf("error reading metadata of %s: %s\n", rpath, err)
-			// 		continue
-			// 	}
-			// 	fmt.Printf("conversation: %s\n", c)
-			// 	continue
-			// 	//g.handleConversation(c)
-			// } else if match, _ := filepath.Match("*/*", rpath); match {
-			// 	fmt.Println("message")
-			// 	continue
-			// 	//g.handleMessage(e.Name)
+			rpath, err := filepath.Rel(d.ConversationDir(), e.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if match, _ := filepath.Match("*", rpath); match {
+				// when a conversation is created it MUST have a metadata file when
+				// it is moved to the conversations directory
+				c, err := persistence.ReadConversationMetadata(e.Name)
+				if err != nil {
+					if (e.Name != d.ConversationDir()){
+						fmt.Printf("conversation: %s\n", c)
+						fmt.Printf("error reading metadata of %s: %s\n", rpath, err)
+					}
+				}
+				continue
+				//g.handleConversation(c)
+			} else if match, _ := filepath.Match("*/*", rpath); match {
+				fmt.Println("message")
+				return
+				//g.handleMessage(e.Name)
 
-			// } else {
-			// 	fmt.Printf("event at unknown path: %s", rpath)
-			// }
+			} else {
+				fmt.Printf("event at unknown path: %s", rpath)
+			}
 		}
 	}
 }
 
 
-// func TestEncryptFirstMessage(t *testing.T) {
-// 	fmt.Println("**************TestEncryptFirstMessage****************")
-// 	alice := "alice"
-// 	bob := "bob"
+func TestEncryptFirstMessage(t *testing.T) {
+	fmt.Println("**************TestEncryptFirstMessage****************")
+	alice := "alice"
+	bob := "bob"
 
-// 	denameConfig, denameTeardown := denameTestutil.SingleServer(t)
-// 	defer denameTeardown()
+	denameConfig, denameTeardown := denameTestutil.SingleServer(t)
+	defer denameTeardown()
 
-// 	aliceDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
-// 	bobDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
+	aliceDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
+	bobDnmc, err := denameClient.NewClient(denameConfig, nil, nil)
 
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
-// 	defer serverTeardown()
+	_, serverPubkey, serverAddr, serverTeardown := server.CreateTestServer(t)
+	defer serverTeardown()
 
-// 	aliceDir, err := ioutil.TempDir("", "daemon-alice")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer shred.RemoveAll(aliceDir)
-// 	bobDir, err := ioutil.TempDir("", "daemon-bob")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer shred.RemoveAll(bobDir)
+	aliceDir, err := ioutil.TempDir("", "daemon-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(aliceDir)
+	bobDir, err := ioutil.TempDir("", "daemon-bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shred.RemoveAll(bobDir)
 
-// 	aliceConf := &Daemon{
-// 		Paths: persistence.Paths{
-// 			RootDir:     aliceDir,
-// 			Application: "daemon",
-// 		},
-// 		Now:                  time.Now,
-// 		foreignDenameClient:  aliceDnmc,
-// 		timelessDenameClient: aliceDnmc,
-// 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
-// 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-// 		LocalAccountConfig: proto.LocalAccountConfig{},
-// 		LocalAccount: proto.LocalAccount{
-// 			Dename: alice,
-// 		},
-// 		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
-// 	}
+	aliceConf := &Daemon{
+		Paths: persistence.Paths{
+			RootDir:     aliceDir,
+			Application: "daemon",
+		},
+		Now:                  time.Now,
+		foreignDenameClient:  aliceDnmc,
+		timelessDenameClient: aliceDnmc,
+		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
+		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
+		LocalAccountConfig: proto.LocalAccountConfig{},
+		LocalAccount: proto.LocalAccount{
+			Dename: alice,
+		},
+		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
+	}
 
-// 	bobConf := &Daemon{
-// 		Paths: persistence.Paths{
-// 			RootDir:     bobDir,
-// 			Application: "daemon",
-// 		},
-// 		Now:                  time.Now,
-// 		foreignDenameClient:  bobDnmc,
-// 		timelessDenameClient: bobDnmc,
-// 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
-// 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-// 		LocalAccountConfig: proto.LocalAccountConfig{},
-// 		LocalAccount: proto.LocalAccount{
-// 			Dename: bob,
-// 		},
-// 		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
-// 	}
+	bobConf := &Daemon{
+		Paths: persistence.Paths{
+			RootDir:     bobDir,
+			Application: "daemon",
+		},
+		Now:                  time.Now,
+		foreignDenameClient:  bobDnmc,
+		timelessDenameClient: bobDnmc,
+		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
+		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
+		LocalAccountConfig: proto.LocalAccountConfig{},
+		LocalAccount: proto.LocalAccount{
+			Dename: bob,
+		},
+		cc: util.NewConnectionCache("DANGEROUS_NO_TOR"),
+	}
 
-// 	aliceHomeConn := util.CreateTestAccount(alice, aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-// 	defer aliceHomeConn.Close()
-// 	bobHomeConn := util.CreateTestAccount(bob, bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
-// 	defer bobHomeConn.Close()
+	aliceHomeConn := util.CreateTestAccount(alice, aliceDnmc, &aliceConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	defer aliceHomeConn.Close()
+	bobHomeConn := util.CreateTestAccount(bob, bobDnmc, &bobConf.LocalAccountConfig, serverAddr, serverPubkey, t)
+	defer bobHomeConn.Close()
 
-// 	//fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
-// 	aliceNotifies := make(chan []byte)
-// 	aliceReplies := make(chan *proto.ServerToClient)
+	//fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
+	aliceNotifies := make(chan []byte)
+	aliceReplies := make(chan *proto.ServerToClient)
 
-// 	aliceConnToServer := &util.ConnectionToServer{
-// 		InBuf:        aliceConf.inBuf,
-// 		Conn:         aliceHomeConn,
-// 		ReadReply:    aliceReplies,
-// 		ReadEnvelope: aliceNotifies,
-// 	}
+	aliceConnToServer := &util.ConnectionToServer{
+		InBuf:        aliceConf.inBuf,
+		Conn:         aliceHomeConn,
+		ReadReply:    aliceReplies,
+		ReadEnvelope: aliceNotifies,
+	}
 
-// 	go aliceConnToServer.ReceiveMessages()
+	go aliceConnToServer.ReceiveMessages()
 
-// 	bobNotifies := make(chan []byte)
-// 	bobReplies := make(chan *proto.ServerToClient)
+	bobNotifies := make(chan []byte)
+	bobReplies := make(chan *proto.ServerToClient)
 
-// 	bobConnToServer := &util.ConnectionToServer{
-// 		InBuf:        bobConf.inBuf,
-// 		Conn:         bobHomeConn,
-// 		ReadReply:    bobReplies,
-// 		ReadEnvelope: bobNotifies,
-// 	}
+	bobConnToServer := &util.ConnectionToServer{
+		InBuf:        bobConf.inBuf,
+		Conn:         bobHomeConn,
+		ReadReply:    bobReplies,
+		ReadEnvelope: bobNotifies,
+	}
 
-// 	go bobConnToServer.ReceiveMessages()
+	go bobConnToServer.ReceiveMessages()
 
-// 	if err := InitFs(aliceConf); err != nil {
-// 		t.Fatal(err)
-// 	}
+	if err := InitFs(aliceConf); err != nil {
+		t.Fatal(err)
+	}
 
-// 	if err := InitFs(bobConf); err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	//Bob uploads keys
-// 	bobPublicPrekeys, bobSecretPrekeys, err := GeneratePrekeys(maxPrekeys)
-// 	var bobSigningKey [64]byte
-// 	copy(bobSigningKey[:], bobConf.KeySigningSecretKey[:64])
-// 	err = util.UploadKeys(bobConnToServer, util.SignKeys(bobPublicPrekeys, &bobSigningKey))
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	if err := InitFs(bobConf); err != nil {
+		t.Fatal(err)
+	}
+	//Bob uploads keys
+	bobPublicPrekeys, bobSecretPrekeys, err := GeneratePrekeys(maxPrekeys)
+	var bobSigningKey [64]byte
+	copy(bobSigningKey[:], bobConf.KeySigningSecretKey[:64])
+	err = util.UploadKeys(bobConnToServer, util.SignKeys(bobPublicPrekeys, &bobSigningKey))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	//Bob enables notifications
-// 	if err = util.EnablePush(bobConnToServer); err != nil {
-// 		t.Fatal(err)
-// 	}
+	//Bob enables notifications
+	if err = util.EnablePush(bobConnToServer); err != nil {
+		t.Fatal(err)
+	}
 
-// 	//Alice uploads keys
-// 	alicePublicPrekeys, _, err := GeneratePrekeys(maxPrekeys)
-// 	var aliceSigningKey [64]byte
-// 	copy(aliceSigningKey[:], aliceConf.KeySigningSecretKey[:64])
-// 	err = util.UploadKeys(aliceConnToServer, util.SignKeys(alicePublicPrekeys, &aliceSigningKey))
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	//Alice uploads keys
+	alicePublicPrekeys, _, err := GeneratePrekeys(maxPrekeys)
+	var aliceSigningKey [64]byte
+	copy(aliceSigningKey[:], aliceConf.KeySigningSecretKey[:64])
+	err = util.UploadKeys(aliceConnToServer, util.SignKeys(alicePublicPrekeys, &aliceSigningKey))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	//Alice enables notification
-// 	if err = util.EnablePush(aliceConnToServer); err != nil {
-// 		t.Fatal(err)
-// 	}
+	//Alice enables notification
+	if err = util.EnablePush(aliceConnToServer); err != nil {
+		t.Fatal(err)
+	}
 
-// 	participants := make([]string, 0, 2)
-// 	participants = append(participants, alice)
-// 	participants = append(participants, bob)
+	participants := make([]string, 0, 2)
+	participants = append(participants, alice)
+	participants = append(participants, bob)
 
-// 	msg1 := []byte("Envelope")
+	msg1 := []byte("Envelope")
 
-// 	payload := proto.Message{
-// 		Subject:      "Subject1",
-// 		Participants: participants,
-// 		Dename:       alice,
-// 		Contents:     msg1,
-// 	}
-// 	envelope, err := payload.Marshal()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	payload := proto.Message{
+		Subject:      "Subject1",
+		Participants: participants,
+		Dename:       alice,
+		Contents:     msg1,
+	}
+	envelope, err := payload.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	err = aliceConf.sendFirstMessage(envelope, bob)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	incoming := <-bobConnToServer.ReadEnvelope
+	err = aliceConf.sendFirstMessage(envelope, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	incoming := <-bobConnToServer.ReadEnvelope
 
-// 	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming, bobPublicPrekeys, bobSecretPrekeys)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming, bobPublicPrekeys, bobSecretPrekeys)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	fmt.Printf("Bob hears: %s\n", out)
+	fmt.Printf("Bob hears: %s\n", out)
 
-// 	msg2 := []byte("Envelope2")
-// 	payload2 := proto.Message{
-// 		Subject:      "Subject3",
-// 		Participants: participants,
-// 		Dename:       bob,
-// 		Contents:     msg2,
-// 	}
-// 	envelope2, err := payload2.Marshal()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	msg2 := []byte("Envelope2")
+	payload2 := proto.Message{
+		Subject:      "Subject3",
+		Participants: participants,
+		Dename:       bob,
+		Contents:     msg2,
+	}
+	envelope2, err := payload2.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	err = bobConf.sendMessage(envelope2, alice, bobRatch)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	err = bobConf.sendMessage(envelope2, alice, bobRatch)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	incomingAlice := <-aliceConnToServer.ReadEnvelope
+	incomingAlice := <-aliceConnToServer.ReadEnvelope
 
-// 	aliceConf.fillAuth = util.FillAuthWith((*[32]byte)(&aliceConf.MessageAuthSecretKey))
-// 	aliceConf.checkAuth = util.CheckAuthWith(aliceConf.ProfileRatchet)
-// 	aliceRatchets, err := AllRatchets(aliceConf, aliceConf.fillAuth, aliceConf.checkAuth)
-// 	outAlice, _, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	aliceConf.fillAuth = util.FillAuthWith((*[32]byte)(&aliceConf.MessageAuthSecretKey))
+	aliceConf.checkAuth = util.CheckAuthWith(aliceConf.ProfileRatchet)
+	aliceRatchets, err := AllRatchets(aliceConf, aliceConf.fillAuth, aliceConf.checkAuth)
+	outAlice, _, err := aliceConf.decryptMessage(incomingAlice, aliceRatchets)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	ha := sha256.Sum256(incomingAlice)
-// 	if err = aliceConf.receiveMessage(aliceConnToServer, outAlice, &ha); err != nil {
-// 		t.Fatal(err)
-// 	}
+	ha := sha256.Sum256(incomingAlice)
+	if err = aliceConf.receiveMessage(aliceConnToServer, outAlice, &ha); err != nil {
+		t.Fatal(err)
+	}
 
-// 	fmt.Printf("Alice hears: %s\n", outAlice)
+	fmt.Printf("Alice hears: %s\n", outAlice)
 
-// 	//TODO: Confirm message is as expected within the test
-// }
+	//TODO: Confirm message is as expected within the test
+}
