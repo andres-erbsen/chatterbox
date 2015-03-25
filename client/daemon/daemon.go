@@ -72,7 +72,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 			Application: "daemon",
 		},
 		LocalAccount: proto.LocalAccount{
-			Dename:            dename,
+			Dename: dename,
 		},
 		LocalAccountConfig: proto.LocalAccountConfig{
 			ServerAddressTCP:  serverAddr,
@@ -82,7 +82,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		Now: time.Now,
 		cc:  util.NewConnectionCache(torAddr),
 
-		inBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
+		inBuf:  make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
 	}
 	if err := os.MkdirAll(rootDir, 0700); err != nil {
@@ -120,14 +120,13 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 	if err != nil {
 		return err
 	}
+	defer d.cc.PutClose(dename)
+	defer conn.Close()
+
 	err = util.CreateAccount(conn, make([]byte, proto.SERVER_MESSAGE_SIZE))
 	if err != nil {
-		conn.Close()
-		d.cc.PutClose(dename)
 		return err
 	}
-	d.cc.Put(dename, conn)
-
 
 	notifies := make(chan []byte)
 	replies := make(chan *proto.ServerToClient)
@@ -137,14 +136,19 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		Conn:         conn,
 		ReadReply:    replies,
 		ReadEnvelope: notifies,
+		Shutdown:     make(chan struct{}),
 	}
 
-	go connToServer.ReceiveMessages()
+	connToServer.WaitShutdown.Add(1)
+	go func() { connToServer.ReceiveMessages(); connToServer.WaitShutdown.Done() }()
 
 	_, _, err = d.updatePrekeys(connToServer)
 	if err != nil {
 		return err
 	}
+
+	close(connToServer.Shutdown)
+	connToServer.WaitShutdown.Wait()
 
 	return nil
 }
@@ -159,7 +163,7 @@ func Load(rootDir string, torAddr string, foreignDenameClient *client.Client) (*
 		Now: time.Now,
 		cc:  util.NewConnectionCache(torAddr),
 
-		inBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
+		inBuf:  make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf: make([]byte, proto.SERVER_MESSAGE_SIZE),
 	}
 
@@ -266,8 +270,6 @@ func (d *Daemon) run() error {
 		return err
 	}
 
-	go connToServer.ReceiveMessages()
-
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -291,7 +293,6 @@ func (d *Daemon) run() error {
 	}
 
 	d.requestAllMessages(connToServer)
-
 
 	for {
 		select {
@@ -366,7 +367,7 @@ func (d *Daemon) updatePrekeys(connToServer *util.ConnectionToServer) (prekeyPub
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	if numKeys < minPrekeys {
 		newPublicPrekeys, newSecretPrekeys, err := GeneratePrekeys(maxPrekeys - int(numKeys))
 		prekeySecrets = append(prekeySecrets, newSecretPrekeys...)

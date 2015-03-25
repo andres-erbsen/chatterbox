@@ -1,9 +1,10 @@
 package client
 
 import (
+	"sync"
+
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
-	"sync"
 )
 
 type ConnectionToServer struct {
@@ -12,14 +13,14 @@ type ConnectionToServer struct {
 	ReadReply    chan *proto.ServerToClient // TODO: do we want to return an error?
 	ReadEnvelope chan []byte
 
-	Shutdown     <-chan struct{}
-	waitShutdown sync.WaitGroup
+	Shutdown     chan struct{}
+	WaitShutdown sync.WaitGroup
 }
 
 func (c *ConnectionToServer) ReceiveMessages() error {
-	c.waitShutdown.Add(1)
+	c.WaitShutdown.Add(1)
 	go func() {
-		defer c.waitShutdown.Done()
+		defer c.WaitShutdown.Done()
 		<-c.Shutdown
 		c.Conn.Close()
 	}()

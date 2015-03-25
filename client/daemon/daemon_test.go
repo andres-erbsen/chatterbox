@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
-	"testing"
 	"path/filepath"
+	"testing"
 	"time"
 
 	util "github.com/andres-erbsen/chatterbox/client"
@@ -40,7 +40,6 @@ func TestReadFromFiles(t *testing.T) {
 	}
 	defer shred.RemoveAll(bobDir)
 
-
 	aliceDaemon := PrepareTestAccountDaemon(alice, aliceDir, denameConfig, serverAddr, serverPubkey, t)
 	bobDaemon := PrepareTestAccountDaemon(bob, bobDir, denameConfig, serverAddr, serverPubkey, t)
 
@@ -51,7 +50,7 @@ func TestReadFromFiles(t *testing.T) {
 	defer bobDaemon.Stop()
 
 	//alice creates a new conversation and sends a message
-	participants := []string{alice,bob}
+	participants := []string{alice, bob}
 	subj := "testConversation"
 	conv := &proto.ConversationMetadata{
 		Participants: participants,
@@ -72,60 +71,24 @@ func TestReadFromFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go watch(bobDaemon, watcher, t)
-
-	if err := aliceDaemon.MessageToOutbox(persistence.ConversationName(conv), "Bob, can you hear me?"); err != nil {
+	sentMessage := "Bob, can you hear me?"
+	if err := aliceDaemon.MessageToOutbox(persistence.ConversationName(conv), sentMessage); err != nil {
 		t.Fatal(err)
 	}
 
-	select{}
-
-
-	// received, err := bobDaemon.LoadMessages(conv)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// fmt.Printf("%s\n", received)
-
-}
-
-func watch(d *Daemon, watcher *fsnotify.Watcher, t *testing.T) {
-	defer watcher.Close()
-	for {
-		select {
-		case err := <-watcher.Errors:
-			fmt.Println("error:", err)
-		case e := <-watcher.Events:
-			fmt.Printf("event: %v\n", e)
-			rpath, err := filepath.Rel(d.ConversationDir(), e.Name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if match, _ := filepath.Match("*", rpath); match {
-				// when a conversation is created it MUST have a metadata file when
-				// it is moved to the conversations directory
-				c, err := persistence.ReadConversationMetadata(e.Name)
-				if err != nil {
-					if (e.Name != d.ConversationDir()){
-						fmt.Printf("conversation: %s\n", c)
-						fmt.Printf("error reading metadata of %s: %s\n", rpath, err)
-					}
-				}
-				continue
-				//g.handleConversation(c)
-			} else if match, _ := filepath.Match("*/*", rpath); match {
-				fmt.Println("message")
-				return
-				//g.handleMessage(e.Name)
-
-			} else {
-				fmt.Printf("event at unknown path: %s", rpath)
-			}
-		}
+	<-watcher.Events
+	files, err := filepath.Glob(filepath.Join(bobDaemon.ConversationDir(), persistence.ConversationName(conv), "*alice"))
+	if files == nil {
+		t.Fatal("no files in bob's alice<->bob conversation")
+	}
+	receivedMessage, err := ioutil.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(receivedMessage) != sentMessage {
+		t.Fatal("receivedMessage != sentMessage")
 	}
 }
-
 
 func TestEncryptFirstMessage(t *testing.T) {
 	fmt.Println("**************TestEncryptFirstMessage****************")
@@ -166,7 +129,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		timelessDenameClient: aliceDnmc,
 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-		LocalAccountConfig: proto.LocalAccountConfig{},
+		LocalAccountConfig:   proto.LocalAccountConfig{},
 		LocalAccount: proto.LocalAccount{
 			Dename: alice,
 		},
@@ -183,7 +146,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 		timelessDenameClient: bobDnmc,
 		inBuf:                make([]byte, proto.SERVER_MESSAGE_SIZE),
 		outBuf:               make([]byte, proto.SERVER_MESSAGE_SIZE),
-		LocalAccountConfig: proto.LocalAccountConfig{},
+		LocalAccountConfig:   proto.LocalAccountConfig{},
 		LocalAccount: proto.LocalAccount{
 			Dename: bob,
 		},
