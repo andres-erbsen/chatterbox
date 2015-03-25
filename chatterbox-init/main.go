@@ -37,6 +37,7 @@ func main() {
 	serverAddress := flag.String("server-host", "chatterbox.xvm.mit.edu", "The IP address or hostname on which your (prospective) home server server can be reached")
 	serverPort := flag.Int("server-port", 1984, "The TCP port which the server listens on.")
 	dir := flag.String("account-directory", "", "Dedicated directory for the account.")
+	disable_tor := flag.Bool("disable-tor", false, "Disables tor for this profile")
 	flag.Parse()
 
 	if *dename == "" || serverTransportPubkey == [32]byte{} || *serverAddress == "" {
@@ -47,7 +48,7 @@ func main() {
 		*dir = filepath.Join(os.Getenv("HOME"), ".chatterbox", *dename)
 	}
 
-	if err := daemon.Init(*dir, *dename, *serverAddress, *serverPort, &serverTransportPubkey); err != nil {
+	if err := daemon.Init(*dir, *dename, *serverAddress, *serverPort, &serverTransportPubkey, *disable_tor); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Account initialization done.\n"+

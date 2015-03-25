@@ -90,7 +90,7 @@ func (m *Message) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Contents = append([]byte{}, data[index:postIndex]...)
+			m.Contents = append(m.Contents, data[index:postIndex]...)
 			index = postIndex
 		case 2:
 			if wireType != 2 {
@@ -224,10 +224,8 @@ func (m *Message) Unmarshal(data []byte) error {
 func (m *Message) Size() (n int) {
 	var l int
 	_ = l
-	if m.Contents != nil {
-		l = len(m.Contents)
-		n += 1 + l + sovClientClient(uint64(l))
-	}
+	l = len(m.Contents)
+	n += 1 + l + sovClientClient(uint64(l))
 	l = len(m.Subject)
 	n += 1 + l + sovClientClient(uint64(l))
 	if len(m.Participants) > 0 {
@@ -277,12 +275,10 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	_ = i
 	var l int
 	_ = l
-	if m.Contents != nil {
-		data[i] = 0xa
-		i++
-		i = encodeVarintClientClient(data, i, uint64(len(m.Contents)))
-		i += copy(data[i:], m.Contents)
-	}
+	data[i] = 0xa
+	i++
+	i = encodeVarintClientClient(data, i, uint64(len(m.Contents)))
+	i += copy(data[i:], m.Contents)
 	data[i] = 0x12
 	i++
 	i = encodeVarintClientClient(data, i, uint64(len(m.Subject)))
@@ -324,7 +320,6 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
-
 func encodeFixed64ClientClient(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
