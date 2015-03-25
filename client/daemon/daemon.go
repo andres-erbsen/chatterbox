@@ -63,11 +63,7 @@ type Daemon struct {
 }
 
 // Init creates a new account locally and at the server
-func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte, disable_tor bool) error {
-	tor_address := "127.0.0.1:9050"
-	if disable_tor {
-		tor_address = "DANGEROUS_NO_TOR"
-	}
+func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte, tor_address string) error {
 	d := &Daemon{
 		Paths: persistence.Paths{
 			RootDir:     rootDir,
