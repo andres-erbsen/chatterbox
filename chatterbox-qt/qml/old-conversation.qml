@@ -19,18 +19,16 @@ ApplicationWindow {
 		}
 	}
 
-    ColumnLayout {
+	SplitView {
         id: mainLayout
-        anchors.fill: parent
+		anchors.fill: parent
+		orientation: Qt.Vertical
 
 		TextArea {
-			anchors {
-				bottom: inputArea.top
-				top: parent.top
-			}
-			Layout.fillWidth: true
 			id: historyArea
 			objectName: "historyArea"
+			Layout.fillHeight: true
+
 			readOnly: true
 			wrapMode: TextEdit.Wrap
 			textFormat: TextEdit.RichText
@@ -40,17 +38,17 @@ ApplicationWindow {
 		TextArea {
 			id: inputArea 
 			objectName: "inputArea"
+			Layout.minimumHeight: 18
+			Layout.preferredHeight: 36
+
 			text: "Ctrl + Enter to send a message."
-			anchors.bottom: parent.bottom
-			Layout.fillWidth: true
-			Layout.minimumHeight: 12
-			Layout.preferredHeight: 42
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
 
 			focus: true
 			Component.onCompleted: {
 				inputArea.selectAll()
+				inputArea.height = 36;
 			}
 		}
     }
