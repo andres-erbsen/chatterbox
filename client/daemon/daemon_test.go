@@ -76,11 +76,14 @@ func TestReadFromFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	<-watcher.Events
-	files, err := filepath.Glob(filepath.Join(bobDaemon.ConversationDir(), persistence.ConversationName(conv), "*alice"))
-	if files == nil {
-		t.Fatal("no files in bob's alice<->bob conversation")
+	var files []string
+	for len(files) == 0 {
+		watcher.Add((<-watcher.Events).Name)
+		if files, err = filepath.Glob(filepath.Join(bobDaemon.ConversationDir(), persistence.ConversationName(conv), "*alice")); err != nil {
+			t.Fatal(err)
+		}
 	}
+
 	receivedMessage, err := ioutil.ReadFile(files[0])
 	if err != nil {
 		t.Fatal(err)

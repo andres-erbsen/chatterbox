@@ -301,19 +301,15 @@ func (d *Daemon) run() error {
 		case <-d.stop:
 			return nil
 		case ev := <-watcher.Event:
-			fmt.Printf("event: %v\n", ev)
 			// event in the directory structure; watch any new directories
 			if _, err = os.Stat(ev.Name); err == nil {
 				err = WatchDir(watcher, ev.Name, initFn)
 				if err != nil {
 					log.Printf("watch %s: %s", ev.Name, err) // TODO
 				}
-
-				fmt.Printf("event in %s\n", ev.Name)
 				d.processOutboxDir(ev.Name)
 			}
 		case envelope := <-connToServer.ReadEnvelope:
-			fmt.Println("daemon received a message")
 			msgHash := sha256.Sum256(envelope)
 			// assume it's the first message we're receiving from the person; try to decrypt
 			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
@@ -513,8 +509,6 @@ func (d *Daemon) sendFirstMessage(msg []byte, theirDename string) error {
 		return err
 	}
 	d.cc.Put(theirDename, theirConn)
-	fmt.Printf("sent first message to %s\n", theirDename)
-
 	return nil
 }
 
