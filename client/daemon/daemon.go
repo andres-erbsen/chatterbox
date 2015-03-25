@@ -198,6 +198,9 @@ func Load(rootDir string, denameConfig *client.Config) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
+	if denameConfig == nil {
+		denameConfig = &client.DefaultConfig
+	}
 	timelessCfg := *denameConfig // TODO: make very sure this is a deep copy
 	timelessCfg.Freshness.Threshold = fmt.Sprintf("%dh", 100*365*24)
 	d.timelessDenameClient, err = client.NewClient(&timelessCfg, nil, nil)
@@ -682,7 +685,6 @@ func (d *Daemon) processOutboxDir(dirname string) error {
 					return err
 				}
 			} else {
-				fmt.Println(msg)
 				if err := d.sendMessage(msg, recipient, msgRatch); err != nil {
 					return err
 				}

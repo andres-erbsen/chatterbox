@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"
+	"github.com/russross/blackfriday"
 	"gopkg.in/fsnotify.v1"
 	"gopkg.in/qml.v1"
 )
@@ -121,15 +124,24 @@ func (g *gui) handleMessage(path string) {
 	g.displayMessage(win, msg)
 }
 
+func renderToHTML(msg *persistence.Message) string {
+	body := string(blackfriday.Markdown([]byte(html.EscapeString(strings.TrimSpace(msg.Content))),
+		blackfriday.HtmlRenderer(0, "", ""),
+		blackfriday.EXTENSION_TABLES|
+			blackfriday.EXTENSION_STRIKETHROUGH|
+			blackfriday.EXTENSION_AUTOLINK|
+			blackfriday.EXTENSION_FENCED_CODE|
+			blackfriday.EXTENSION_HARD_LINE_BREAK))
+	// TODO: if possible, replace the following hack with a custom markdown
+	// renderer that calls HTMLRendered for everything except paragraphs
+	body = regexp.MustCompile("</p>\\s*<p>").ReplaceAllString(body, "<br><br>")
+	body = strings.Replace(body, "<p>", "", -1)
+	body = strings.Replace(body, "</p>", "", -1)
+	return "<u>" + html.EscapeString(msg.Sender) + "</u>: " + body
+}
+
 func (g *gui) displayMessage(window *qml.Window, msg *persistence.Message) {
-	window.ObjectByName("messageModel").Call("addItem", toJson(
-		&persistence.Message{
-			Path:    msg.Path,
-			Content: strings.TrimSpace(msg.Content),
-			Sender:  msg.Sender,
-		}))
-	// TODO: only do this if the view was at the end before adding the new item
-	window.ObjectByName("messageView").Call("positionViewAtEnd")
+	window.ObjectByName("historyArea").Call("append", renderToHTML(msg))
 }
 
 func (g *gui) openConversation(idx int) error {
@@ -151,11 +163,11 @@ func (g *gui) openConversation(idx int) error {
 	if err != nil {
 		panic(err)
 	}
+	msgsHTML := ""
 	for _, msg := range msgs {
-		g.displayMessage(window, msg)
+		msgsHTML += renderToHTML(msg) + "<br>"
 	}
-	window.ObjectByName("messageView").Call("positionViewAtEnd")
-
+	window.ObjectByName("historyArea").Call("append", msgsHTML)
 	window.On("sendMessage", func(message string) {
 		err := g.MessageToOutbox(persistence.ConversationName(conv), message)
 		if err != nil {

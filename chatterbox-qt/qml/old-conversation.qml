@@ -5,79 +5,52 @@ import QtQuick.Layouts 1.1
 
 ApplicationWindow {
 	id: conversationWindow
-	signal sendMessage(string message)
-
     visible: true
-    title: "Conversation"
-    property int margin: 10
-    width: mainLayout.implicitWidth + 2 * margin
-    height: mainLayout.implicitHeight + 2 * margin
-    minimumWidth: mainLayout.Layout.minimumWidth + 40 * margin
-    minimumHeight: mainLayout.Layout.minimumHeight + 12 * margin
+    title: "Chatterbox Conversation"
 
+	signal sendMessage(string message)
 	Action {
 		id: sendMessage
 		text: "Send &Message"
 		shortcut: "Ctrl+Return"
 		onTriggered: {
-			conversationWindow.sendMessage(messageArea.text);
-			messageArea.remove(0, messageArea.length);
+			conversationWindow.sendMessage(inputArea.text);
+			inputArea.remove(0, inputArea.length);
 		}
 	}
-
-	ListModel {
-		id: messageModel
-		objectName: 'messageModel'
-
-		function addItem(json) { append(JSON.parse(json)); }
-    }
 
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: margin
 
-		ScrollView {
-			// TODO: handle pageup, pagedown
-			Layout.fillHeight: true
-			Layout.fillWidth: true
-			ListView {
-				id: messageView
-				objectName: "messageView"
-
-				model: messageModel
-				delegate: RowLayout {
-					Text{ 
-						anchors.top: parent.top
-						text: Sender + ": "
-						textFormat: Text.PlainText
-						font.bold:true
-						renderType: Text.NativeRendering
-					}
-					Text{ 
-						anchors.top: parent.top
-						text: Content
-						textFormat: Text.PlainText
-						renderType: Text.NativeRendering
-					}
-
-				}
+		TextArea {
+			anchors {
+				bottom: inputArea.top
+				top: parent.top
 			}
+			Layout.fillWidth: true
+			id: historyArea
+			objectName: "historyArea"
+			readOnly: true
+			wrapMode: TextEdit.Wrap
+			textFormat: TextEdit.RichText
+			verticalAlignment: TextEdit.AlignTop
 		}
 
 		TextArea {
-			id: messageArea 
-			objectName: "messageArea"
+			id: inputArea 
+			objectName: "inputArea"
 			text: "Ctrl + Enter to send a message."
+			anchors.bottom: parent.bottom
 			Layout.fillWidth: true
 			Layout.minimumHeight: 12
-			Layout.preferredHeight: 36
+			Layout.preferredHeight: 42
 			textFormat: TextEdit.PlainText
 			wrapMode: TextEdit.Wrap
 
 			focus: true
 			Component.onCompleted: {
-				messageArea.selectAll()
+				inputArea.selectAll()
 			}
 		}
     }
