@@ -9,11 +9,11 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import io "io"
-import fmt "fmt"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+import io2 "io"
+import fmt2 "fmt"
+import github_com_gogo_protobuf_proto2 "github.com/gogo/protobuf/proto"
 
-import bytes "bytes"
+import bytes2 "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -42,7 +42,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -56,12 +56,12 @@ func (m *Profile) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ServerAddressTCP", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field ServerAddressTCP", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -72,17 +72,17 @@ func (m *Profile) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.ServerAddressTCP = string(data[index:postIndex])
 			index = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ServerPortTCP", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field ServerPortTCP", wireType)
 			}
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -93,12 +93,12 @@ func (m *Profile) Unmarshal(data []byte) error {
 			}
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ServerTransportPK", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field ServerTransportPK", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -109,7 +109,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			if err := m.ServerTransportPK.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -117,12 +117,12 @@ func (m *Profile) Unmarshal(data []byte) error {
 			index = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UserIDAtServer", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field UserIDAtServer", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -133,7 +133,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			if err := m.UserIDAtServer.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -141,12 +141,12 @@ func (m *Profile) Unmarshal(data []byte) error {
 			index = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field KeySigningKey", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field KeySigningKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -157,7 +157,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			if err := m.KeySigningKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -165,12 +165,12 @@ func (m *Profile) Unmarshal(data []byte) error {
 			index = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MessageAuthKey", wireType)
+				return fmt2.Errorf("proto: wrong wireType = %d for field MessageAuthKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io.ErrUnexpectedEOF
+					return io2.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -181,7 +181,7 @@ func (m *Profile) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			if err := m.MessageAuthKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -197,12 +197,12 @@ func (m *Profile) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto2.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io.ErrUnexpectedEOF
+				return io2.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -215,7 +215,7 @@ func (m *Profile) Size() (n int) {
 	_ = l
 	l = len(m.ServerAddressTCP)
 	n += 1 + l + sovDenameChatProfile(uint64(l))
-	n += 1 + sovDenameChatProfile(uint64(m.ServerPortTCP))
+	n += 1 + sovDenameChatProfile(uint64(uint32(m.ServerPortTCP)))
 	l = m.ServerTransportPK.Size()
 	n += 1 + l + sovDenameChatProfile(uint64(l))
 	l = m.UserIDAtServer.Size()
@@ -274,7 +274,11 @@ type randyDenameChatProfile interface {
 }
 
 func randUTF8RuneDenameChatProfile(r randyDenameChatProfile) rune {
-	return rune(r.Intn(126-43) + 43)
+	res := rune(r.Uint32() % 1112064)
+	if 55296 <= res {
+		res += 2047
+	}
+	return res
 }
 func randStringDenameChatProfile(r randyDenameChatProfile) string {
 	v5 := r.Intn(100)
@@ -351,7 +355,7 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 	i += copy(data[i:], m.ServerAddressTCP)
 	data[i] = 0x10
 	i++
-	i = encodeVarintDenameChatProfile(data, i, uint64(m.ServerPortTCP))
+	i = encodeVarintDenameChatProfile(data, i, uint64(uint32(m.ServerPortTCP)))
 	data[i] = 0x1a
 	i++
 	i = encodeVarintDenameChatProfile(data, i, uint64(m.ServerTransportPK.Size()))
@@ -389,7 +393,6 @@ func (m *Profile) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
-
 func encodeFixed64DenameChatProfile(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -455,7 +458,7 @@ func (this *Profile) Equal(that interface{}) bool {
 	if !this.MessageAuthKey.Equal(that1.MessageAuthKey) {
 		return false
 	}
-	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes2.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true
