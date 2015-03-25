@@ -9,11 +9,11 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import io4 "io"
-import fmt4 "fmt"
-import github_com_gogo_protobuf_proto4 "github.com/gogo/protobuf/proto"
+import io "io"
+import fmt "fmt"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
-import bytes4 "bytes"
+import bytes "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -38,7 +38,7 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io4.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -52,12 +52,12 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt4.Errorf("proto: wrong wireType = %d for field Participants", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Participants", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io4.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -68,18 +68,18 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io4.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.Participants = append(m.Participants, string(data[index:postIndex]))
 			index = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt4.Errorf("proto: wrong wireType = %d for field Subject", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Subject", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io4.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -90,7 +90,7 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io4.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.Subject = string(data[index:postIndex])
 			index = postIndex
@@ -104,12 +104,12 @@ func (m *ConversationMetadata) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := github_com_gogo_protobuf_proto4.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io4.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -173,11 +173,7 @@ type randyLocalConversationMetadata interface {
 }
 
 func randUTF8RuneLocalConversationMetadata(r randyLocalConversationMetadata) rune {
-	res := rune(r.Uint32() % 1112064)
-	if 55296 <= res {
-		res += 2047
-	}
-	return res
+	return rune(r.Intn(126-43) + 43)
 }
 func randStringLocalConversationMetadata(r randyLocalConversationMetadata) string {
 	v2 := r.Intn(100)
@@ -272,6 +268,7 @@ func (m *ConversationMetadata) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
+
 func encodeFixed64LocalConversationMetadata(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -330,7 +327,7 @@ func (this *ConversationMetadata) Equal(that interface{}) bool {
 	if this.Subject != that1.Subject {
 		return false
 	}
-	if !bytes4.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true

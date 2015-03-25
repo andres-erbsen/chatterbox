@@ -4,32 +4,21 @@
 
 package proto
 
-import testing4 "testing"
-import math_rand4 "math/rand"
-import time4 "time"
-import github_com_gogo_protobuf_proto3 "github.com/gogo/protobuf/proto"
-import testing5 "testing"
-import math_rand5 "math/rand"
-import time5 "time"
-import encoding_json1 "encoding/json"
-import testing6 "testing"
-import math_rand6 "math/rand"
-import time6 "time"
-import github_com_gogo_protobuf_proto4 "github.com/gogo/protobuf/proto"
-import math_rand7 "math/rand"
-import time7 "time"
-import testing7 "testing"
-import github_com_gogo_protobuf_proto5 "github.com/gogo/protobuf/proto"
+import testing "testing"
+import math_rand "math/rand"
+import time "time"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+import encoding_json "encoding/json"
 
-func TestProfileProto(t *testing4.T) {
-	popr := math_rand4.New(math_rand4.NewSource(time4.Now().UnixNano()))
+func TestProfileProto(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedProfile(popr, false)
-	data, err := github_com_gogo_protobuf_proto3.Marshal(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 	msg := &Profile{}
-	if err := github_com_gogo_protobuf_proto3.Unmarshal(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
 	for i := range data {
@@ -40,8 +29,8 @@ func TestProfileProto(t *testing4.T) {
 	}
 }
 
-func TestProfileMarshalTo(t *testing4.T) {
-	popr := math_rand4.New(math_rand4.NewSource(time4.Now().UnixNano()))
+func TestProfileMarshalTo(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedProfile(popr, false)
 	size := p.Size()
 	data := make([]byte, size)
@@ -53,7 +42,7 @@ func TestProfileMarshalTo(t *testing4.T) {
 		panic(err)
 	}
 	msg := &Profile{}
-	if err := github_com_gogo_protobuf_proto3.Unmarshal(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.Unmarshal(data, msg); err != nil {
 		panic(err)
 	}
 	for i := range data {
@@ -64,8 +53,8 @@ func TestProfileMarshalTo(t *testing4.T) {
 	}
 }
 
-func BenchmarkProfileProtoMarshal(b *testing4.B) {
-	popr := math_rand4.New(math_rand4.NewSource(616))
+func BenchmarkProfileProtoMarshal(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*Profile, 10000)
 	for i := 0; i < 10000; i++ {
@@ -73,7 +62,7 @@ func BenchmarkProfileProtoMarshal(b *testing4.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data, err := github_com_gogo_protobuf_proto3.Marshal(pops[i%10000])
+		data, err := github_com_gogo_protobuf_proto.Marshal(pops[i%10000])
 		if err != nil {
 			panic(err)
 		}
@@ -82,12 +71,12 @@ func BenchmarkProfileProtoMarshal(b *testing4.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkProfileProtoUnmarshal(b *testing4.B) {
-	popr := math_rand4.New(math_rand4.NewSource(616))
+func BenchmarkProfileProtoUnmarshal(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		data, err := github_com_gogo_protobuf_proto3.Marshal(NewPopulatedProfile(popr, false))
+		data, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedProfile(popr, false))
 		if err != nil {
 			panic(err)
 		}
@@ -97,22 +86,22 @@ func BenchmarkProfileProtoUnmarshal(b *testing4.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
-		if err := github_com_gogo_protobuf_proto3.Unmarshal(datas[i%10000], msg); err != nil {
+		if err := github_com_gogo_protobuf_proto.Unmarshal(datas[i%10000], msg); err != nil {
 			panic(err)
 		}
 	}
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestProfileJSON(t *testing5.T) {
-	popr := math_rand5.New(math_rand5.NewSource(time5.Now().UnixNano()))
+func TestProfileJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedProfile(popr, true)
-	jsondata, err := encoding_json1.Marshal(p)
+	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 	msg := &Profile{}
-	err = encoding_json1.Unmarshal(jsondata, msg)
+	err = encoding_json.Unmarshal(jsondata, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -120,12 +109,12 @@ func TestProfileJSON(t *testing5.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestProfileProtoText(t *testing6.T) {
-	popr := math_rand6.New(math_rand6.NewSource(time6.Now().UnixNano()))
+func TestProfileProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedProfile(popr, true)
-	data := github_com_gogo_protobuf_proto4.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &Profile{}
-	if err := github_com_gogo_protobuf_proto4.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -133,12 +122,12 @@ func TestProfileProtoText(t *testing6.T) {
 	}
 }
 
-func TestProfileProtoCompactText(t *testing6.T) {
-	popr := math_rand6.New(math_rand6.NewSource(time6.Now().UnixNano()))
+func TestProfileProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedProfile(popr, true)
-	data := github_com_gogo_protobuf_proto4.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &Profile{}
-	if err := github_com_gogo_protobuf_proto4.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -146,11 +135,11 @@ func TestProfileProtoCompactText(t *testing6.T) {
 	}
 }
 
-func TestProfileSize(t *testing7.T) {
-	popr := math_rand7.New(math_rand7.NewSource(time7.Now().UnixNano()))
+func TestProfileSize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedProfile(popr, true)
-	size2 := github_com_gogo_protobuf_proto5.Size(p)
-	data, err := github_com_gogo_protobuf_proto5.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -161,14 +150,14 @@ func TestProfileSize(t *testing7.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto5.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkProfileSize(b *testing7.B) {
-	popr := math_rand7.New(math_rand7.NewSource(616))
+func BenchmarkProfileSize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*Profile, 1000)
 	for i := 0; i < 1000; i++ {

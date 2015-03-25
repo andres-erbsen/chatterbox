@@ -9,11 +9,11 @@ import math "math"
 
 // discarding unused import gogoproto "github.com/gogo/protobuf/gogoproto/gogo.pb"
 
-import io3 "io"
-import fmt3 "fmt"
-import github_com_gogo_protobuf_proto3 "github.com/gogo/protobuf/proto"
+import io "io"
+import fmt "fmt"
+import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 
-import bytes3 "bytes"
+import bytes "bytes"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
@@ -44,7 +44,7 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if index >= l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			b := data[index]
 			index++
@@ -58,12 +58,12 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field ServerAddressTCP", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ServerAddressTCP", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -74,17 +74,17 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.ServerAddressTCP = string(data[index:postIndex])
 			index = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field ServerPortTCP", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ServerPortTCP", wireType)
 			}
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -95,12 +95,12 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 		case 3:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field ServerTransportPK", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ServerTransportPK", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -111,7 +111,7 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			if err := m.ServerTransportPK.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -119,12 +119,12 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			index = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field TransportSecretKeyForServer", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TransportSecretKeyForServer", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -135,7 +135,7 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			if err := m.TransportSecretKeyForServer.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -143,12 +143,12 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			index = postIndex
 		case 5:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field KeySigningSecretKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field KeySigningSecretKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -159,18 +159,18 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
-			m.KeySigningSecretKey = append(m.KeySigningSecretKey, data[index:postIndex]...)
+			m.KeySigningSecretKey = append([]byte{}, data[index:postIndex]...)
 			index = postIndex
 		case 6:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field MessageAuthSecretKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MessageAuthSecretKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -181,7 +181,7 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + byteLen
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			if err := m.MessageAuthSecretKey.Unmarshal(data[index:postIndex]); err != nil {
 				return err
@@ -189,12 +189,12 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			index = postIndex
 		case 7:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field Dename", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Dename", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -205,18 +205,18 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.Dename = string(data[index:postIndex])
 			index = postIndex
 		case 8:
 			if wireType != 2 {
-				return fmt3.Errorf("proto: wrong wireType = %d for field TorAddress", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TorAddress", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if index >= l {
-					return io3.ErrUnexpectedEOF
+					return io.ErrUnexpectedEOF
 				}
 				b := data[index]
 				index++
@@ -227,7 +227,7 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 			}
 			postIndex := index + int(stringLen)
 			if postIndex > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.TorAddress = string(data[index:postIndex])
 			index = postIndex
@@ -241,12 +241,12 @@ func (m *LocalAccountConfig) Unmarshal(data []byte) error {
 				}
 			}
 			index -= sizeOfWire
-			skippy, err := github_com_gogo_protobuf_proto3.Skip(data[index:])
+			skippy, err := github_com_gogo_protobuf_proto.Skip(data[index:])
 			if err != nil {
 				return err
 			}
 			if (index + skippy) > l {
-				return io3.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 			m.XXX_unrecognized = append(m.XXX_unrecognized, data[index:index+skippy]...)
 			index += skippy
@@ -259,13 +259,15 @@ func (m *LocalAccountConfig) Size() (n int) {
 	_ = l
 	l = len(m.ServerAddressTCP)
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
-	n += 1 + sovLocalAccountConfig(uint64(uint32(m.ServerPortTCP)))
+	n += 1 + sovLocalAccountConfig(uint64(m.ServerPortTCP))
 	l = m.ServerTransportPK.Size()
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
 	l = m.TransportSecretKeyForServer.Size()
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
-	l = len(m.KeySigningSecretKey)
-	n += 1 + l + sovLocalAccountConfig(uint64(l))
+	if m.KeySigningSecretKey != nil {
+		l = len(m.KeySigningSecretKey)
+		n += 1 + l + sovLocalAccountConfig(uint64(l))
+	}
 	l = m.MessageAuthSecretKey.Size()
 	n += 1 + l + sovLocalAccountConfig(uint64(l))
 	l = len(m.Dename)
@@ -327,11 +329,7 @@ type randyLocalAccountConfig interface {
 }
 
 func randUTF8RuneLocalAccountConfig(r randyLocalAccountConfig) rune {
-	res := rune(r.Uint32() % 1112064)
-	if 55296 <= res {
-		res += 2047
-	}
-	return res
+	return rune(r.Intn(126-43) + 43)
 }
 func randStringLocalAccountConfig(r randyLocalAccountConfig) string {
 	v5 := r.Intn(100)
@@ -408,7 +406,7 @@ func (m *LocalAccountConfig) MarshalTo(data []byte) (n int, err error) {
 	i += copy(data[i:], m.ServerAddressTCP)
 	data[i] = 0x10
 	i++
-	i = encodeVarintLocalAccountConfig(data, i, uint64(uint32(m.ServerPortTCP)))
+	i = encodeVarintLocalAccountConfig(data, i, uint64(m.ServerPortTCP))
 	data[i] = 0x1a
 	i++
 	i = encodeVarintLocalAccountConfig(data, i, uint64(m.ServerTransportPK.Size()))
@@ -425,10 +423,12 @@ func (m *LocalAccountConfig) MarshalTo(data []byte) (n int, err error) {
 		return 0, err
 	}
 	i += n2
-	data[i] = 0x2a
-	i++
-	i = encodeVarintLocalAccountConfig(data, i, uint64(len(m.KeySigningSecretKey)))
-	i += copy(data[i:], m.KeySigningSecretKey)
+	if m.KeySigningSecretKey != nil {
+		data[i] = 0x2a
+		i++
+		i = encodeVarintLocalAccountConfig(data, i, uint64(len(m.KeySigningSecretKey)))
+		i += copy(data[i:], m.KeySigningSecretKey)
+	}
 	data[i] = 0x32
 	i++
 	i = encodeVarintLocalAccountConfig(data, i, uint64(m.MessageAuthSecretKey.Size()))
@@ -450,6 +450,7 @@ func (m *LocalAccountConfig) MarshalTo(data []byte) (n int, err error) {
 	}
 	return i, nil
 }
+
 func encodeFixed64LocalAccountConfig(data []byte, offset int, v uint64) int {
 	data[offset] = uint8(v)
 	data[offset+1] = uint8(v >> 8)
@@ -509,7 +510,7 @@ func (this *LocalAccountConfig) Equal(that interface{}) bool {
 	if !this.TransportSecretKeyForServer.Equal(that1.TransportSecretKeyForServer) {
 		return false
 	}
-	if !bytes3.Equal(this.KeySigningSecretKey, that1.KeySigningSecretKey) {
+	if !bytes.Equal(this.KeySigningSecretKey, that1.KeySigningSecretKey) {
 		return false
 	}
 	if !this.MessageAuthSecretKey.Equal(that1.MessageAuthSecretKey) {
@@ -521,7 +522,7 @@ func (this *LocalAccountConfig) Equal(that interface{}) bool {
 	if this.TorAddress != that1.TorAddress {
 		return false
 	}
-	if !bytes3.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
+	if !bytes.Equal(this.XXX_unrecognized, that1.XXX_unrecognized) {
 		return false
 	}
 	return true

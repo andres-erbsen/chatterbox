@@ -8,18 +8,7 @@ import testing "testing"
 import math_rand "math/rand"
 import time "time"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import testing1 "testing"
-import math_rand1 "math/rand"
-import time1 "time"
 import encoding_json "encoding/json"
-import testing2 "testing"
-import math_rand2 "math/rand"
-import time2 "time"
-import github_com_gogo_protobuf_proto1 "github.com/gogo/protobuf/proto"
-import math_rand3 "math/rand"
-import time3 "time"
-import testing3 "testing"
-import github_com_gogo_protobuf_proto2 "github.com/gogo/protobuf/proto"
 
 func TestServerToClientProto(t *testing.T) {
 	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
@@ -270,8 +259,8 @@ func BenchmarkClientToServer_DeliverEnvelopeProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestServerToClientJSON(t *testing1.T) {
-	popr := math_rand1.New(math_rand1.NewSource(time1.Now().UnixNano()))
+func TestServerToClientJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedServerToClient(popr, true)
 	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
@@ -286,8 +275,8 @@ func TestServerToClientJSON(t *testing1.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestClientToServerJSON(t *testing1.T) {
-	popr := math_rand1.New(math_rand1.NewSource(time1.Now().UnixNano()))
+func TestClientToServerJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer(popr, true)
 	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
@@ -302,8 +291,8 @@ func TestClientToServerJSON(t *testing1.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestClientToServer_DeliverEnvelopeJSON(t *testing1.T) {
-	popr := math_rand1.New(math_rand1.NewSource(time1.Now().UnixNano()))
+func TestClientToServer_DeliverEnvelopeJSON(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer_DeliverEnvelope(popr, true)
 	jsondata, err := encoding_json.Marshal(p)
 	if err != nil {
@@ -318,12 +307,12 @@ func TestClientToServer_DeliverEnvelopeJSON(t *testing1.T) {
 		t.Fatalf("%#v !Json Equal %#v", msg, p)
 	}
 }
-func TestServerToClientProtoText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestServerToClientProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedServerToClient(popr, true)
-	data := github_com_gogo_protobuf_proto1.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &ServerToClient{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -331,12 +320,12 @@ func TestServerToClientProtoText(t *testing2.T) {
 	}
 }
 
-func TestServerToClientProtoCompactText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestServerToClientProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedServerToClient(popr, true)
-	data := github_com_gogo_protobuf_proto1.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &ServerToClient{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -344,12 +333,12 @@ func TestServerToClientProtoCompactText(t *testing2.T) {
 	}
 }
 
-func TestClientToServerProtoText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestClientToServerProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer(popr, true)
-	data := github_com_gogo_protobuf_proto1.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &ClientToServer{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -357,12 +346,12 @@ func TestClientToServerProtoText(t *testing2.T) {
 	}
 }
 
-func TestClientToServerProtoCompactText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestClientToServerProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer(popr, true)
-	data := github_com_gogo_protobuf_proto1.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &ClientToServer{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -370,12 +359,12 @@ func TestClientToServerProtoCompactText(t *testing2.T) {
 	}
 }
 
-func TestClientToServer_DeliverEnvelopeProtoText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestClientToServer_DeliverEnvelopeProtoText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer_DeliverEnvelope(popr, true)
-	data := github_com_gogo_protobuf_proto1.MarshalTextString(p)
+	data := github_com_gogo_protobuf_proto.MarshalTextString(p)
 	msg := &ClientToServer_DeliverEnvelope{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -383,12 +372,12 @@ func TestClientToServer_DeliverEnvelopeProtoText(t *testing2.T) {
 	}
 }
 
-func TestClientToServer_DeliverEnvelopeProtoCompactText(t *testing2.T) {
-	popr := math_rand2.New(math_rand2.NewSource(time2.Now().UnixNano()))
+func TestClientToServer_DeliverEnvelopeProtoCompactText(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer_DeliverEnvelope(popr, true)
-	data := github_com_gogo_protobuf_proto1.CompactTextString(p)
+	data := github_com_gogo_protobuf_proto.CompactTextString(p)
 	msg := &ClientToServer_DeliverEnvelope{}
-	if err := github_com_gogo_protobuf_proto1.UnmarshalText(data, msg); err != nil {
+	if err := github_com_gogo_protobuf_proto.UnmarshalText(data, msg); err != nil {
 		panic(err)
 	}
 	if !p.Equal(msg) {
@@ -396,11 +385,11 @@ func TestClientToServer_DeliverEnvelopeProtoCompactText(t *testing2.T) {
 	}
 }
 
-func TestServerToClientSize(t *testing3.T) {
-	popr := math_rand3.New(math_rand3.NewSource(time3.Now().UnixNano()))
+func TestServerToClientSize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedServerToClient(popr, true)
-	size2 := github_com_gogo_protobuf_proto2.Size(p)
-	data, err := github_com_gogo_protobuf_proto2.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -411,14 +400,14 @@ func TestServerToClientSize(t *testing3.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto2.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkServerToClientSize(b *testing3.B) {
-	popr := math_rand3.New(math_rand3.NewSource(616))
+func BenchmarkServerToClientSize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*ServerToClient, 1000)
 	for i := 0; i < 1000; i++ {
@@ -431,11 +420,11 @@ func BenchmarkServerToClientSize(b *testing3.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestClientToServerSize(t *testing3.T) {
-	popr := math_rand3.New(math_rand3.NewSource(time3.Now().UnixNano()))
+func TestClientToServerSize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer(popr, true)
-	size2 := github_com_gogo_protobuf_proto2.Size(p)
-	data, err := github_com_gogo_protobuf_proto2.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -446,14 +435,14 @@ func TestClientToServerSize(t *testing3.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto2.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkClientToServerSize(b *testing3.B) {
-	popr := math_rand3.New(math_rand3.NewSource(616))
+func BenchmarkClientToServerSize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*ClientToServer, 1000)
 	for i := 0; i < 1000; i++ {
@@ -466,11 +455,11 @@ func BenchmarkClientToServerSize(b *testing3.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestClientToServer_DeliverEnvelopeSize(t *testing3.T) {
-	popr := math_rand3.New(math_rand3.NewSource(time3.Now().UnixNano()))
+func TestClientToServer_DeliverEnvelopeSize(t *testing.T) {
+	popr := math_rand.New(math_rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedClientToServer_DeliverEnvelope(popr, true)
-	size2 := github_com_gogo_protobuf_proto2.Size(p)
-	data, err := github_com_gogo_protobuf_proto2.Marshal(p)
+	size2 := github_com_gogo_protobuf_proto.Size(p)
+	data, err := github_com_gogo_protobuf_proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
@@ -481,14 +470,14 @@ func TestClientToServer_DeliverEnvelopeSize(t *testing3.T) {
 	if size2 != size {
 		t.Fatalf("size %v != before marshal proto.Size %v", size, size2)
 	}
-	size3 := github_com_gogo_protobuf_proto2.Size(p)
+	size3 := github_com_gogo_protobuf_proto.Size(p)
 	if size3 != size {
 		t.Fatalf("size %v != after marshal proto.Size %v", size, size3)
 	}
 }
 
-func BenchmarkClientToServer_DeliverEnvelopeSize(b *testing3.B) {
-	popr := math_rand3.New(math_rand3.NewSource(616))
+func BenchmarkClientToServer_DeliverEnvelopeSize(b *testing.B) {
+	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	pops := make([]*ClientToServer_DeliverEnvelope, 1000)
 	for i := 0; i < 1000; i++ {
