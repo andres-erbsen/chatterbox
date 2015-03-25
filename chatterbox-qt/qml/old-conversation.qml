@@ -52,11 +52,13 @@ ApplicationWindow {
 						text: Sender + ": "
 						textFormat: Text.PlainText
 						font.bold:true
+						renderType: Text.NativeRendering
 					}
 					Text{ 
 						anchors.top: parent.top
 						text: Content
 						textFormat: Text.PlainText
+						renderType: Text.NativeRendering
 					}
 
 				}
