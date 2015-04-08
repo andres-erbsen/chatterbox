@@ -1,17 +1,20 @@
 package server
 
 import (
-	protobuf "code.google.com/p/gogoprotobuf/proto"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
+	"sync"
+
+	protobuf "code.google.com/p/gogoprotobuf/proto"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"net"
-	"sync"
 )
 
 var wO_sync = &opt.WriteOptions{Sync: true}
@@ -267,15 +270,15 @@ func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 }
 func (server *Server) deleteMessages(uid *[32]byte, messageList [][32]byte) error {
 	batch := new(leveldb.Batch)
-	for _, messageHash := range messageList {
-		key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
+	for _, messageID := range messageList {
+		key := append(append([]byte{'m'}, uid[:]...), messageID[:]...)
 		batch.Delete(key)
 	}
 	return server.database.Write(batch, wO_sync)
 }
 
-func (server *Server) getEnvelope(uid *[32]byte, messageHash *[32]byte) ([]byte, error) {
-	key := append(append([]byte{'m'}, uid[:]...), (messageHash)[:]...)
+func (server *Server) getEnvelope(uid *[32]byte, messageID *[32]byte) ([]byte, error) {
+	key := append(append([]byte{'m'}, uid[:]...), (messageID)[:]...)
 	envelope, err := server.database.Get(key, nil)
 	return envelope, err
 }
@@ -292,29 +295,45 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 }
 
 func (server *Server) getMessageList(user *[32]byte) ([][32]byte, error) {
-	messages := make([][32]byte, 0)
-	prefix := append([]byte{'m'}, (*user)[:]...)
-	messageRange := util.BytesPrefix(prefix)
 	snapshot, err := server.database.GetSnapshot()
 	if err != nil {
 		return nil, err
 	}
 	defer snapshot.Release()
-	iter := snapshot.NewIterator(messageRange, nil)
+	iter := snapshot.NewIterator(util.BytesPrefix(append([]byte{'m'}, user[:]...)), nil)
 	defer iter.Release()
+	var ret [][32]byte
 	for iter.Next() {
 		var message [32]byte
-		copy(message[:], iter.Key()[len(prefix):len(prefix)+32])
-		messages = append(messages, message)
+		copy(message[:], iter.Key()[1+32:]) // 'm' || user || id: (fuzzyTimestamp || hash)
+		ret = append(ret, message)
 	}
-	err = iter.Error()
-	return messages, err
+	return ret, iter.Error()
 }
 
 func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	// TODO: check that user exists
+	var fuzzyTimestamp uint64
+	var r [8]byte
+	if _, err := rand.Read(r[:]); err != nil {
+		return err
+	}
+
+	iter := server.database.NewIterator(util.BytesPrefix(append([]byte{'m'}, uid[:]...)), nil)
+	hasMessages := iter.Last()
+	if hasMessages {
+		t := iter.Key()[1+32:][:8]
+		fuzzyTimestamp = binary.BigEndian.Uint64(t[:]) + 0xffffffff&binary.BigEndian.Uint64(r[:])
+	} else {
+		fuzzyTimestamp = binary.BigEndian.Uint64(r[:])
+	}
+	iter.Release()
+
+	var tstmp [8]byte
+	binary.BigEndian.PutUint64(tstmp[:], fuzzyTimestamp)
+
 	messageHash := sha256.Sum256(envelope)
-	key := append(append([]byte{'m'}, uid[:]...), messageHash[:]...)
+	key := append(append(append([]byte{'m'}, uid[:]...), tstmp[:]...), messageHash[:24]...)
 	err := server.database.Put(key, (envelope)[:], wO_sync)
 	if err != nil {
 		return err

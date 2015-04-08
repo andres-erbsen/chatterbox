@@ -161,12 +161,11 @@ func TestMessageUploading(t *testing.T) {
 	server.StopServer()
 
 	envelopeHash := sha256.Sum256(envelope)
-	expectedKey := append(append([]byte{'m'}, (*pkp)[:]...), envelopeHash[:]...)
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {
 		key := iter.Key()
-		if bytes.Equal(key, expectedKey) {
+		if bytes.Equal(key[1+32+8:], envelopeHash[:24]) {
 			return
 		}
 	}
@@ -222,10 +221,14 @@ func TestMessageListing(t *testing.T) {
 	expected = append(expected, envelope1Hash)
 	expected = append(expected, envelope2Hash)
 
+outer:
 	for _, hash := range expected {
-		if !contains32Byte(messageList, hash) {
-			t.Error("Wrong message list returned")
+		for _, msgid := range messageList {
+			if bytes.Equal(msgid[8:], hash[:24]) {
+				continue outer
+			}
 		}
+		t.Error("Wrong message list returned")
 	}
 	teardown()
 }
@@ -264,10 +267,11 @@ func TestEnvelopeDownload(t *testing.T) {
 	messageList := listUserMessages(conn, inBuf, outBuf, t)
 
 	//TODO: Should messageHash just be 32-bytes? Answer: Probably yes, oh well
-	for _, message := range messageList {
-		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &message)
+	for _, msgid := range messageList {
+		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &msgid)
 
-		if !(message == sha256.Sum256(envelope)) {
+		h := sha256.Sum256(envelope)
+		if !bytes.Equal(msgid[8:], h[:24]) {
 			t.Error("Wrong envelope associated with message")
 		}
 	}
