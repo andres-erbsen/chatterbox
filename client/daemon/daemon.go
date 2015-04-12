@@ -312,7 +312,9 @@ func (d *Daemon) run() error {
 				}
 				d.processOutboxDir(ev.Name)
 			}
-		case envelope := <-connToServer.ReadEnvelope:
+		case envelopewith id := <-connToServer.ReadEnvelope:
+			envelope := envelopewithid.envelope
+			id := envelopewithid.Id
 			msgHash := sha256.Sum256(envelope)
 			// assume it's the first message we're receiving from the person; try to decrypt
 			message, ratch, index, err := d.decryptFirstMessage(envelope, prekeyPublics, prekeySecrets)
@@ -331,7 +333,7 @@ func (d *Daemon) run() error {
 				if err := d.saveMessage(message); err != nil {
 					return err
 				}
-				if err := util.DeleteMessages(connToServer, [][32]byte{msgHash}); err != nil {
+				if err := util.DeleteMessages(connToServer, id); err != nil {
 					return err
 				}
 			} else { // try decrypting with a ratchet
@@ -351,7 +353,7 @@ func (d *Daemon) run() error {
 				} else {
 					log.Printf("failed to decrypt %x: %s", msgHash, err)
 				}
-				if err := util.DeleteMessages(connToServer, [][32]byte{msgHash}); err != nil {
+				if err := util.DeleteMessages(connToServer, id); err != nil {
 					return err
 				}
 			}

@@ -2,6 +2,16 @@
 // source: ClientServer.proto
 // DO NOT EDIT!
 
+/*
+Package proto is a generated protocol buffer package.
+
+It is generated from these files:
+	ClientServer.proto
+
+It has these top-level messages:
+	ServerToClient
+	ClientToServer
+*/
 package proto
 
 import testing "testing"

@@ -7,11 +7,17 @@ import (
 	"github.com/andres-erbsen/chatterbox/transport"
 )
 
+
+type EnvelopeWithId struct {
+	Envelope []byte
+	Id 		 *[32]byte
+}
+
 type ConnectionToServer struct {
 	InBuf        []byte
 	Conn         *transport.Conn
 	ReadReply    chan *proto.ServerToClient // TODO: do we want to return an error?
-	ReadEnvelope chan []byte
+	ReadEnvelope chan *EnvelopeWithId
 
 	Shutdown     chan struct{}
 	WaitShutdown sync.WaitGroup
@@ -35,7 +41,11 @@ func (c *ConnectionToServer) ReceiveMessages() error {
 			}
 		}
 		if msg.Envelope != nil {
-			go func() { c.ReadEnvelope <- msg.Envelope }() // TODO: bounded buffer?
+			envwithid := &EnvelopeWithId {
+				Envelope : msg.Envelope,
+				Id : (*[32]byte) (msg.MessageId),
+			}
+			go func() { c.ReadEnvelope <- envwithid }() // TODO: bounded buffer?
 		} else {
 			c.ReadReply <- msg
 		}

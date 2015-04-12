@@ -1,0 +1,6 @@
+server bae713fb91f8770 round 1 #operations 0 time 2015-03-24 22:30:22 -0400 EDT state 0000000000000000000000000000000000000000000000000000000000000000
+server bae713fb91f8770 round 2 #operations 1 time 2015-03-24 22:30:22 -0400 EDT state 72737737fbee842a6f5d69cb9adbad2034a8e7268c1e2a049b01773c6648dcce
+server bae713fb91f8770 round 3 #operations 1 time 2015-03-24 22:30:22 -0400 EDT state dffc308f301d2d64b3f5b89419390c8ecddd84f89c89278c9a6d63e58306bcf9
+RECEIVE ANOMALY: could not find suitable ratchet: <nil>
+exit status 2
+FAIL	github.com/andres-erbsen/chatterbox/client/daemon	0.840s

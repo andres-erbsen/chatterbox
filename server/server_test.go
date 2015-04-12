@@ -172,7 +172,7 @@ func TestMessageUploading(t *testing.T) {
 	t.Error("Expected message entry not found")
 }
 
-func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) [][32]byte {
+func listUserMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T) []*[32]byte {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -268,7 +268,7 @@ func TestEnvelopeDownload(t *testing.T) {
 
 	//TODO: Should messageHash just be 32-bytes? Answer: Probably yes, oh well
 	for _, msgid := range messageList {
-		envelope := downloadEnvelope(conn, inBuf, outBuf, t, &msgid)
+		envelope := downloadEnvelope(conn, inBuf, outBuf, t, msgid)
 
 		h := sha256.Sum256(envelope)
 		if !bytes.Equal(msgid[8:], h[:24]) {
@@ -278,7 +278,7 @@ func TestEnvelopeDownload(t *testing.T) {
 	server.StopServer()
 }
 
-func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList [][32]byte) {
+func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testing.T, messageList []*[32]byte) {
 	deleteMessages := &proto.ClientToServer{
 		DeleteMessages: proto.ToProtoByte32List(messageList),
 	}
@@ -287,7 +287,7 @@ func deleteMessages(conn *transport.Conn, inBuf []byte, outBuf []byte, t *testin
 	receiveProtobuf(conn, inBuf, t)
 }
 
-func TestMessageDeletion(t *testing.T) {
+func TestListAndDelete(t *testing.T) {
 	dir, err := ioutil.TempDir("", "testdb")
 	handleError(err, t)
 
@@ -462,7 +462,7 @@ func dropMessage(t *testing.T, server *Server, uid *[32]byte, message []byte) {
 }
 
 func TestPushNotifications(t *testing.T) {
-	t.Skipf("server_test.go:22: read tcp [::1]:55166: i/o timeout; server_test.go:46: Server returned nil status; nil dereference at server_test.go:48")
+	//t.Skipf("server_test.go:22: read tcp [::1]:55166: i/o timeout; server_test.go:46: Server returned nil status; nil dereference at server_test.go:48")
 	dir, err := ioutil.TempDir("", "testdb")
 	handleError(err, t)
 
@@ -496,6 +496,22 @@ func TestPushNotifications(t *testing.T) {
 	}
 	if !bytes.Equal(r3.Envelope, envelope3) {
 		t.Error(fmt.Sprintf("first message mismatch: \"%s\" != \"%s\"", r3.Envelope, envelope3))
+	}
+
+	messageList := []*[32]byte{(*[32]byte) (r1.MessageId), (*[32]byte) (r2.MessageId), (*[32]byte) (r3.MessageId)}
+
+	for _, element := range messageList {
+		if element == nil {
+			t.Fatal("Message ID nil.")
+		}
+	}
+
+	deleteMessages(conn, inBuf, outBuf, t, messageList)
+
+	newMessageList := listUserMessages(conn, inBuf, outBuf, t)
+
+	if !(len(newMessageList) == 0) {
+		t.Error("Not all messages properly deleted")
 	}
 
 	server.StopServer()

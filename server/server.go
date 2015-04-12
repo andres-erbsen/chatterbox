@@ -158,10 +158,14 @@ func (server *Server) handleClient(connection net.Conn) error {
 			if cmd.CreateAccount != nil && *cmd.CreateAccount {
 				err = server.newUser(uid)
 			} else if cmd.DeliverEnvelope != nil {
-				err = server.newMessage((*[32]byte)(cmd.DeliverEnvelope.User),
+				msg_id, err := server.newMessage((*[32]byte)(cmd.DeliverEnvelope.User),
 					cmd.DeliverEnvelope.Envelope)
+				if err != nil {
+					return err
+				}
+				response.MessageId = (*proto.Byte32) (msg_id)
 			} else if cmd.ListMessages != nil && *cmd.ListMessages {
-				var messageList [][32]byte
+				var messageList []*[32]byte
 				messageList, err = server.getMessageList(uid)
 				response.MessageList = proto.ToProtoByte32List(messageList)
 			} else if cmd.DownloadEnvelope != nil {
@@ -268,7 +272,7 @@ func (server *Server) newKeys(uid *[32]byte, keyList [][]byte) error {
 	}
 	return server.database.Write(batch, wO_sync)
 }
-func (server *Server) deleteMessages(uid *[32]byte, messageList [][32]byte) error {
+func (server *Server) deleteMessages(uid *[32]byte, messageList []*[32]byte) error {
 	batch := new(leveldb.Batch)
 	for _, messageID := range messageList {
 		key := append(append([]byte{'m'}, uid[:]...), messageID[:]...)
@@ -294,7 +298,7 @@ func (server *Server) writeProtobuf(conn *transport.Conn, outBuf []byte, message
 	return nil
 }
 
-func (server *Server) getMessageList(user *[32]byte) ([][32]byte, error) {
+func (server *Server) getMessageList(user *[32]byte) ([]*[32]byte, error) {
 	snapshot, err := server.database.GetSnapshot()
 	if err != nil {
 		return nil, err
@@ -302,21 +306,21 @@ func (server *Server) getMessageList(user *[32]byte) ([][32]byte, error) {
 	defer snapshot.Release()
 	iter := snapshot.NewIterator(util.BytesPrefix(append([]byte{'m'}, user[:]...)), nil)
 	defer iter.Release()
-	var ret [][32]byte
+	var ret []*[32]byte
 	for iter.Next() {
-		var message [32]byte
+		message := new([32]byte)
 		copy(message[:], iter.Key()[1+32:]) // 'm' || user || id: (fuzzyTimestamp || hash)
 		ret = append(ret, message)
 	}
 	return ret, iter.Error()
 }
 
-func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
+func (server *Server) newMessage(uid *[32]byte, envelope []byte) (*[32]byte, error) {
 	// TODO: check that user exists
 	var fuzzyTimestamp uint64
 	var r [8]byte
 	if _, err := rand.Read(r[:]); err != nil {
-		return err
+		return nil, err
 	}
 
 	iter := server.database.NewIterator(util.BytesPrefix(append([]byte{'m'}, uid[:]...)), nil)
@@ -336,10 +340,12 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) error {
 	key := append(append(append([]byte{'m'}, uid[:]...), tstmp[:]...), messageHash[:24]...)
 	err := server.database.Put(key, (envelope)[:], wO_sync)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	server.notifier.Notify(uid, append([]byte{}, envelope...))
-	return nil
+	msg_id := new([32]byte)
+	copy(msg_id[:], append(tstmp[:], messageHash[:24]...))
+	return msg_id, nil
 }
 
 func (server *Server) newUser(uid *[32]byte) error {

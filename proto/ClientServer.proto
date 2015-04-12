@@ -22,7 +22,7 @@ message ServerToClient {
 	repeated bytes message_list = 3 [(gogoproto.customtype) = "Byte32"];
 	optional bytes envelope = 4;
 	optional bytes signed_key = 5;
-	optional bytes notification = 6;
+	optional bytes message_id = 6 [(gogoproto.customtype) = "Byte32"];
 	optional int64 num_keys = 7;
 }
 
