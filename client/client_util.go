@@ -45,7 +45,7 @@ func CreateAccount(conn *transport.Conn, inBuf []byte) error {
 	return nil
 }
 
-func ListUserMessages(connToServer *ConnectionToServer) ([][32]byte, error) {
+func ListUserMessages(connToServer *ConnectionToServer) ([]*[32]byte, error) {
 	listMessages := &proto.ClientToServer{
 		ListMessages: protobuf.Bool(true),
 	}
@@ -134,7 +134,7 @@ func DecryptAuth(in []byte, ratch *ratchet.Ratchet) (*ratchet.Ratchet, []byte, e
 	return ratch, unpadMsg, nil
 }
 
-func DeleteMessages(connToServer *ConnectionToServer, messageList [][32]byte) error {
+func DeleteMessages(connToServer *ConnectionToServer, messageList []*[32]byte) error {
 	deleteMessages := &proto.ClientToServer{
 		DeleteMessages: proto.ToProtoByte32List(messageList),
 	}

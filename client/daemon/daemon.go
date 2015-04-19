@@ -131,7 +131,7 @@ func Init(rootDir, dename, serverAddr string, serverPort int, serverPK *[32]byte
 		return err
 	}
 
-	notifies := make(chan []byte)
+	notifies := make(chan *util.EnvelopeWithId)
 	replies := make(chan *proto.ServerToClient)
 
 	connToServer := &util.ConnectionToServer{
@@ -258,7 +258,7 @@ func (d *Daemon) run() error {
 	}
 	defer ourConn.Close()
 
-	notifies := make(chan []byte)
+	notifies := make(chan *util.EnvelopeWithId)
 	replies := make(chan *proto.ServerToClient)
 
 	connToServer := &util.ConnectionToServer{
@@ -312,8 +312,8 @@ func (d *Daemon) run() error {
 				}
 				d.processOutboxDir(ev.Name)
 			}
-		case envelopewith id := <-connToServer.ReadEnvelope:
-			envelope := envelopewithid.envelope
+		case envelopewithid := <-connToServer.ReadEnvelope:
+			envelope := envelopewithid.Envelope
 			id := envelopewithid.Id
 			msgHash := sha256.Sum256(envelope)
 			// assume it's the first message we're receiving from the person; try to decrypt
@@ -333,7 +333,7 @@ func (d *Daemon) run() error {
 				if err := d.saveMessage(message); err != nil {
 					return err
 				}
-				if err := util.DeleteMessages(connToServer, id); err != nil {
+				if err := util.DeleteMessages(connToServer, []*[32]byte{id}); err != nil {
 					return err
 				}
 			} else { // try decrypting with a ratchet
@@ -353,7 +353,7 @@ func (d *Daemon) run() error {
 				} else {
 					log.Printf("failed to decrypt %x: %s", msgHash, err)
 				}
-				if err := util.DeleteMessages(connToServer, id); err != nil {
+				if err := util.DeleteMessages(connToServer, []*[32]byte{id}); err != nil {
 					return err
 				}
 			}
@@ -402,7 +402,7 @@ func (d *Daemon) requestAllMessages(conn *util.ConnectionToServer) error {
 		return err
 	}
 	for _, msgHash := range msgs {
-		if err := util.RequestMessage(conn, &msgHash); err != nil {
+		if err := util.RequestMessage(conn, msgHash); err != nil {
 			return err
 		}
 	}

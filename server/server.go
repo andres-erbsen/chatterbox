@@ -39,7 +39,7 @@ func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]b
 		database: db,
 		shutdown: shutdown,
 		listener: listener,
-		notifier: Notifier{waiters: make(map[[32]byte][]chan []byte)},
+		notifier: Notifier{ waiters: make(map[[32]byte][]chan *MessageWithId)},
 		pk:       pk,
 		sk:       sk,
 	}
@@ -111,7 +111,7 @@ func (server *Server) readClientCommands(conn *transport.Conn,
 // readClientNotifications is a for loop of blocking reads on notificationsIn
 // and non-blocking sends on notificationsOut. If the input channel is closed
 // or a send would block, the output channel is closed.
-func (server *Server) readClientNotifications(notificationsIn chan []byte, notificationsOut chan []byte) {
+func (server *Server) readClientNotifications(notificationsIn chan *MessageWithId, notificationsOut chan *MessageWithId) {
 	var hasOverflowed bool
 	defer server.wg.Done()
 	for n := range notificationsIn {
@@ -140,7 +140,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 	go server.readClientCommands(newConnection, commands, disconnected)
 	go server.handleClientShutdown(newConnection)
 
-	var notificationsUnbuffered, notifications chan []byte
+	var notificationsUnbuffered, notifications chan *MessageWithId
 	var notifyEnabled bool
 	defer func() {
 		if notifyEnabled {
@@ -183,7 +183,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 				if *cmd.ReceiveEnvelopes && !notifyEnabled {
 					notifyEnabled = true
 					notificationsUnbuffered = server.notifier.StartWaiting(uid)
-					notifications = make(chan []byte)
+					notifications = make(chan *MessageWithId)
 					server.wg.Add(1)
 					go server.readClientNotifications(notificationsUnbuffered, notifications)
 				} else if !*cmd.ReceiveEnvelopes && notifyEnabled {
@@ -210,7 +210,8 @@ func (server *Server) handleClient(connection net.Conn) error {
 				go server.notifier.StopWaitingSync(uid, notificationsUnbuffered)
 				continue
 			}
-			response.Envelope = notification
+			response.Envelope = notification.Envelope
+			response.MessageId = (*proto.Byte32) (notification.Id)
 			response.Status = proto.ServerToClient_OK.Enum()
 			if err = server.writeProtobuf(newConnection, outBuf, response); err != nil {
 				return err
@@ -342,9 +343,11 @@ func (server *Server) newMessage(uid *[32]byte, envelope []byte) (*[32]byte, err
 	if err != nil {
 		return nil, err
 	}
-	server.notifier.Notify(uid, append([]byte{}, envelope...))
+
 	msg_id := new([32]byte)
 	copy(msg_id[:], append(tstmp[:], messageHash[:24]...))
+	server.notifier.Notify(uid, msg_id, append([]byte{}, envelope...))
+
 	return msg_id, nil
 }
 

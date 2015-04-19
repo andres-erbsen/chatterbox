@@ -161,7 +161,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	defer bobHomeConn.Close()
 
 	//fmt.Printf("CBob: %v\n", ([32]byte)(bobConf.TransportSecretKeyForServer))
-	aliceNotifies := make(chan []byte)
+	aliceNotifies := make(chan *util.EnvelopeWithId)
 	aliceReplies := make(chan *proto.ServerToClient)
 
 	aliceConnToServer := &util.ConnectionToServer{
@@ -173,7 +173,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 
 	go aliceConnToServer.ReceiveMessages()
 
-	bobNotifies := make(chan []byte)
+	bobNotifies := make(chan *util.EnvelopeWithId)
 	bobReplies := make(chan *proto.ServerToClient)
 
 	bobConnToServer := &util.ConnectionToServer{
@@ -243,7 +243,7 @@ func TestEncryptFirstMessage(t *testing.T) {
 	}
 	incoming := <-bobConnToServer.ReadEnvelope
 
-	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming, bobPublicPrekeys, bobSecretPrekeys)
+	out, bobRatch, _, err := bobConf.decryptFirstMessage(incoming.Envelope, bobPublicPrekeys, bobSecretPrekeys)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,16 +272,16 @@ func TestEncryptFirstMessage(t *testing.T) {
 	aliceConf.fillAuth = util.FillAuthWith((*[32]byte)(&aliceConf.MessageAuthSecretKey))
 	aliceConf.checkAuth = util.CheckAuthWith(aliceConf.ProfileRatchet)
 	aliceRatchets, err := AllRatchets(aliceConf, aliceConf.fillAuth, aliceConf.checkAuth)
-	outAlice, _, err := decryptMessage(incomingAlice, aliceRatchets)
+	outAlice, _, err := decryptMessage(incomingAlice.Envelope, aliceRatchets)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ha := sha256.Sum256(incomingAlice)
+	ha := sha256.Sum256(incomingAlice.Envelope)
 	if err := aliceConf.saveMessage(outAlice); err != nil {
 		t.Fatal(err)
 	}
-	if err := util.DeleteMessages(aliceConnToServer, [][32]byte{ha}); err != nil {
+	if err := util.DeleteMessages(aliceConnToServer, []*[32]byte{&ha}); err != nil {
 		t.Fatal(err)
 	}
 	fmt.Printf("Alice hears: %s\n", outAlice)
