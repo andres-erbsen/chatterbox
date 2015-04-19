@@ -2,9 +2,8 @@ package server
 
 import "sync"
 
-
 type MessageWithId struct {
-	Id *[32]byte
+	Id       *[32]byte
 	Envelope []byte
 }
 
@@ -50,7 +49,7 @@ func (n *Notifier) StopWaitingSync(uid *[32]byte, removeCh chan *MessageWithId) 
 
 func (n *Notifier) Notify(uid *[32]byte, msg_id *[32]byte, envelope []byte) {
 	msgwi := &MessageWithId{
-		Id: msg_id,
+		Id:       msg_id,
 		Envelope: envelope,
 	}
 	n.Lock()

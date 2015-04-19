@@ -498,7 +498,7 @@ func TestPushNotifications(t *testing.T) {
 		t.Error(fmt.Sprintf("first message mismatch: \"%s\" != \"%s\"", r3.Envelope, envelope3))
 	}
 
-	messageList := []*[32]byte{(*[32]byte) (r1.MessageId), (*[32]byte) (r2.MessageId), (*[32]byte) (r3.MessageId)}
+	messageList := []*[32]byte{(*[32]byte)(r1.MessageId), (*[32]byte)(r2.MessageId), (*[32]byte)(r3.MessageId)}
 
 	for _, element := range messageList {
 		if element == nil {

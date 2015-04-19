@@ -39,7 +39,7 @@ func StartServer(db *leveldb.DB, shutdown chan struct{}, pk *[32]byte, sk *[32]b
 		database: db,
 		shutdown: shutdown,
 		listener: listener,
-		notifier: Notifier{ waiters: make(map[[32]byte][]chan *MessageWithId)},
+		notifier: Notifier{waiters: make(map[[32]byte][]chan *MessageWithId)},
 		pk:       pk,
 		sk:       sk,
 	}
@@ -163,13 +163,14 @@ func (server *Server) handleClient(connection net.Conn) error {
 				if err != nil {
 					return err
 				}
-				response.MessageId = (*proto.Byte32) (msg_id)
+				response.MessageId = (*proto.Byte32)(msg_id)
 			} else if cmd.ListMessages != nil && *cmd.ListMessages {
 				var messageList []*[32]byte
 				messageList, err = server.getMessageList(uid)
 				response.MessageList = proto.ToProtoByte32List(messageList)
 			} else if cmd.DownloadEnvelope != nil {
 				response.Envelope, err = server.getEnvelope(uid, (*[32]byte)(cmd.DownloadEnvelope))
+				response.MessageId = cmd.DownloadEnvelope
 			} else if cmd.DeleteMessages != nil {
 				messageList := cmd.DeleteMessages
 				err = server.deleteMessages(uid, proto.To32ByteList(messageList))
@@ -211,7 +212,7 @@ func (server *Server) handleClient(connection net.Conn) error {
 				continue
 			}
 			response.Envelope = notification.Envelope
-			response.MessageId = (*proto.Byte32) (notification.Id)
+			response.MessageId = (*proto.Byte32)(notification.Id)
 			response.Status = proto.ServerToClient_OK.Enum()
 			if err = server.writeProtobuf(newConnection, outBuf, response); err != nil {
 				return err
