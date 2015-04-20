@@ -53,7 +53,7 @@ func ConversationName(metadata *proto.ConversationMetadata) string {
 
 func MessageName(date time.Time, sender string) string {
 	//messageName := "date-sender"
-	dateStr := date.UTC().Format(time.RFC3339)
+	dateStr := date.UTC().Format(time.RFC3339Nano)
 	return fmt.Sprintf("%s-%s", dateStr, sender)
 }
 

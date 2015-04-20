@@ -7,10 +7,9 @@ import (
 	"github.com/andres-erbsen/chatterbox/transport"
 )
 
-
 type EnvelopeWithId struct {
 	Envelope []byte
-	Id 		 *[32]byte
+	Id       *[32]byte
 }
 
 type ConnectionToServer struct {
@@ -41,9 +40,9 @@ func (c *ConnectionToServer) ReceiveMessages() error {
 			}
 		}
 		if msg.Envelope != nil {
-			envwithid := &EnvelopeWithId {
-				Envelope : msg.Envelope,
-				Id : (*[32]byte) (msg.MessageId),
+			envwithid := &EnvelopeWithId{
+				Envelope: msg.Envelope,
+				Id:       (*[32]byte)(msg.MessageId),
 			}
 			go func() { c.ReadEnvelope <- envwithid }() // TODO: bounded buffer?
 		} else {
