@@ -1,4 +1,4 @@
-1. Install [`dename`](https://github.com/andres-erbsen/dename) and [get an account](https://dename.mit.edu/).
+1. Install `go`, `TOR`, [`dename`](https://github.com/andres-erbsen/dename) and [get an account](https://dename.mit.edu/).
 
 2. Download, compile, install
 
@@ -10,7 +10,7 @@
 
 4. Start the daemon
 
-        chatterboxd -root=${INIT_DIR}
+        chatterboxd ${INIT_DIR}
 
 5. Run the qt UI
 
