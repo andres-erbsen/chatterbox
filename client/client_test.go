@@ -2,8 +2,8 @@ package client
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/nacl/box"
-	protobuf "code.google.com/p/gogoprotobuf/proto"
+	"golang.org/x/crypto/nacl/box"
+	protobuf "golang.org/x/oprotobuf/proto"
 	"crypto/rand"
 	"fmt"
 	"github.com/andres-erbsen/chatterbox/proto"

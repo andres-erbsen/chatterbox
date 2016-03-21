@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"code.google.com/p/go.crypto/curve25519"
+	"golang.org/x/crypto/curve25519"
 )
 
 func nowFunc() time.Time {

@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	protobuf "code.google.com/p/gogoprotobuf/proto"
+	protobuf "golang.org/x/oprotobuf/proto"
 	cbClient "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"

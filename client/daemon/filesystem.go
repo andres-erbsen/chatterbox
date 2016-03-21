@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"code.google.com/p/go.exp/fsnotify"
+	"golang.org/x/exp/fsnotify"
 	"github.com/andres-erbsen/chatterbox/client/encoding"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/proto"

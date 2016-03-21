@@ -16,7 +16,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 
-	"code.google.com/p/go.exp/fsnotify"
+	"golang.org/x/exp/fsnotify"
 	util "github.com/andres-erbsen/chatterbox/client"
 	"github.com/andres-erbsen/chatterbox/client/persistence"
 	"github.com/andres-erbsen/chatterbox/client/profilesyncd"

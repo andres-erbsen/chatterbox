@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	"code.google.com/p/go.crypto/nacl/box"
+	"golang.org/x/crypto/nacl/box"
 )
 
 func runHandshake(t *testing.T, haveClient bool) (c1 *Conn, c2 *Conn) {

@@ -9,7 +9,7 @@ import (
 	"net"
 	"sync"
 
-	protobuf "code.google.com/p/gogoprotobuf/proto"
+	protobuf "golang.org/x/oprotobuf/proto"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/transport"
 	"github.com/syndtr/goleveldb/leveldb"

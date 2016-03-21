@@ -8,9 +8,9 @@ import (
 	"io"
 	"time"
 
-	"code.google.com/p/go.crypto/curve25519"
-	"code.google.com/p/go.crypto/nacl/box"
-	protobuf "code.google.com/p/gogoprotobuf/proto"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/nacl/box"
+	protobuf "golang.org/x/oprotobuf/proto"
 	"github.com/agl/ed25519"
 	"github.com/andres-erbsen/chatterbox/proto"
 	"github.com/andres-erbsen/chatterbox/ratchet"

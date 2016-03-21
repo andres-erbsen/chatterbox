@@ -15,7 +15,7 @@ import (
 	"net"
 	"time"
 
-	"code.google.com/p/go.crypto/nacl/box"
+	"golang.org/x/crypto/nacl/box"
 )
 
 // Conn is an encrypted and authenticated connection that is NOT concurrency-safe
