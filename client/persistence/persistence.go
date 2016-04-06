@@ -181,10 +181,10 @@ type Message struct {
 
 func ReadMessageFromFile(path string) (*Message, error) {
 	base := filepath.Base(path)
-	if len(base) < len("2015-02-16T07:09:55Z-") {
+	if len(base) < len("2006-01-02T15:04:05.999999999Z-") {
 		return nil, fmt.Errorf("badly formatted message filename : " + path)
 	}
-	sender := base[len("2015-02-16T07:09:55Z-"):]
+	sender := base[len("2006-01-02T15:04:05.999999999Z-"):]
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("badly formatted message filename : " + path)
